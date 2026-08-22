@@ -676,6 +676,7 @@ export function createPanels({
 
   return {
     renderAll,
+    selectToolView,
     stop() {
       unsubscribe();
       clearInterval(timer);

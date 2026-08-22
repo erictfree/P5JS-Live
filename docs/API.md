@@ -215,11 +215,23 @@ Editor behavior:
 - `Cmd/Ctrl+Option/Alt+T` tidies the current cell without evaluating it.
 - `Cmd/Ctrl+Alt+[` folds all; `Cmd/Ctrl+Alt+]` unfolds all.
 - `Cmd/Ctrl+Alt+/` opens the command sheet.
+- `Cmd/Ctrl+Option/Alt+A` opens the AI source editor.
 - The Project panel's **code size** setting also changes folded and projected code.
 
 In the structured editor, hover a boundary in the far-left gutter to reveal
 **+ New patch**. It inserts an object-patch cell, opens it, and places the cursor in
 `draw()`. It does not evaluate or activate the patch.
+
+### AI staging
+
+The AI source editor replaces the visible source buffer but does not evaluate or save
+the proposal immediately. Changed lines remain marked until one of two operations:
+
+- `Cmd/Ctrl+Enter` accepts, evaluates, and saves the complete proposed buffer.
+- `Cmd/Ctrl+Z` cancels and restores the exact buffer from before the first AI request.
+
+Follow-up prompts replace the current proposal within the same transaction. Failed
+evaluation leaves the proposal staged and the last successful runtime intact.
 
 ## Lifecycle and state
 

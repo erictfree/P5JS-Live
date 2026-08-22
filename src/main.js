@@ -18,6 +18,8 @@ import { createEditor } from './ui/editor.js';
 import { createPanels } from './ui/panels.js';
 import { createProjection } from './ui/projection.js';
 import { createConfirmDialog } from './ui/confirmDialog.js';
+import { createAIAssistant } from './ui/aiAssistant.js';
+import { createAISettings } from './ai/settings.js';
 import { createProjectStore } from './persistence/projectStore.js';
 import { createPerformanceStore } from './persistence/performanceStore.js';
 import { createAppController } from './app/controller.js';
@@ -185,6 +187,16 @@ const panels = createPanels({
   onRestoreSafe: restoreSafeState,
   onLocateStrategy: (name) => {
     if (editor.revealStrategy(name)) toggleReference(true);
+  },
+});
+
+const aiAssistant = createAIAssistant({
+  editor,
+  settings: createAISettings(),
+  library: PATCH_LIBRARY,
+  onConfigure: () => {
+    toggleTools(false);
+    panels.selectToolView('ai');
   },
 });
 
@@ -1317,6 +1329,11 @@ window.addEventListener('keydown', (event) => {
     startNewPerformance();
     return;
   }
+  if (accel && event.altKey && event.code === 'KeyA') {
+    event.preventDefault();
+    aiAssistant.open();
+    return;
+  }
   if (accel && !event.altKey && event.code === 'Backslash') {
     event.preventDefault();
     toggleTools();
@@ -1359,4 +1376,5 @@ window.p5jsLive = {
   projectStore,
   performanceStore,
   network,
+  aiAssistant,
 };

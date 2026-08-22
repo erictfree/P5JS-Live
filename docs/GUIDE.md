@@ -205,6 +205,22 @@ const scene = [
 Each operator argument can be a number or a function of the live context. Put the
 chain after the content it should process.
 
+## Edit with AI (beta)
+
+1. Open **Tools → AI**, choose a model, and add your own OpenAI API key.
+2. Press `Cmd/Ctrl+Option/Alt+A` and describe the source change.
+3. Review the highlighted proposal in the editor.
+4. Press `Cmd/Ctrl+Enter` to accept and run it, or `Cmd/Ctrl+Z` to cancel it.
+
+Follow-up prompts revise the same staged proposal. AI may tune values, edit the
+scene, install a named library patch, or write a new patch cell. The previous visual
+continues while a proposal is staged. If evaluation fails, the proposal stays staged
+for another prompt or cancellation.
+
+The API key goes directly from the browser to OpenAI. It is session-only unless
+**remember on this device** is enabled, and it is not saved in projects or exports.
+A ChatGPT subscription is separate from API access.
+
 ## Publish a canvas stream (beta)
 
 Create a room and place its publisher after the output you want to share:
@@ -282,6 +298,7 @@ the tab. See [SECURITY.md](../SECURITY.md).
 | `Cmd/Ctrl+Shift+Enter` | Evaluate the complete editor |
 | `Cmd/Ctrl+/` | Toggle one comment layer |
 | `Cmd/Ctrl+Option/Alt+T` | Tidy the current cell |
+| `Cmd/Ctrl+Option/Alt+A` | Open the AI source editor |
 | `Cmd/Ctrl+Alt+N` | Start a new performance from the default scene |
 | `Esc` | Release editor focus |
 | `Space` | Play or pause audio |

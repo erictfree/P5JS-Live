@@ -887,8 +887,8 @@ test.describe('the minimal display', () => {
     await expect(play).toBeVisible();
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.audio.status().source))
-      .toBe('intro loop');
-    await expect(play).toBeEnabled();
+      .toBe('none');
+    await expect(play).toBeDisabled();
     await expect(play).toHaveAttribute('aria-label', /^(Play|Pause) audio$/);
     await expect(loop).toBeVisible();
     await expect(loop).toHaveAttribute('aria-pressed', 'false');
@@ -937,9 +937,7 @@ test.describe('the minimal display', () => {
     await expect(welcome.getByRole('button', { name: 'Audio file' })).toBeVisible();
     await expect(welcome.getByRole('button', { name: 'Microphone' })).toBeVisible();
     await expect(welcome.getByRole('button', { name: 'Start silent' })).toBeVisible();
-    await expect(welcome).toContainText(
-      'Intro loop ready · files: MP3, WAV, OGG, M4A, AAC',
-    );
+    await expect(welcome).toContainText('Files: MP3, WAV, OGG, M4A, AAC');
     await expect(page.locator('#audio-file')).toHaveAttribute(
       'accept',
       '.mp3,.wav,.ogg,.m4a,.aac',
@@ -971,10 +969,9 @@ test.describe('the minimal display', () => {
     expect(visualTokens.primaryRadius).toBe('7px');
 
     await expect.poll(() => page.evaluate(() => window.p5jsLive.audio.status().source))
-      .toBe('intro loop');
-    await welcome.locator('.welcome-hero').click();
+      .toBe('none');
     await expect.poll(() => page.evaluate(() => window.p5jsLive.audio.status().playing))
-      .toBe(true);
+      .toBe(false);
 
     await welcome.getByRole('button', { name: 'Start silent' }).click();
     await expect(welcome).toBeHidden();
@@ -1757,7 +1754,7 @@ circle(20, 20, 10);
     await expect(page.locator('#network-panel')).toBeHidden();
     expect(await page.locator('#tool-tabs [data-tool-view]').evaluateAll((tabs) =>
       tabs.map((tab) => tab.dataset.toolView),
-    )).toEqual(['audio', 'library', 'messages', 'project', 'network']);
+    )).toEqual(['audio', 'library', 'messages', 'project', 'ai', 'network']);
     await expect(page.getByRole('tab', { name: 'Network disabled' })).toBeDisabled();
     await expect(page.locator('#scene-panel')).toHaveCount(0);
     await expect(page.locator('#code')).toHaveValue(/const scene = \[/);

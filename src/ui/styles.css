@@ -596,6 +596,20 @@ button.folded-new-patch-button:focus-visible::after {
 .folded-source-mirror.flash-bad > span {
   background: rgba(138, 45, 57, 0.55);
 }
+.ai-changed-line,
+#code-mirror > span.ai-changed-line,
+.folded-source-mirror > span.ai-changed-line {
+  background: rgba(46, 107, 143, 0.68);
+  box-shadow: inset 3px 0 0 #24f5d0;
+}
+.folded-block.ai-staged-block > summary .folded-preview {
+  background: rgba(46, 107, 143, 0.68);
+  box-shadow: inset 3px 0 0 #24f5d0;
+}
+#code-layer.is-ai-staged #code,
+#code-layer.is-ai-staged .folded-source-editor {
+  cursor: default;
+}
 .folded-block.flash-bad > summary .folded-preview,
 .folded-block.flash-bad .folded-source-mirror > span {
   background: rgba(138, 45, 57, 0.55);
@@ -986,7 +1000,7 @@ input[type='number'] {
 
 .tool-tabs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   flex: 0 0 auto;
   border-bottom: 1px solid var(--line);
   background: rgba(12, 12, 15, calc(var(--tools-alpha) * 0.72));
@@ -1207,6 +1221,216 @@ input[type='number'] {
 
 .network-beta-note {
   color: var(--warn);
+}
+
+/* --- AI source editor -------------------------------------------------------- */
+
+.ai-settings .hint a {
+  color: var(--accent);
+}
+.ai-key-field {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  color: var(--dim);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ai-key-field input {
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 7px;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel-2);
+  font: 12px/1.4 var(--mono);
+  letter-spacing: normal;
+  text-transform: none;
+}
+.ai-remember-row {
+  margin-top: 5px;
+}
+.ai-settings-actions {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+#ai-key-status[data-ready='true'] {
+  color: var(--ok);
+}
+button.ai-open-button {
+  width: 100%;
+  min-height: 32px;
+  margin: 10px 0 4px;
+  color: var(--accent);
+}
+
+.ai-assistant {
+  position: absolute;
+  left: 50%;
+  bottom: 42px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(620px, calc(100vh - 84px));
+  overflow: hidden;
+  color: #f6f5fa;
+  border: 1px solid rgba(122, 162, 247, 0.58);
+  border-radius: 10px;
+  background: rgba(13, 13, 18, 0.94);
+  box-shadow: 0 18px 70px rgba(0, 0, 0, 0.62);
+  -webkit-backdrop-filter: blur(12px) saturate(0.85);
+  backdrop-filter: blur(12px) saturate(0.85);
+  transform: translateX(-50%);
+}
+.ai-assistant[hidden] {
+  display: none;
+}
+#side:not(.is-hidden) ~ .ai-assistant {
+  right: 416px;
+  left: auto;
+  width: min(720px, calc(100vw - 440px));
+  transform: none;
+}
+#reference-side:not(.is-hidden) ~ .ai-assistant {
+  right: 366px;
+  left: auto;
+  width: min(720px, calc(100vw - 390px));
+  transform: none;
+}
+.ai-assistant-header,
+.ai-assistant-footer,
+.ai-stage-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ai-assistant-header {
+  min-height: 40px;
+  padding: 7px 10px 7px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.ai-assistant-header > div {
+  flex: 1;
+}
+.ai-assistant-header strong {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+#ai-close {
+  width: 28px;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  font-size: 17px;
+}
+.ai-conversation {
+  min-height: 92px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 10px 12px 2px;
+}
+.ai-message {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  margin-bottom: 9px;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.ai-message-role {
+  color: var(--dim);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ai-message.is-user > div {
+  color: #fff;
+}
+.ai-message.is-error > div,
+.ai-message.is-error .ai-message-role {
+  color: var(--bad);
+}
+.ai-stage-actions {
+  flex-wrap: wrap;
+  padding: 7px 10px;
+  color: var(--ok);
+  border-top: 1px solid rgba(61, 220, 151, 0.25);
+  border-bottom: 1px solid rgba(61, 220, 151, 0.25);
+  background: rgba(61, 220, 151, 0.07);
+  font-size: 10px;
+}
+.ai-stage-actions[hidden] {
+  display: none;
+}
+.ai-stage-actions > span {
+  flex: 1;
+  min-width: 170px;
+}
+.ai-stage-actions button.primary {
+  color: #07120e;
+  border-color: var(--ok);
+  background: var(--ok);
+}
+.ai-stage-actions kbd {
+  margin-left: 4px;
+  color: inherit;
+  opacity: 0.68;
+  font-size: 8px;
+}
+.ai-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px;
+  padding: 10px 10px 5px;
+}
+.ai-composer textarea {
+  grid-row: 1 / 3;
+  min-height: 48px;
+  max-height: 160px;
+  resize: none;
+  padding: 9px 10px;
+  color: var(--text);
+  border: 1px solid rgba(218, 218, 230, 0.28);
+  border-radius: 7px;
+  outline: none;
+  background: rgba(5, 5, 8, 0.78);
+  font: 12px/1.45 var(--mono);
+}
+.ai-composer textarea:focus {
+  border-color: var(--accent);
+}
+.ai-composer button {
+  width: 58px;
+  min-height: 30px;
+}
+.ai-assistant-footer {
+  flex-wrap: wrap;
+  padding: 2px 11px 8px;
+  color: var(--dim);
+  font-size: 9px;
+}
+#ai-status {
+  flex: 1;
+  min-width: 180px;
+}
+#ai-configure {
+  min-height: 24px;
+  color: var(--accent);
+}
+@media (max-width: 900px) {
+  #side:not(.is-hidden) ~ .ai-assistant,
+  #reference-side:not(.is-hidden) ~ .ai-assistant {
+    right: 312px;
+    width: calc(100vw - 328px);
+  }
+  .ai-stage-actions kbd {
+    display: none;
+  }
 }
 .network-join-form {
   display: grid;
@@ -1598,7 +1822,7 @@ button.icon {
 .welcome-hero {
   position: relative;
   overflow: hidden;
-  height: 238px;
+  height: 244px;
   padding: 0;
   background-color: #c1bcf2;
   background-image: linear-gradient(180deg, #c1bcf2 0%, #c8c3f1 72%, #f8f5fc 100%);
@@ -1630,11 +1854,11 @@ button.icon {
 }
 .welcome-illustration {
   position: absolute;
-  right: -48px;
-  bottom: -20px;
+  right: -8px;
+  bottom: -4px;
   z-index: 1;
   display: block;
-  width: 340px;
+  width: 280px;
   max-width: 68%;
   height: auto;
   border-radius: 0;
@@ -1828,7 +2052,7 @@ button.icon {
     max-width: 205px;
   }
   .welcome-illustration {
-    right: -62px;
+    right: -24px;
   }
 }
 

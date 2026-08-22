@@ -11,6 +11,7 @@ import {
 } from '../language/sourceBlocks.js';
 import { tokenizeLines } from './highlight.js';
 import { tidySource } from './tidy.js';
+import { changedLineNumbers } from './sourceDiff.js';
 
 const INDENT = '  ';
 const PAIRS = { '{': '}', '[': ']', '(': ')' };
@@ -63,6 +64,8 @@ export function createEditor(textarea, handlers) {
   let numberedLines = 0;
   let foldedSource = null;
   let folded = false;
+  let staged = null;
+  let suppressChangeNotifications = 0;
   const openFolds = new Set();
   let foldControlSignature = '';
   // Library buttons take focus before their click handlers run. Preserve the last
@@ -90,8 +93,9 @@ export function createEditor(textarea, handlers) {
   };
 
   /** One line of the mirror: the box, and the coloured spans inside it. */
-  function buildLine(tokens) {
+  function buildLine(tokens, lineIndex = -1) {
     const line = document.createElement('span');
+    if (staged?.changedLines.has(lineIndex)) line.classList.add('ai-changed-line');
     for (const token of tokens) {
       // Uncoloured runs are text nodes, not elements. Most of a file is punctuation,
       // whitespace and ordinary names, so this is what keeps a keystroke from
@@ -129,11 +133,13 @@ export function createEditor(textarea, handlers) {
       // that is what the diff avoids.
       const tokenLines = tokenizeLines(source);
       const previous = mirror.childNodes;
-      const signatures = tokenLines.map(signature);
+      const signatures = tokenLines.map((tokens, index) =>
+        `${staged?.changedLines.has(index) ? 'changed' : 'same'}\u0002${signature(tokens)}`,
+      );
       const next = tokenLines.map((tokens, index) =>
         signatures[index] === mirroredLines[index] && previous[index]
           ? previous[index]
-          : buildLine(tokens),
+          : buildLine(tokens, index),
       );
       mirror.replaceChildren(...next);
       mirroredLines = signatures;
@@ -489,6 +495,13 @@ export function createEditor(textarea, handlers) {
       details.className = 'folded-block';
       details.dataset.blockDescription = preview.description;
       details.dataset.foldKey = foldKey;
+      const lastLine = firstLine - 1 + Math.max(0, block.text.split('\n').length - 1);
+      details.classList.toggle(
+        'ai-staged-block',
+        Boolean(staged && [...staged.changedLines].some(
+          (line) => line >= firstLine - 1 && line <= lastLine,
+        )),
+      );
       details.open = openFolds.has(foldKey);
       details.addEventListener('toggle', () => {
         if (details.open) openFolds.add(foldKey);
@@ -536,6 +549,7 @@ export function createEditor(textarea, handlers) {
       bodyEditor.value = rawLines.slice(1).join('\n');
       bodyEditor.spellcheck = false;
       bodyEditor.wrap = 'off';
+      bodyEditor.readOnly = Boolean(staged);
       bodyEditor.setAttribute('aria-label', `Edit ${preview.description}`);
 
       const rememberBodyCaret = () => {
@@ -561,7 +575,7 @@ export function createEditor(textarea, handlers) {
         const tokenLines = tokenizeLines(bodyEditor.value);
         const sourceLines = bodyEditor.value.split('\n');
         const paintedLines = tokenLines.map((tokens, index) => {
-          const line = buildLine(tokens);
+          const line = buildLine(tokens, firstLine + index);
           const indent = (sourceLines[index]?.match(/^[\t ]*/)?.[0] ?? '')
             .replaceAll('\t', INDENT).length;
           for (let level = 0; level < Math.floor(indent / INDENT.length); level++) {
@@ -857,11 +871,15 @@ export function createEditor(textarea, handlers) {
     const block = blockAt(source, textarea.selectionStart);
     const text = block ? block.text : source;
     const label = block ? describeBlock(block.text) : 'buffer';
-    flash(handlers.onEvaluate(text, label).ok);
+    const result = handlers.onEvaluate(text, label);
+    flash(result.ok);
+    return result;
   }
 
   function evaluateBuffer() {
-    flash(handlers.onEvaluate(textarea.value, 'buffer').ok);
+    const result = handlers.onEvaluate(textarea.value, 'buffer');
+    flash(result.ok);
+    return result;
   }
 
   /** A patch can compile successfully and still throw when the next frame calls it. */
@@ -1091,7 +1109,8 @@ export function createEditor(textarea, handlers) {
    * @param {string} text replaces the selection, or the whole buffer when `all`
    * @param {boolean} all
    */
-  function write(text, all = false) {
+  function write(text, all = false, { notify = true } = {}) {
+    if (!notify) suppressChangeNotifications++;
     const active = document.activeElement;
     const restore = active !== textarea ? active : null;
     const original = textarea.value;
@@ -1114,7 +1133,8 @@ export function createEditor(textarea, handlers) {
     // A hidden textarea cannot always take focus from an inline folded-cell input.
     // Chromium can then return true after inserting into that input instead. Trust
     // the native path only when the authoritative source has the expected value.
-    if (!inserted || textarea.value !== expected) {
+    const usedNativeInsertion = inserted && textarea.value === expected;
+    if (!usedNativeInsertion) {
       textarea.value = expected;
       if (!all) {
         textarea.selectionStart = textarea.selectionEnd = originalFrom + text.length;
@@ -1131,12 +1151,14 @@ export function createEditor(textarea, handlers) {
       textarea.scrollTop = scrollTop;
     }
     if (restore?.focus) restore.focus();
+    if (!notify) suppressChangeNotifications--;
+    return usedNativeInsertion;
   }
 
   /** Every path that alters the text goes through here, so the mirror cannot drift. */
   function changed() {
     syncMirror();
-    handlers.onChange?.(textarea.value);
+    if (suppressChangeNotifications === 0) handlers.onChange?.(textarea.value);
   }
 
   textarea.addEventListener('input', () => {
@@ -1176,6 +1198,74 @@ export function createEditor(textarea, handlers) {
   }
 
   syncMirror();
+
+  function refreshStagedPresentation() {
+    textarea.readOnly = Boolean(staged);
+    textarea.parentElement?.classList.toggle('is-ai-staged', Boolean(staged));
+    mirrored = null;
+    foldedSource = null;
+    syncMirror();
+  }
+
+  /**
+   * Put an AI proposal in the real source buffer without evaluating or saving it.
+   * Follow-up proposals keep the same original base so Cancel is one transaction.
+   */
+  function stageSource(next) {
+    const source = String(next ?? '');
+    const current = textarea.value;
+    if (!source.trim()) return { ok: false, reason: 'empty' };
+    if (source === current) return { ok: true, changed: 0, unchanged: true };
+
+    const base = staged?.base ?? current;
+    const writes = (staged?.writes ?? 0) + 1;
+    const nativeWrites = staged?.nativeWrites ?? 0;
+    staged = {
+      base,
+      writes,
+      nativeWrites,
+      changedLines: changedLineNumbers(base, source),
+    };
+
+    textarea.readOnly = false;
+    const native = write(source, true, { notify: false });
+    if (native) staged.nativeWrites++;
+    refreshStagedPresentation();
+    return { ok: true, changed: staged.changedLines.size, source };
+  }
+
+  function cancelStagedSource() {
+    if (!staged) return { ok: false, reason: 'not-staged' };
+    const transaction = staged;
+    const active = document.activeElement;
+    textarea.readOnly = false;
+    suppressChangeNotifications++;
+    textarea.focus();
+    for (let index = 0; index < transaction.nativeWrites; index++) {
+      try {
+        document.execCommand('undo');
+      } catch {
+        break;
+      }
+    }
+    if (textarea.value !== transaction.base) textarea.value = transaction.base;
+    suppressChangeNotifications--;
+    staged = null;
+    refreshStagedPresentation();
+    active?.focus?.();
+    return { ok: true, source: transaction.base };
+  }
+
+  function acceptStagedSource() {
+    if (!staged) return { ok: false, phase: 'empty', error: new Error('No AI edit is staged') };
+    const result = handlers.onEvaluate(textarea.value, 'AI proposal');
+    flash(result.ok);
+    if (!result.ok) return result;
+    staged = null;
+    refreshStagedPresentation();
+    handlers.onChange?.(textarea.value);
+    return result;
+  }
 
   function appendSource(source) {
     const next = `${textarea.value.trimEnd()}\n\n${source.trim()}\n`;
@@ -1301,6 +1391,10 @@ export function createEditor(textarea, handlers) {
     unfoldAll,
     toggleFolded: () => setFolded(!folded),
     isFolded: () => folded,
+    hasStagedSource: () => Boolean(staged),
+    stageSource,
+    cancelStagedSource,
+    acceptStagedSource,
     evaluateCursorBlock,
     evaluateBuffer,
     tidyCursorBlock,

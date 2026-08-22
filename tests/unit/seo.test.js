@@ -28,11 +28,15 @@ describe('public SEO metadata', () => {
       expect(html).toMatch(/<meta name="description" content="[^"]{80,160}"/);
       expect(html).toContain(`<link rel="canonical" href="${page.canonical}"`);
       expect(html).toContain(`<meta property="og:url" content="${page.canonical}"`);
-      expect(html).toContain('<meta property="og:image" content="https://p5js.live/assets/hero-dj-character.jpg"');
+      expect(html).toContain('<meta property="og:image" content="https://p5js.live/assets/hero-bot-3.png"');
       expect(html).toContain('<meta name="twitter:card" content="summary_large_image"');
       expect(html).toContain('<meta name="robots" content="index, follow, max-image-preview:large');
       expect(html).toContain('<link rel="icon" href="/favicon.svg"');
-      expect(html).toContain('<script type="module" src="/analytics.js"></script>');
+      if (page.path === 'site/index.html') {
+        expect(html).toContain('<script type="module" src="/analytics.js"></script>');
+      } else {
+        expect(html).not.toContain('<script type="module" src="/analytics.js"></script>');
+      }
 
       const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
       expect(blocks).toHaveLength(1);

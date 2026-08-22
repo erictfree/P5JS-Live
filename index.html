@@ -17,17 +17,17 @@
     <meta property="og:url" content="https://p5js.live/live/" />
     <meta property="og:title" content="p5js.live Instrument — Live-Code p5.js Visuals" />
     <meta property="og:description" content="Write, remix, and perform audio-reactive p5.js visuals live in your browser with patches, scenes, and GPU shaders." />
-    <meta property="og:image" content="https://p5js.live/assets/hero-dj-character.jpg" />
-    <meta property="og:image:type" content="image/jpeg" />
-    <meta property="og:image:width" content="1672" />
-    <meta property="og:image:height" content="941" />
-    <meta property="og:image:alt" content="p5js.live audio-reactive visual live-coding instrument" />
+    <meta property="og:image" content="https://p5js.live/assets/hero-bot-3.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1254" />
+    <meta property="og:image:height" content="1254" />
+    <meta property="og:image:alt" content="p5js.live robot mascot coding on a laptop" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="p5js.live Instrument — Live-Code p5.js Visuals" />
     <meta name="twitter:description" content="Write, remix, and perform audio-reactive p5.js visuals live in your browser." />
-    <meta name="twitter:image" content="https://p5js.live/assets/hero-dj-character.jpg" />
-    <meta name="twitter:image:alt" content="p5js.live audio-reactive visual live-coding instrument" />
+    <meta name="twitter:image" content="https://p5js.live/assets/hero-bot-3.png" />
+    <meta name="twitter:image:alt" content="p5js.live robot mascot coding on a laptop" />
 
     <script type="application/ld+json">
     {
@@ -55,11 +55,10 @@
         }
       },
       "codeRepository": "https://github.com/erictfree/P5JS-Live",
-      "image": "https://p5js.live/assets/hero-dj-character.jpg"
+      "image": "https://p5js.live/assets/hero-bot-3.png"
     }
     </script>
 
-    <script type="module" src="/analytics.js"></script>
 
     <!--
       p5 and p5.sound are pinned builds, vendored locally so the visual app runs
@@ -92,7 +91,7 @@
               <p>AUDIO-REACTIVE VISUAL LIVE CODING IN THE BROWSER</p>
               <img
                 class="welcome-illustration"
-                src="assets/illustrations/mascot.png"
+                src="/assets/hero-bot-3.png"
                 alt="Cartoon live coder wearing headphones at a laptop"
               />
             </header>
@@ -183,6 +182,7 @@
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>[</kbd></dt><dd>fold all objects, functions, classes and scenes</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>]</kbd></dt><dd>unfold all while keeping every fold control available</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>/</kbd></dt><dd>show or hide this key-command sheet while editing</dd>
+            <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd></dt><dd>open the AI source editor</dd>
             <dt><kbd>Esc</kbd></dt><dd>release editor focus</dd>
             <dt><kbd>Space</kbd></dt><dd>play / pause</dd>
             <dt><kbd>0</kbd></dt><dd>restore the complete safe state</dd>
@@ -250,6 +250,14 @@
             aria-controls="project-panel"
             data-tool-view="project"
           >Project</button>
+          <button
+            id="tools-tab-ai"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="ai-panel"
+            data-tool-view="ai"
+          >AI <span class="beta-badge">beta</span></button>
           <button
             id="tools-tab-network"
             type="button"
@@ -533,6 +541,53 @@ const publishMain = room.publish({
             </div>
             </section>
           </section>
+
+          <section
+            class="tool-view"
+            id="ai-panel"
+            role="tabpanel"
+            aria-labelledby="tools-tab-ai"
+            data-tool-panel="ai"
+            hidden
+          >
+            <div class="body ai-settings">
+              <p class="hint">
+                AI edits the current source and stages the result. Nothing runs until you accept it.
+              </p>
+              <label class="row">
+                <span class="name">model</span>
+                <select id="ai-model" aria-label="OpenAI model"></select>
+              </label>
+              <label class="ai-key-field">
+                <span>OpenAI API key</span>
+                <input
+                  id="ai-api-key"
+                  type="password"
+                  autocomplete="new-password"
+                  spellcheck="false"
+                  placeholder="sk-…"
+                  aria-describedby="ai-key-help ai-key-status"
+                />
+              </label>
+              <label class="row ai-remember-row">
+                <span class="name">remember on this device</span>
+                <input id="ai-remember-key" type="checkbox" />
+              </label>
+              <p id="ai-key-help" class="hint">
+                Session-only is the default. Remember stores the key in this browser profile, where page code can access it. It is sent directly to OpenAI and never included in a project or export. Do not remember a key on a shared device.
+              </p>
+              <div class="ai-settings-actions">
+                <button id="ai-save-key" type="button">Save settings</button>
+                <button id="ai-forget-key" type="button">Forget key</button>
+              </div>
+              <div id="ai-key-status" class="hint" role="status"></div>
+              <button id="ai-open" class="ai-open-button" type="button">Open AI editor</button>
+              <p class="hint">
+                Requires a separately billed OpenAI API key. A ChatGPT subscription is not an API login.
+                <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">Manage API keys</a>.
+              </p>
+            </div>
+          </section>
         </div>
       </aside>
 
@@ -547,6 +602,42 @@ const publishMain = room.publish({
         <div class="reference-explainer">Installed means source is in this project. Each patch below says separately whether it is Active or Running.</div>
         <div id="strategy-reference-list"></div>
       </aside>
+
+      <section id="ai-assistant" class="ai-assistant" role="dialog" aria-label="AI source editor" hidden>
+        <header class="ai-assistant-header">
+          <div>
+            <strong>AI source editor</strong>
+            <span class="beta-badge">beta</span>
+          </div>
+          <button id="ai-close" type="button" aria-label="Close AI source editor">×</button>
+        </header>
+        <div id="ai-conversation" class="ai-conversation" aria-live="polite">
+          <div class="ai-message is-assistant">
+            <span class="ai-message-role">AI</span>
+            <div>Describe a source change. I can tune, compose, remove, or write a patch.</div>
+          </div>
+        </div>
+        <div id="ai-stage-actions" class="ai-stage-actions" hidden>
+          <span>Proposal staged in the code</span>
+          <button id="ai-cancel" type="button">Cancel <kbd>Cmd/Ctrl+Z</kbd></button>
+          <button id="ai-accept" type="button" class="primary">Accept &amp; run <kbd>Cmd/Ctrl+Enter</kbd></button>
+        </div>
+        <div class="ai-composer">
+          <textarea
+            id="ai-prompt"
+            rows="2"
+            placeholder="Make the plasma slower and add laserFan before it…"
+            aria-label="Ask AI to edit the current source"
+          ></textarea>
+          <button id="ai-send" type="button" aria-label="Send prompt">Send</button>
+          <button id="ai-stop" type="button" aria-label="Stop generating" hidden>Stop</button>
+        </div>
+        <footer class="ai-assistant-footer">
+          <span id="ai-status" role="status"></span>
+          <button id="ai-configure" type="button">Configure AI</button>
+          <span>Enter sends · Shift+Enter adds a line</span>
+        </footer>
+      </section>
 
       <!-- GLYPH ROW — the whole of the always-visible chrome. Every one of these has a
            key command; the row exists so nothing is discoverable only by memory. It is

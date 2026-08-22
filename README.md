@@ -46,6 +46,7 @@ p5js live includes:
 - ordered scenes with independent state for each patch occurrence;
 - a source-based patch library and community patch catalog;
 - GPU post-processing through `ShaderChain` and custom WebGL patches;
+- a beta AI source editor that stages code changes before they run;
 - version history, Safe State, named performances, and project import/export;
 - fullscreen, projected code, and a separate audience window;
 - beta peer-to-peer canvas sharing through `StreamRoom` objects.
@@ -136,6 +137,20 @@ To write a patch, hover in the far-left gutter beside a folded cell and select t
 subtle `+`. Enter a JavaScript name. p5js live inserts an object patch and places the
 cursor in `draw()`.
 
+## AI source editor (beta)
+
+Press `Cmd/Ctrl+Option/Alt+A`, or open **Tools → AI**. Add your own OpenAI API key,
+then ask for a parameter change, a scene edit, a library patch, or a new patch.
+
+AI writes its proposal into the editor and highlights changed lines. The running
+visual does not change until you select **Accept & run** or press `Cmd/Ctrl+Enter`.
+Select **Cancel** or press `Cmd/Ctrl+Z` to restore the exact pre-AI source. A failed
+proposal remains staged while the last good visual keeps running.
+
+Keys are sent directly from the browser to OpenAI. Session-only storage is the
+default; **remember on this device** uses browser storage. Keys are never included in
+projects or exports. A ChatGPT subscription does not include API access.
+
 ## Main commands
 
 | Command | Action |
@@ -144,6 +159,7 @@ cursor in `draw()`.
 | `Cmd/Ctrl+Shift+Enter` | Evaluate the complete editor |
 | `Cmd/Ctrl+/` | Toggle one comment layer |
 | `Cmd/Ctrl+Option/Alt+T` | Tidy the current cell |
+| `Cmd/Ctrl+Option/Alt+A` | Open the AI source editor |
 | `Cmd/Ctrl+Alt+N` | Start a new performance from the default scene |
 | `Esc` | Release editor focus |
 | `Space` | Play or pause audio |
@@ -229,8 +245,9 @@ local signaling and is not part of the hosted Worker yet.
 
 ## Google Analytics
 
-Both public pages load `/analytics.js` and report to the p5js.live GA4 web stream. After
-deploying, confirm visits to `/` and `/live/` in the GA4 Realtime report or Tag Assistant.
+The marketing page at `/` loads `/analytics.js` and reports to the p5js.live GA4 web
+stream. The live instrument at `/live/` does not load analytics. After deploying,
+confirm visits to `/` in the GA4 Realtime report or Tag Assistant.
 
 Add any privacy notice or consent controls required for the audiences and regions where
 the site is used before enabling collection.
