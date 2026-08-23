@@ -192,7 +192,10 @@ in order.
 const spin = new ShaderChain()
   .rotate(({ time, audio }) => time * 0.15 + audio.bass * 0.3)
   .scale(({ audio }) => 1.02 + audio.mid * 0.08)
-  .hue(({ time }) => time * 0.03);
+  .bloom(({ audio }) => 0.25 + audio.bass, 4, 0.5)
+  .hue(({ time }) => time * 0.03)
+  .blend("screen")
+  .mix(0.7);
 
 const scene = [
   waveScope,
@@ -202,8 +205,9 @@ const scene = [
 ];
 ```
 
-Each operator argument can be a number or a function of the live context. Put the
-chain after the content it should process.
+Each operator argument can be a number or a function of the live context. `mix()` is
+the effect's wet/dry control; `blend()` determines how its result combines with the
+captured scene. Put the chain after the content it should process.
 
 ## Edit with AI (beta)
 
@@ -285,6 +289,8 @@ textures, and deployment.
 - **Set safe** captures source, scene, parameters, versions, and compatible state.
 - Press `0` or use **Restore safe** to restore that checkpoint.
 - Named performances remain in the current browser.
+- Saved performances are numbered newest-first; use `Cmd/Ctrl+Option/Alt+1…9` to
+  recall one of the first nine without leaving the editor.
 - Export projects that must move or be backed up.
 
 p5js live evaluates trusted JavaScript, not sandboxed code. An infinite loop can freeze
@@ -299,6 +305,7 @@ the tab. See [SECURITY.md](../SECURITY.md).
 | `Cmd/Ctrl+/` | Toggle one comment layer |
 | `Cmd/Ctrl+Option/Alt+T` | Tidy the current cell |
 | `Cmd/Ctrl+Option/Alt+A` | Open the AI source editor |
+| `Cmd/Ctrl+Option/Alt+1…9` | Recall the corresponding numbered saved performance |
 | `Cmd/Ctrl+Alt+N` | Start a new performance from the default scene |
 | `Esc` | Release editor focus |
 | `Space` | Play or pause audio |

@@ -110,7 +110,7 @@
         </div>
       </div>
       <div style="flex: 0 1 460px; min-width: 320px;">
-        <img src="/assets/hero-bot-3.png" alt="p5js.live robot mascot coding on a laptop" width="1254" height="1254" style="width: 100%; height: auto; object-fit: contain;">
+        <img src="/assets/mascot2.png" alt="Cartoon live coder wearing neon headphones and holding a laptop" width="1230" height="1278" style="width: 100%; height: auto; object-fit: contain;">
       </div>
     </div>
   </section>
@@ -200,22 +200,24 @@ activate(scene);</pre>
     <div style="max-width: 1080px; margin: 0 auto; display: flex; gap: 56px; align-items: center; flex-wrap: wrap-reverse;">
       <div style="flex: 1 1 420px; min-width: 300px;">
         <div style="background: #211e2e; border-radius: 10px; padding: 22px 24px; overflow-x: auto;">
-          <pre style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.75; color: #e8e6f0;"><span style="color:#ff7aa8;">const</span> spin = <span style="color:#ff7aa8;">new</span> ShaderChain()
-  .rotate(({ time, audio }) =>
-    time * 0.15 + audio.bass * 0.3
+          <pre style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.75; color: #e8e6f0;"><span style="color:#ff7aa8;">const</span> clubLens = <span style="color:#ff7aa8;">new</span> ShaderChain()
+  .noiseWarp(({ audio }) =>
+    0.005 + audio.bass * 0.03, 5, 0.1
   )
-  .scale(({ audio }) =>
-    1.02 + audio.mid * 0.08
+  .bloom(({ audio }) =>
+    0.3 + audio.bass, 4, 0.5
   )
-  .hue(({ time }) =>
-    time * 0.03
-  );</pre>
+  .rgbSplit(({ audio }) =>
+    1 + audio.treble * 12, 0
+  )
+  .blend("screen")
+  .mix(0.75);</pre>
         </div>
       </div>
       <div style="flex: 1 1 420px; min-width: 300px;">
         <h2 style="margin: 0 0 14px 0; font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 800; color: #5b3fa6;">Go beyond the canvas.</h2>
         <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.75; color: #2a2540;">Use ShaderChain to process the pixels already drawn by your scene.</p>
-        <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.75; color: #2a2540;">Rotate, scale, distort, shift hue, and build effect chains whose parameters can change with time or audio.</p>
+        <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.75; color: #2a2540;">Transform, blur, bloom, split color, mask, blend, and feed pixels back through effect chains whose parameters can change with time or audio.</p>
         <p style="margin: 0; font-size: 16px; line-height: 1.75; color: #2a2540;">Put the effect into your scene like any other patch.</p>
       </div>
     </div>

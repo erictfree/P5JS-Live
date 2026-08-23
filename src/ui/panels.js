@@ -7,8 +7,8 @@ const METER_HZ = 15;
 const TOOL_VIEW_KEY = 'p5js-live.toolView';
 const LIBRARY_GROUPS = Object.freeze([
   { key: 'utility', label: 'Utilities' },
-  { key: 'visual', label: 'Visual patches' },
-  { key: 'shader', label: 'Shaders' },
+  { key: 'visual', label: 'Sources / drawing patches' },
+  { key: 'shader', label: 'Effects / shaders' },
   { key: 'community', label: 'Community patches' },
 ]);
 

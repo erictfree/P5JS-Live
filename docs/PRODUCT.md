@@ -61,7 +61,8 @@ can be drawn, composited, fed back, or used as a shader texture.
 - Ordered scenes with independent state per occurrence
 - Transactional evaluation, version history, first-frame rollback, and Safe State
 - Built-in and community patch catalogs that install editable source
-- `ShaderChain` and custom WebGL patches
+- Standard `ShaderChain` GPU effects with wet/dry mix, blend modes, feedback, and
+  custom WebGL patches
 - Beta small-room WebRTC publisher and receiver objects with room discovery
 - Folded and complete editors, projected code, named performances, and project files
 - Local operation with vendored p5.js and p5.sound

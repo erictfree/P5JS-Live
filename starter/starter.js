@@ -167,6 +167,7 @@ class Plasma {
       float blue = texture2D(uScene, clamp(sampleUv - split, 0.002, 0.998)).b;
       // A slow feedback decay keeps preceding patches visible without allowing this
       // ambient layer to accumulate into the bright bands of the original Plasma.
+      vec4 sourceSample = texture2D(uScene, sampleUv);
       vec3 scene = vec3(red, green, blue) * 0.88;
 
       vec2 pinkCenter = vec2(
@@ -201,10 +202,11 @@ class Plasma {
 
       float radius = length(centered);
       float vignette = 1.0 - smoothstep(0.34, 1.55, radius);
-      vec3 colour = scene + ambient;
+      // Plasma transforms the existing scene; it never supplies a background.
+      vec3 colour = scene * (vec3(1.0) + ambient * 0.12);
       colour *= 0.92 + vignette * 0.12;
 
-      gl_FragColor = vec4(colour, 1.0);
+      gl_FragColor = vec4(colour, sourceSample.a);
     }
   \`;
 
@@ -255,6 +257,31 @@ activate(scene);
 
 /** Upgrade known untouched starter Plasma versions without disturbing other cells. */
 export function upgradeLegacyPlasma(source) {
+  const plasmaCell = (text, transform) => text.replace(
+    /(\/\/\s*%%\s*(?:patch|strategy)\s+plasma\s*\n[\s\S]*?)(?=\n\/\/\s*%%\s+|$)/,
+    transform,
+  );
+  const transparentUpgrade = plasmaCell(source, (cell) => {
+    if (
+      !cell.includes('      vec3 colour = scene + ambient;')
+      || !cell.includes('      gl_FragColor = vec4(colour, 1.0);')
+    ) return cell;
+    return cell
+      .replace(
+        '      vec3 scene = vec3(red, green, blue) * 0.88;',
+        '      vec4 sourceSample = texture2D(uScene, sampleUv);\n      vec3 scene = vec3(red, green, blue) * 0.88;',
+      )
+      .replace(
+        '      vec3 colour = scene + ambient;',
+        '      // Plasma transforms the existing scene; it never supplies a background.\n      vec3 colour = scene * (vec3(1.0) + ambient * 0.12);',
+      )
+      .replace(
+        '      gl_FragColor = vec4(colour, 1.0);',
+        '      gl_FragColor = vec4(colour, sourceSample.a);',
+      );
+  });
+  if (transparentUpgrade !== source) return transparentUpgrade;
+
   const knownVersions = [
     // The original high-contrast feedback Plasma.
     [

@@ -26,7 +26,6 @@ const breathingEllipse = {
 
   draw({ time }) {
     const diameter = 160 + sin(time * this.speed) * 90;
-    background(8, 8, 12); // Clear the previous frame so shrinking stays visible.
     noStroke();
     fill(255, 90, 190);
     ellipse(width / 2, height / 2, diameter, diameter);
@@ -39,8 +38,8 @@ const breathingEllipse = {
     category: 'visual',
     blurb: "Conway's Game of Life with fixed-step simulation, live OOP methods and beat-seeded cells.",
     source: `// %% patch gameOfLife
-// Conway's Game of Life — a stateful class patch.
-// Put it near the start of a scene; later patches draw over its fading grid.
+// Conway's Game of Life — a transparent, stateful class patch.
+// Add an explicit background patch before it when the scene should clear or fade.
 // Evaluate these ordinary method calls live:
 //   gameOfLife.toggle();      // pause or resume
 //   gameOfLife.singleStep();  // advance once while paused
@@ -63,7 +62,6 @@ class GameOfLife {
     this.birthsOnBeat = birthsOnBeat;
 
     this.running = true;
-    this.backgroundFade = 0.34;
     this.audioSpeed = 1.25;
     this.showStats = true;
 
@@ -213,8 +211,6 @@ class GameOfLife {
 
     colorMode(HSB, 360, 100, 100, 1);
     noStroke();
-    fill(230, 42, 3, this.backgroundFade);
-    rect(0, 0, width, height);
 
     for (let y = 0; y < state.rows; y++) {
       for (let x = 0; x < state.columns; x++) {
@@ -604,17 +600,13 @@ const audioMeters = {
     blurb: 'A rotating checker field that breathes with bass. Arrow-function patch.',
     source: `// %% patch checkerZoom
 // checkerZoom — a translucent, rotating club-floor grid.
-// Keep it first: it provides the dark fade behind the other patches.
+// Add solidBackground before it when the scene should clear each frame.
 // checkerSpeed appears in the Parameters panel.
 param("checkerSpeed", 0.08, { min: -0.4, max: 0.4, step: 0.01 });
 
 const checkerZoom = ({ audio, time, params }) => {
   const cell = 58 + audio.bass * 38;
   const extent = Math.hypot(width, height) * 0.75;
-
-  noStroke();
-  fill(4, 4, 10, 35);
-  rect(0, 0, width, height);
 
   translate(width / 2, height / 2);
   rotate(time * params.checkerSpeed);
@@ -750,6 +742,139 @@ const shaderFlow = new ShaderChain()
   .hue(({ time, audio }) => sin(time * 0.17) * 0.025 + audio.treble * 0.12)
   .saturate(1.22)
   .contrast(1.08);`,
+  },
+
+  {
+    name: 'transformFx',
+    category: 'shader',
+    blurb: 'Effect: position, independent scale, rotation and anchor in one transform.',
+    source: `// %% patch transformFx
+// transformFx — the standard stage transform. Values are normalized to canvas size.
+const transformFx = new ShaderChain()
+  .transform(
+    ({ audio, time }) => sin(time * 0.24) * audio.mid * 0.04,  // x
+    0,                                                        // y
+    ({ audio }) => 1 + audio.bass * 0.12,                    // scale x
+    ({ audio }) => 1 + audio.bass * 0.12,                    // scale y
+    ({ time }) => sin(time * 0.18) * 0.08,                   // rotation
+    0.5, 0.5                                                  // anchor
+  )
+  .mix(1);`,
+  },
+
+  {
+    name: 'softBlur',
+    category: 'shader',
+    blurb: 'Effect: nine-tap audio-reactive blur with wet/dry control.',
+    source: `// %% patch softBlur
+// softBlur — radius is measured in canvas pixels.
+const softBlur = new ShaderChain()
+  .blur(({ audio }) => 0.5 + audio.mid * 5)
+  .mix(0.82);`,
+  },
+
+  {
+    name: 'edgeDetect',
+    category: 'shader',
+    blurb: 'Effect: luminance edge detector composited over the source.',
+    source: `// %% patch edgeDetect
+// edgeDetect — Screen keeps the source while adding bright detected edges.
+const edgeDetect = new ShaderChain()
+  .edgeDetect(({ audio }) => 1.2 + audio.treble * 4, 1.25)
+  .blend("screen")
+  .mix(0.72);`,
+  },
+
+  {
+    name: 'bloom',
+    category: 'shader',
+    blurb: 'Effect: spreads bright highlights into a restrained audio-reactive glow.',
+    source: `// %% patch bloom
+// bloom — threshold chooses which highlights glow.
+const bloom = new ShaderChain()
+  .bloom(
+    ({ audio }) => 0.35 + audio.bass * 1.1,
+    ({ audio }) => 2 + audio.mid * 8,
+    0.48
+  )
+  .mix(0.9);`,
+  },
+
+  {
+    name: 'vignette',
+    category: 'shader',
+    blurb: 'Effect: gently darkens the edges without introducing a background.',
+    source: `// %% patch vignette
+// vignette — useful near the end of a scene to focus the image.
+const vignette = new ShaderChain()
+  .vignette(({ audio }) => 0.28 + audio.bass * 0.18, 0.42)
+  .mix(1);`,
+  },
+
+  {
+    name: 'noiseWarp',
+    category: 'shader',
+    blurb: 'Effect: animated value-noise displacement for fluid distortion.',
+    source: `// %% patch noiseWarp
+// noiseWarp — amount, spatial scale and time speed.
+const noiseWarp = new ShaderChain()
+  .noiseWarp(
+    ({ audio }) => 0.006 + audio.bass * 0.035,
+    5,
+    ({ audio }) => 0.08 + audio.treble * 0.3
+  )
+  .mix(0.9);`,
+  },
+
+  {
+    name: 'rgbSplit',
+    category: 'shader',
+    blurb: 'Effect: separates red and blue channels along a controllable direction.',
+    source: `// %% patch rgbSplit
+// rgbSplit — displacement is measured in pixels; angle is radians.
+const rgbSplit = new ShaderChain()
+  .rgbSplit(
+    ({ audio }) => 1 + audio.treble * 14,
+    ({ time }) => time * 0.13
+  )
+  .mix(({ audio }) => 0.35 + audio.mid * 0.55);`,
+  },
+
+  {
+    name: 'feedbackEcho',
+    category: 'shader',
+    blurb: 'Effect: previous-frame echo with controllable decay and zoom.',
+    source: `// %% patch feedbackEcho
+// feedbackEcho — amount, decay and zoom. Keep decay below 1 to prevent whiteout.
+const feedbackEcho = new ShaderChain()
+  .feedback(
+    ({ audio }) => 0.25 + audio.bass * 0.45,
+    0.955,
+    ({ audio }) => 1.002 + audio.mid * 0.008
+  )
+  .mix(0.88);`,
+  },
+
+  {
+    name: 'lumaMask',
+    category: 'shader',
+    blurb: 'Effect: converts image brightness into transparency.',
+    source: `// %% patch lumaMask
+// lumaMask — threshold, soft edge, invert (0 normal; 1 inverted).
+const lumaMask = new ShaderChain()
+  .lumaMask(({ audio }) => 0.18 + audio.mid * 0.2, 0.09, 0)
+  .mix(1);`,
+  },
+
+  {
+    name: 'mirror',
+    category: 'shader',
+    blurb: 'Effect: horizontal or vertical reflection with no generated backing.',
+    source: `// %% patch mirror
+// mirror — horizontal and vertical amounts range from 0 to 1.
+const mirror = new ShaderChain()
+  .mirror(1, ({ audio }) => audio.bass > 0.72 ? 1 : 0)
+  .mix(1);`,
   },
 
   {
@@ -982,7 +1107,8 @@ class CellularBlobular {
       // blending old colour into the new frame. That keeps the cells clean over time.
       colour = pow(max(colour, 0.0), vec3(0.84));
 
-      gl_FragColor = vec4(colour, 1.0);
+      float alpha = clamp(body + rim, 0.0, 1.0);
+      gl_FragColor = vec4(colour, alpha);
     }
   \`;
 
@@ -1017,6 +1143,7 @@ class CellularBlobular {
     const read = this.#buffers[1 - this.#writeIndex];
     const program = this.#programs[this.#writeIndex];
 
+    write.clear();
     write.shader(program);
     program.setUniform("uFeedback", read);
     program.setUniform("uResolution", [width, height]);
@@ -1250,6 +1377,19 @@ export const MODULAR_PATCH_NAMES = [
   'neonInk',
 ];
 
+export const STANDARD_EFFECT_NAMES = [
+  'transformFx',
+  'softBlur',
+  'edgeDetect',
+  'bloom',
+  'vignette',
+  'noiseWarp',
+  'rgbSplit',
+  'feedbackEcho',
+  'lumaMask',
+  'mirror',
+];
+
 export const DIAGNOSTIC_PATCH_NAMES = [
   'waveform',
   'frequencyBars',
@@ -1278,15 +1418,31 @@ export function upgradeOpaqueDiagnostics(source) {
     ['fill(255, 190, 95, 230)', 'fill(255, 190, 95)'],
   ]);
 
-  return updateCell(frequencyUpdated, 'audioMeters', [
+  const metersUpdated = updateCell(frequencyUpdated, 'audioMeters', [
     ['fill(...colour, 220)', 'fill(...colour)'],
+  ]);
+
+  const ellipseUpdated = updateCell(metersUpdated, 'breathingEllipse', [
+    ['    background(8, 8, 12); // Clear the previous frame so shrinking stays visible.\n', ''],
+  ]);
+
+  const checkerUpdated = updateCell(ellipseUpdated, 'checkerZoom', [
+    ['// Keep it first: it provides the dark fade behind the other patches.',
+      '// Add solidBackground before it when the scene should clear each frame.'],
+    ['  noStroke();\n  fill(4, 4, 10, 35);\n  rect(0, 0, width, height);\n\n', ''],
+  ]);
+
+  return updateCell(checkerUpdated, 'cellularBlobular', [
+    ['      gl_FragColor = vec4(colour, 1.0);',
+      '      float alpha = clamp(body + rim, 0.0, 1.0);\n      gl_FragColor = vec4(colour, alpha);'],
+    ['    write.shader(program);', '    write.clear();\n    write.shader(program);'],
   ]);
 }
 
 /** Ready-made source that mixes all ten system library patches. */
 export const libraryDemoSource = () => `// %% scene stacked
 // Ten independently configurable patches, composited in array order.
-// Start with the fading checker base; finish with beat overlays.
+// The patches remain transparent unless solidBackground is added explicitly.
 const stacked = [
   checkerZoom,
   neonTunnel,

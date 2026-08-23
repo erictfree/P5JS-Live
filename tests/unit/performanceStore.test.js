@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { createPerformanceStore } from '../../src/persistence/performanceStore.js';
+import {
+  createPerformanceStore,
+  performanceShortcutIndex,
+} from '../../src/persistence/performanceStore.js';
 
 function fakeStorage() {
   const map = new Map();
@@ -21,6 +24,15 @@ const snapshot = (name = 'Afterglow') => ({
 });
 
 describe('named performance persistence', () => {
+  it('maps Cmd/Ctrl+Option/Alt+1…9 to zero-based visible performance slots', () => {
+    expect(performanceShortcutIndex({ metaKey: true, ctrlKey: false, altKey: true, shiftKey: false, code: 'Digit1' })).toBe(0);
+    expect(performanceShortcutIndex({ metaKey: false, ctrlKey: true, altKey: true, shiftKey: false, code: 'Digit9' })).toBe(8);
+    expect(performanceShortcutIndex({ metaKey: true, ctrlKey: false, altKey: true, shiftKey: false, code: 'Numpad4' })).toBe(3);
+    expect(performanceShortcutIndex({ metaKey: true, ctrlKey: false, altKey: false, shiftKey: false, code: 'Digit1' })).toBe(null);
+    expect(performanceShortcutIndex({ metaKey: true, ctrlKey: false, altKey: true, shiftKey: true, code: 'Digit1' })).toBe(null);
+    expect(performanceShortcutIndex({ metaKey: true, ctrlKey: false, altKey: true, shiftKey: false, code: 'Digit0' })).toBe(null);
+  });
+
   it('saves complete named recall points and lists newest first', () => {
     const storage = fakeStorage();
     let time = 100;

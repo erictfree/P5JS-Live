@@ -218,6 +218,10 @@ Editor behavior:
 - `Cmd/Ctrl+Option/Alt+A` opens the AI source editor.
 - The Project panel's **code size** setting also changes folded and projected code.
 
+Named performances are listed newest-updated-first. `Cmd/Ctrl+Option/Alt+1…9`
+recalls the corresponding numbered performance, including while the editor has
+focus. An empty number slot leaves the current performance unchanged.
+
 In the structured editor, hover a boundary in the far-left gutter to reveal
 **+ New patch**. It inserts an object-patch cell, opens it, and places the cursor in
 `draw()`. It does not evaluate or activate the patch.
@@ -312,21 +316,33 @@ It implements `draw()` and `dispose()`.
 
 ```js
 const clubLens = new ShaderChain()
-  .rotate(({ time }) => time * 0.08)
-  .scale(({ audio }) => 1 + audio.bass * 0.18)
-  .pixelate(32, 18)
-  .hue(({ audio }) => audio.mid * 0.2)
-  .contrast(1.15);
+  .noiseWarp(({ audio }) => 0.005 + audio.bass * 0.03, 5, 0.1)
+  .bloom(({ audio }) => 0.3 + audio.bass, 4, 0.5)
+  .rgbSplit(({ audio }) => 1 + audio.treble * 12, 0)
+  .vignette(0.3, 0.4)
+  .blend("screen")
+  .mix(0.75);
 ```
 
 Every argument may be a number or a function receiving the live context. Functions
 are evaluated each frame. One generated fragment shader applies the operators in
-order.
+as one GPU pass. Coordinate mappings run before pixel and color stages.
+
+Every effect chain also supports:
+
+- `.mix(amount)` for wet/dry control; `amount` may be a live function.
+- `.blend(mode)` with `alpha`, `add`, `multiply`, `screen`, `overlay`, `difference`,
+  `subtract`, `lighten`, or `darken`.
+- `.bypass()` and `.bypass(false)` for temporary effect bypass.
 
 Transform operators:
 
 | Method | Arguments |
 | --- | --- |
+| `transform(x, y, scaleX, scaleY, angle, anchorX, anchorY)` | Complete normalized stage transform |
+| `mirror(horizontal, vertical)` | Reflection amounts from 0 to 1 |
+| `crop(left, right, top, bottom)` | Normalized visible bounds |
+| `noiseWarp(amount, scale, speed)` | Animated value-noise displacement |
 | `rotate(angle, speed)` | Radians and optional radians per second |
 | `scale(amount, xMult, yMult, offsetX, offsetY)` | Zoom, axis multipliers, and center |
 | `pixelate(pixelX, pixelY)` | Horizontal and vertical cell counts |
@@ -336,12 +352,18 @@ Transform operators:
 | `scroll(x, y, speedX, speedY)` | Offset and speed on both axes |
 | `scrollX(x, speed)` / `scrollY(y, speed)` | One-axis offset and speed |
 
+Sampling and temporal operators:
+
+`blur`, `sharpen`, `edgeDetect`, `bloom`, `vignette`, `rgbSplit`, `feedback`, and
+`lumaMask`.
+
 Color operators:
 
 `posterize`, `shift`, `invert`, `contrast`, `brightness`, `luma`, `thresh`, `color`,
 `saturate`, `hue`, `colorama`, `sum`, and `rgba`.
 
-These are single-input operations. Use a custom WebGL patch for multiple textures.
+These operate on the current scene. `feedback` also samples the chain's previous
+output frame. Use a custom WebGL patch for arbitrary multiple textures.
 The starter `Plasma` class shows how to own an offscreen WebGL buffer, pass `canvas`
 to a sampler, update uniforms, and release resources.
 

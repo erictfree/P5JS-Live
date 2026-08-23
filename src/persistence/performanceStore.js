@@ -11,6 +11,13 @@ const SCHEMA = 1;
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
+/** Return the zero-based performance slot requested by Cmd/Ctrl+Option/Alt+1…9. */
+export function performanceShortcutIndex(event) {
+  if (!(event.metaKey || event.ctrlKey) || !event.altKey || event.shiftKey) return null;
+  const match = /^(?:Digit|Numpad)([1-9])$/.exec(event.code ?? '');
+  return match ? Number(match[1]) - 1 : null;
+}
+
 export function createPerformanceStore({
   storage = globalThis.localStorage,
   diagnostics,

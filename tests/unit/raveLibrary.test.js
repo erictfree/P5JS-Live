@@ -4,6 +4,7 @@ import {
   LIBRARY,
   MODULAR_PATCH_NAMES,
   RAVE_PATCH_NAMES,
+  STANDARD_EFFECT_NAMES,
   libraryDemoSource,
   upgradeOpaqueDiagnostics,
 } from '../../starter/library.js';
@@ -38,7 +39,25 @@ describe('the system patch library', () => {
       'this.#program.setUniform("uIntensity", this.intensity({ audio, time }));',
     );
     expect(STARTER_SOURCE).toContain('this.#program.setUniform("uSpeed", this.speed);');
+    expect(STARTER_SOURCE).toContain('Plasma transforms the existing scene');
+    expect(STARTER_SOURCE).toContain('gl_FragColor = vec4(colour, sourceSample.a);');
+    expect(STARTER_SOURCE).not.toContain('vec3 colour = scene + ambient;');
     expect(STARTER_SOURCE).not.toContain('float bands = 0.5 + 0.5 * cos(');
+
+    const customizedOpaque = STARTER_SOURCE
+      .replace('motion = 0.48;', 'motion = 0.77;')
+      .replace('      vec4 sourceSample = texture2D(uScene, sampleUv);\n', '')
+      .replace(
+        '      // Plasma transforms the existing scene; it never supplies a background.\n      vec3 colour = scene * (vec3(1.0) + ambient * 0.12);',
+        '      vec3 colour = scene + ambient;',
+      )
+      .replace(
+        '      gl_FragColor = vec4(colour, sourceSample.a);',
+        '      gl_FragColor = vec4(colour, 1.0);',
+      );
+    const upgradedCustomized = upgradeLegacyPlasma(customizedOpaque);
+    expect(upgradedCustomized).toContain('motion = 0.77;');
+    expect(upgradedCustomized).toContain('gl_FragColor = vec4(colour, sourceSample.a);');
 
     const legacy = STARTER_SOURCE
       .replace(
@@ -117,7 +136,7 @@ describe('the system patch library', () => {
     expect(entry.source).toContain('speed: 2');
     expect(entry.source).toContain('draw({ time })');
     expect(entry.source).toContain('sin(time * this.speed)');
-    expect(entry.source).toContain('background(8, 8, 12)');
+    expect(entry.source).not.toMatch(/\bbackground\s*\(/);
     expect(entry.source).toContain('ellipse(width / 2, height / 2, diameter, diameter)');
 
     const h = createTestHost();
@@ -192,6 +211,8 @@ describe('the system patch library', () => {
     expect(entry.source).toContain('neighbours === 3 || (alive && neighbours === 2)');
     expect(entry.source).toContain('gameOfLife.toggle()');
     expect(entry.source).toContain('gameOfLife.singleStep()');
+    expect(entry.source).toContain('transparent, stateful class patch');
+    expect(entry.source).not.toContain('backgroundFade');
 
     const h = createTestHost();
     expect(h.evaluator.evaluate(entry.source).ok).toBe(true);
@@ -209,6 +230,8 @@ describe('the system patch library', () => {
     expect(source).toContain('param("checkerSpeed", 0.08');
     expect(source).toContain('({ audio, time, params }) =>');
     expect(source).toContain('time * params.checkerSpeed');
+    expect(source).not.toContain('fill(4, 4, 10, 35)');
+    expect(source).not.toContain('rect(0, 0, width, height)');
   });
 
   it('ships independently installable waveform, spectrum and feature diagnostics', () => {
@@ -243,6 +266,21 @@ describe('the system patch library', () => {
     expect(entry.source).toContain('// %% patch solidBackground');
     expect(entry.source).toContain('background(...this.colour)');
     expect(entry.source).toContain('Put it first in the scene array');
+  });
+
+  it('keeps background ownership in the explicit background utility', () => {
+    const backgroundOwners = LIBRARY
+      .filter(({ source }) => /\bbackground\s*\(/.test(source))
+      .map(({ name }) => name);
+    expect(backgroundOwners).toEqual(['solidBackground']);
+
+    for (const entry of LIBRARY.filter(({ category }) => category === 'shader')) {
+      expect(entry.source, entry.name).not.toMatch(/\bbackground\s*\(/);
+    }
+
+    const neonTunnel = LIBRARY.find(({ name }) => name === 'neonTunnel').source;
+    expect(neonTunnel).not.toMatch(/\bbackground\s*\(/);
+    expect(neonTunnel).not.toContain('rect(0, 0, width, height)');
   });
 
   it('ships an editable first-class network receiver utility', () => {
@@ -290,6 +328,33 @@ const customPatch = { draw() { fill(100, 145, 255, 230); } };`;
     expect(entry.source).toContain('.hue(({ time, audio }) =>');
   });
 
+  it('ships ten installable standard effects with live controls and no backgrounds', () => {
+    expect(STANDARD_EFFECT_NAMES).toEqual([
+      'transformFx', 'softBlur', 'edgeDetect', 'bloom', 'vignette',
+      'noiseWarp', 'rgbSplit', 'feedbackEcho', 'lumaMask', 'mirror',
+    ]);
+    const entries = new Map(LIBRARY.map((entry) => [entry.name, entry]));
+    const h = createTestHost();
+
+    for (const name of STANDARD_EFFECT_NAMES) {
+      const entry = entries.get(name);
+      expect(entry.category).toBe('shader');
+      expect(entry.blurb).toMatch(/^Effect:/);
+      expect(entry.source).toContain(`// %% patch ${name}`);
+      expect(entry.source).toContain('new ShaderChain()');
+      expect(entry.source).toContain('.mix(');
+      expect(entry.source).not.toMatch(/\bbackground\s*\(/);
+      expect(h.evaluator.evaluate(entry.source).ok).toBe(true);
+      h.host.commitPendingChanges();
+      expect(h.registry.hasStrategy(name)).toBe(true);
+      expect(h.registry.activeInstancesOf(name)).toHaveLength(0);
+    }
+
+    expect(entries.get('edgeDetect').source).toContain('.blend("screen")');
+    expect(entries.get('rgbSplit').source).toContain('.mix(({ audio }) =>');
+    expect(entries.get('feedbackEcho').source).toContain('.feedback(');
+  });
+
   it('includes the credited Hydra feedback study as a configurable shader class', () => {
     const source = LIBRARY.find((entry) => entry.name === 'cellularBlobular').source;
     const h = createTestHost();
@@ -301,6 +366,9 @@ const customPatch = { draw() { fill(100, 145, 255, 230); } };`;
     expect(source).toContain('uniform sampler2D uFeedback;');
     expect(source).toContain('scale = ({ audio, time }) =>');
     expect(source).toContain('repeats = ({ audio, time }) =>');
+    expect(source).toContain('write.clear();');
+    expect(source).toContain('gl_FragColor = vec4(colour, alpha);');
+    expect(source).not.toContain('gl_FragColor = vec4(colour, 1.0);');
     expect(result.ok).toBe(true);
     expect(h.registry.hasStrategy('cellularBlobular')).toBe(true);
   });

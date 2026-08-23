@@ -45,7 +45,8 @@ p5js live includes:
 - function, object, class, factory, closure, and inline patches;
 - ordered scenes with independent state for each patch occurrence;
 - a source-based patch library and community patch catalog;
-- GPU post-processing through `ShaderChain` and custom WebGL patches;
+- GPU post-processing through standard `ShaderChain` effects, wet/dry mix, blend
+  modes, feedback, and custom WebGL patches;
 - a beta AI source editor that stages code changes before they run;
 - version history, Safe State, named performances, and project import/export;
 - fullscreen, projected code, and a separate audience window;
@@ -160,6 +161,7 @@ projects or exports. A ChatGPT subscription does not include API access.
 | `Cmd/Ctrl+/` | Toggle one comment layer |
 | `Cmd/Ctrl+Option/Alt+T` | Tidy the current cell |
 | `Cmd/Ctrl+Option/Alt+A` | Open the AI source editor |
+| `Cmd/Ctrl+Option/Alt+1…9` | Recall the corresponding numbered saved performance |
 | `Cmd/Ctrl+Alt+N` | Start a new performance from the default scene |
 | `Esc` | Release editor focus |
 | `Space` | Play or pause audio |

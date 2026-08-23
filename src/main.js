@@ -21,7 +21,10 @@ import { createConfirmDialog } from './ui/confirmDialog.js';
 import { createAIAssistant } from './ui/aiAssistant.js';
 import { createAISettings } from './ai/settings.js';
 import { createProjectStore } from './persistence/projectStore.js';
-import { createPerformanceStore } from './persistence/performanceStore.js';
+import {
+  createPerformanceStore,
+  performanceShortcutIndex,
+} from './persistence/performanceStore.js';
 import { createAppController } from './app/controller.js';
 import { evaluateStartupProject } from './app/startupRecovery.js';
 import { getDefaultNetworkManager } from './network/networkManager.js';
@@ -317,8 +320,8 @@ window.setup = function setup() {
   }
   if (diagnosticSource !== upgradedSource) {
     diagnostics.info(
-      'Updated diagnostic overlays',
-      'Frequency bars and audio meters now draw solid marks with no backing tint.',
+      'Updated transparent patches',
+      'Drawing patches and diagnostics no longer add an implicit backing tint.',
     );
   }
   if (commandSource !== diagnosticSource) {
@@ -824,7 +827,7 @@ function renderPerformances() {
     return;
   }
 
-  for (const performance of performances) {
+  for (const [index, performance] of performances.entries()) {
     const row = document.createElement('div');
     row.className = 'performance-row';
     row.dataset.performanceId = performance.id;
@@ -833,7 +836,10 @@ function renderPerformances() {
     copy.className = 'performance-copy';
     const title = document.createElement('div');
     title.className = 'performance-title';
-    title.textContent = performance.name;
+    title.textContent = `${index + 1}. ${performance.name}`;
+    if (index < 9) {
+      title.title = `Recall with Cmd/Ctrl+Option/Alt+${index + 1}`;
+    }
     const meta = document.createElement('div');
     meta.className = 'performance-meta';
     const saved = new Date(performance.updatedAt).toLocaleString([], {
@@ -954,6 +960,18 @@ function recallPerformance(performance) {
     }
   }));
   return result;
+}
+
+function recallPerformanceSlot(index) {
+  const performance = performanceStore.list()[index];
+  if (!performance) {
+    diagnostics.warn(
+      `No saved performance in slot ${index + 1}`,
+      'Slots follow the numbered order shown under Project → Performances.',
+    );
+    return null;
+  }
+  return recallPerformance(performance);
 }
 
 document.getElementById('save-performance-form').addEventListener('submit', (event) => {
@@ -1309,6 +1327,12 @@ window.addEventListener('keydown', (event) => {
   // `event.code` keeps the brackets stable on keyboard layouts where Alt changes
   // the character reported by `event.key`.
   const accel = event.metaKey || event.ctrlKey;
+  const performanceIndex = performanceShortcutIndex(event);
+  if (performanceIndex !== null) {
+    event.preventDefault();
+    if (!event.repeat) recallPerformanceSlot(performanceIndex);
+    return;
+  }
   if (accel && event.altKey && event.code === 'BracketLeft') {
     event.preventDefault();
     editor.foldAll();

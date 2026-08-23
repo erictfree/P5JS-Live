@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ShaderChain,
+  SHADER_BLEND_MODES,
   SHADER_COLOR_OPERATORS,
   SHADER_TRANSFORM_OPERATORS,
   compileShaderOperations,
@@ -49,6 +50,41 @@ describe('ShaderChain', () => {
     expect(compiled.fragmentSource).toContain(
       'uv = vec2(0.5) + kaleidRadius * vec2(cos(kaleidAngle), sin(kaleidAngle));',
     );
+  });
+
+  it('compiles standard spatial effects, feedback and alpha-safe wet/dry compositing', () => {
+    const chain = new ShaderChain()
+      .transform(0.1, -0.1, 1.2, 0.8, 0.2, 0.5, 0.5)
+      .noiseWarp(0.02, 5, 0.1)
+      .blur(3)
+      .bloom(0.7, 5, 0.5)
+      .rgbSplit(4, 0.2)
+      .feedback(0.4, 0.95, 1.01)
+      .lumaMask(0.2, 0.1, 0);
+    const compiled = compileShaderOperations(chain.operations, { blendMode: 'screen' });
+
+    expect(compiled.fragmentSource).toContain('uniform sampler2D uFeedback;');
+    expect(compiled.fragmentSource).toContain('uniform float uMix;');
+    expect(compiled.fragmentSource).toContain('valueNoise(');
+    expect(compiled.fragmentSource).toContain('blurColour2');
+    expect(compiled.fragmentSource).toContain('feedbackColour5');
+    expect(compiled.fragmentSource).toContain('colour.a *= lumaAlpha6');
+    expect(compiled.fragmentSource).toContain(
+      '1.0 - (1.0 - original.rgb) * (1.0 - effectColour.rgb)',
+    );
+    expect(compiled.fragmentSource).toContain('mix(original, blended, clamp(uMix');
+  });
+
+  it('supports the standard blend vocabulary and rejects ambiguous modes', () => {
+    expect(SHADER_BLEND_MODES).toEqual([
+      'alpha', 'add', 'multiply', 'screen', 'overlay',
+      'difference', 'subtract', 'lighten', 'darken',
+    ]);
+    expect(new ShaderChain().blend('normal')).toBeInstanceOf(ShaderChain);
+    expect(new ShaderChain().blend('mult')).toBeInstanceOf(ShaderChain);
+    expect(() => new ShaderChain().blend('mystery')).toThrow('Unknown shader blend mode');
+    expect(() => compileShaderOperations([], { blendMode: 'mystery' }))
+      .toThrow('Unknown shader blend mode');
   });
 
   it('resolves literal and higher-order parameters from the current draw context', () => {

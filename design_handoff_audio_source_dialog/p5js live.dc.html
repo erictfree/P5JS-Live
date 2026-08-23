@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @font-face { font-family: 'JetBrains Mono'; src: local('JetBrains Mono'); }
+    body { margin: 0; }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+</helmet>
+<div style="font-family: 'JetBrains Mono', monospace; max-width: 528px; margin: 0 auto; background: #ffffff; color: #1a1a1a;">
+
+  <div style="background: linear-gradient(180deg, #b9c1e8 0%, #cfd3ea 100%); padding: 31px 31px 0 31px;">
+    <h1 style="margin: 0 0 9px 0; font-size: 40px; font-weight: 800; letter-spacing: 3px; color: #5b3fa6;">p5js live</h1>
+    <p style="margin: 0 0 20px 0; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; color: #2a2a3a;">AUDIO-REACTIVE VISUAL LIVE CODING IN THE BROWSER</p>
+    <img src="assets/mascot-illustration.png" alt="Cartoon robot mascot wearing headphones, surrounded by musical notes over an audio waveform" style="width: 100%; display: block; border-radius: 4px;"/>
+  </div>
+
+  <div style="padding: 22px 31px 13px 31px;">
+    <p style="margin: 0; font-size: 15px; line-height: 1.55;">
+      p5js live is a browser-based visual instrument for live-coding audio-reactive graphics with JavaScript and p5.js. It was created by Eric Freeman at the <a href="#" style="color: #5b3fa6;">Department of Arts and Entertainment Technologies</a> at the University of Texas at Austin.
+    </p>
+  </div>
+
+  <div style="height: 1px; background: #ddd8e8; margin: 7px 31px;"></div>
+
+  <div style="background: #f2eef6; padding: 20px 31px 22px 31px;">
+    <p style="margin: 0 0 13px 0; font-size: 14px; font-weight: 700;">Choose what the visuals should respond to:</p>
+    <div style="display: flex; gap: 11px; flex-wrap: wrap;">
+      <button style="flex: 1; min-width: 132px; padding: 12px 11px; font-family: inherit; font-size: 14px; font-weight: 700; background: #c81856; color: #fff; border: 2px solid #7a0f36; border-radius: 7px; cursor: pointer;">choose audio file</button>
+      <button style="flex: 1; min-width: 132px; padding: 12px 11px; font-family: inherit; font-size: 14px; font-weight: 500; background: #fff; color: #1a1a1a; border: 2px solid #cfc9dc; border-radius: 7px; cursor: pointer;">use microphone</button>
+      <button style="flex: 1; min-width: 132px; padding: 12px 11px; font-family: inherit; font-size: 14px; font-weight: 500; background: #fff; color: #1a1a1a; border: 2px solid #cfc9dc; border-radius: 7px; cursor: pointer;">enter with silence</button>
+    </div>
+    <p style="margin: 13px 0 0 0; font-size: 11px; color: #6a6478;">Choose an audio file (.mp3, .wav, .ogg, .m4a, or .aac), microphone, or silence to begin.</p>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>
