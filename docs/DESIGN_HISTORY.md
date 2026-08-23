@@ -3,6 +3,13 @@
 This file records reversible visual experiments whose previous values would otherwise
 be difficult to recover from the interface alone. Source history remains authoritative.
 
+## 2026-08-23 — Robot mascot restored
+
+The public-site hero and instrument welcome dialog again use
+`site/assets/hero-bot-3.png`, with the original robot sizing and responsive positions
+recorded below. The Mascot 2 source and served assets remain in the repository so the
+trial can be restored without recreating or locating the artwork.
+
 ## 2026-08-23 — Mascot 2 experiment
 
 ### Previous visible mascot
