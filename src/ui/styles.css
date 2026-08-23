@@ -1795,6 +1795,28 @@ button.icon {
 
 /* --- start overlay ------------------------------------------------------------ */
 
+#robot-easter-egg {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #000;
+}
+#robot-easter-egg[hidden] {
+  display: none;
+}
+#robot-easter-egg-video {
+  display: block;
+  width: 64vmin;
+  height: 64vmin;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  object-fit: contain;
+  background: #000;
+}
+
 #start-overlay {
   position: absolute;
   inset: 0;

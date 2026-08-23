@@ -2329,6 +2329,31 @@ test.describe('patch sharing and live commands', () => {
     await page.keyboard.press('Alt+ArrowDown');
     await expect(page.locator('#code')).toHaveValue('one\nthree\ntwo');
   });
+
+  test('toggles the looping robot video without replacing the running scene', async ({ page }) => {
+    await boot(page);
+    const overlay = page.locator('#robot-easter-egg');
+    const video = page.locator('#robot-easter-egg-video');
+    const sceneBefore = await page.evaluate(() => window.p5jsLive.registry.activeSceneName());
+    await expect(overlay).toBeHidden();
+
+    await page.locator('#code').focus();
+    await page.keyboard.press('Control+Alt+r');
+    await expect(overlay).toBeVisible();
+    await expect.poll(() => video.evaluate((element) => element.paused)).toBe(false);
+    expect(await video.evaluate((element) => element.loop)).toBe(true);
+    expect(await video.evaluate((element) => element.muted)).toBe(true);
+    expect(await video.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width / Math.min(innerWidth, innerHeight);
+    })).toBeCloseTo(0.64, 2);
+
+    await page.keyboard.press('Control+Alt+r');
+    await expect(overlay).toBeHidden();
+    expect(await video.evaluate((element) => ({ paused: element.paused, time: element.currentTime })))
+      .toEqual({ paused: true, time: 0 });
+    expect(await page.evaluate(() => window.p5jsLive.registry.activeSceneName())).toBe(sceneBefore);
+  });
 });
 
 test.describe('offline application bundle', () => {

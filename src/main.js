@@ -900,6 +900,30 @@ fpsThresholdInput.addEventListener('change', () => {
   diagnostics.info(`Frame rate warning set to ${value} FPS`);
 });
 
+// --- robot easter egg ----------------------------------------------------------
+
+const robotEasterEgg = document.getElementById('robot-easter-egg');
+const robotEasterEggVideo = document.getElementById('robot-easter-egg-video');
+
+function toggleRobotEasterEgg(force) {
+  const show = force ?? robotEasterEgg.hidden;
+  robotEasterEgg.hidden = !show;
+  robotEasterEgg.setAttribute('aria-hidden', String(!show));
+  if (!show) {
+    robotEasterEggVideo.pause();
+    robotEasterEggVideo.currentTime = 0;
+    return false;
+  }
+
+  robotEasterEggVideo.muted = true;
+  robotEasterEggVideo.currentTime = 0;
+  const playing = robotEasterEggVideo.play();
+  playing?.catch((error) => {
+    diagnostics.warn('Robot video is waiting for playback permission', error.message);
+  });
+  return true;
+}
+
 // --- named performance recall ---------------------------------------------------
 
 const performanceNameInput = document.getElementById('performance-name');
@@ -1498,6 +1522,11 @@ window.addEventListener('keydown', (event) => {
   if (accel && event.altKey && !event.shiftKey && event.code === 'KeyS') {
     event.preventDefault();
     if (!event.repeat) quickSavePerformance();
+    return;
+  }
+  if (accel && event.altKey && !event.shiftKey && event.code === 'KeyR') {
+    event.preventDefault();
+    if (!event.repeat) toggleRobotEasterEgg();
     return;
   }
   if (accel && event.altKey && event.code === 'BracketLeft') {

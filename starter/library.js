@@ -34,6 +34,154 @@ const breathingEllipse = {
   },
 
   {
+    name: 'localVideo',
+    category: 'visual',
+    blurb: 'Choose a local video, loop it silently and control its playback speed.',
+    source: `// %% patch localVideo
+// localVideo — a browser-local, silent video layer.
+// The video file stays on this computer and is not included in project exports.
+// Evaluate this method call when you want to choose or replace the file:
+//   localVideo.choose();
+param("videoSpeed", 1, { min: 0.1, max: 4, step: 0.05 });
+
+class LocalVideo {
+  #video = null;
+  #objectUrl = null;
+
+  constructor({
+    speed = 1,
+    fit = "contain",
+    opacity = 1,
+  } = {}) {
+    // speed may be a number or a function of the normal draw context.
+    this.speed = speed;
+    this.fit = fit; // "contain", "cover", or "stretch"
+    this.opacity = opacity;
+  }
+
+  choose() {
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = "video/*";
+    picker.addEventListener("change", () => {
+      const file = picker.files?.[0];
+      if (file) this.load(file);
+      picker.remove();
+    }, { once: true });
+    picker.click();
+  }
+
+  load(file) {
+    if (!(file instanceof Blob)) {
+      throw new TypeError("localVideo.load() expects a video File or Blob");
+    }
+
+    this.#releaseFile();
+    const video = document.createElement("video");
+    this.#objectUrl = URL.createObjectURL(file);
+    video.src = this.#objectUrl;
+    video.loop = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    this.#silence(video);
+    this.#video = video;
+    video.play().catch(() => {});
+    return file.name || "local video";
+  }
+
+  play() {
+    if (!this.#video) return false;
+    this.#silence(this.#video);
+    this.#video.play().catch(() => {});
+    return true;
+  }
+
+  pause() {
+    this.#video?.pause();
+  }
+
+  restart() {
+    if (!this.#video) return false;
+    this.#video.currentTime = 0;
+    return this.play();
+  }
+
+  enter() {
+    this.play();
+  }
+
+  exit() {
+    this.pause();
+  }
+
+  draw(context) {
+    const video = this.#video;
+    if (!video || video.readyState < 2) return;
+
+    this.#silence(video);
+    const configuredSpeed = typeof this.speed === "function"
+      ? this.speed(context)
+      : this.speed;
+    const numericSpeed = Number(configuredSpeed);
+    video.playbackRate = constrain(Number.isFinite(numericSpeed) ? numericSpeed : 1, 0.1, 4);
+
+    const sourceWidth = video.videoWidth || width;
+    const sourceHeight = video.videoHeight || height;
+    let drawWidth = width;
+    let drawHeight = height;
+
+    if (this.fit !== "stretch") {
+      const scale = this.fit === "cover"
+        ? Math.max(width / sourceWidth, height / sourceHeight)
+        : Math.min(width / sourceWidth, height / sourceHeight);
+      drawWidth = sourceWidth * scale;
+      drawHeight = sourceHeight * scale;
+    }
+
+    drawingContext.save();
+    drawingContext.globalAlpha = constrain(Number(this.opacity) || 0, 0, 1);
+    drawingContext.drawImage(
+      video,
+      (width - drawWidth) / 2,
+      (height - drawHeight) / 2,
+      drawWidth,
+      drawHeight,
+    );
+    drawingContext.restore();
+  }
+
+  dispose() {
+    this.#releaseFile();
+  }
+
+  #silence(video) {
+    video.muted = true;
+    video.defaultMuted = true;
+    video.volume = 0;
+  }
+
+  #releaseFile() {
+    if (this.#video) {
+      this.#video.pause();
+      this.#video.removeAttribute("src");
+      this.#video.load();
+      this.#video = null;
+    }
+    if (this.#objectUrl) {
+      URL.revokeObjectURL(this.#objectUrl);
+      this.#objectUrl = null;
+    }
+  }
+}
+
+const localVideo = new LocalVideo({
+  speed: ({ params }) => params.videoSpeed,
+  fit: "contain",
+  opacity: 1,
+});`,
+  },
+
+  {
     name: 'gameOfLife',
     category: 'visual',
     blurb: "Conway's Game of Life with fixed-step simulation, live OOP methods and beat-seeded cells.",

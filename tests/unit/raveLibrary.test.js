@@ -145,6 +145,30 @@ describe('the system patch library', () => {
     expect(h.registry.hasStrategy('breathingEllipse')).toBe(true);
   });
 
+  it('ships a silent browser-local video patch with live playback speed', () => {
+    const entry = LIBRARY.find(({ name }) => name === 'localVideo');
+    expect(entry).toMatchObject({
+      category: 'visual',
+      blurb: expect.stringContaining('silently'),
+    });
+    expect(entry.source).toContain('class LocalVideo');
+    expect(entry.source).toContain('picker.accept = "video/*"');
+    expect(entry.source).toContain('localVideo.choose()');
+    expect(entry.source).toContain('param("videoSpeed", 1');
+    expect(entry.source).toContain('speed: ({ params }) => params.videoSpeed');
+    expect(entry.source).toContain('video.muted = true');
+    expect(entry.source).toContain('video.defaultMuted = true');
+    expect(entry.source).toContain('video.volume = 0');
+    expect(entry.source).toContain('drawingContext.drawImage(');
+    expect(entry.source).not.toMatch(/\bbackground\s*\(/);
+
+    const h = createTestHost();
+    expect(h.evaluator.evaluate(entry.source).ok).toBe(true);
+    h.host.commitPendingChanges();
+    expect(h.registry.hasStrategy('localVideo')).toBe(true);
+    expect(h.registry.activeInstancesOf('localVideo')).toHaveLength(0);
+  });
+
   it('starts with a transparent stateful random ASCII patch', () => {
     const asciiSource = STARTER_SOURCE.slice(
       STARTER_SOURCE.indexOf('// %% patch asciiNoise'),

@@ -137,6 +137,19 @@
         </div>
       </main>
 
+      <!-- Robot easter egg — deliberately outside the stage so it covers the entire
+           performer viewport without replacing or resizing the live canvas. -->
+      <div id="robot-easter-egg" hidden aria-hidden="true">
+        <video
+          id="robot-easter-egg-video"
+          src="/live/assets/video/p5jsrobot.mp4"
+          loop
+          muted
+          playsinline
+          preload="metadata"
+        ></video>
+      </div>
+
       <!-- CODE LAYER — the code sits directly on the visuals, edge to edge,
            with no panel around it. #code-mirror renders the text and the translucent
            box behind each line; #line-numbers is a read-only gutter. The textarea on

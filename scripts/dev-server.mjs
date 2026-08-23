@@ -44,6 +44,7 @@ const MIME = {
   '.wav': 'audio/wav',
   '.ogg': 'audio/ogg',
   '.m4a': 'audio/mp4',
+  '.mp4': 'video/mp4',
 };
 
 function resolveStaticFile(root, pathname) {
