@@ -207,12 +207,16 @@ export function createProjectStore({ registry, diagnostics, storage = globalThis
     if (typeof source !== 'string') {
       return { ok: false, error: 'Project file has no source' };
     }
+    if (data.performances !== undefined && !Array.isArray(data.performances)) {
+      return { ok: false, error: 'Project file performances are unreadable' };
+    }
     return {
       ok: true,
       data: {
         source,
         safeScene: data.safeScene ?? null,
         params: Array.isArray(data.params) ? data.params : [],
+        performances: data.performances ?? [],
       },
     };
   }

@@ -1,4 +1,5 @@
-// Named, browser-local performance recall slots.
+// Named performance recall slots. They live in browser storage for instant local
+// recall and are copied into portable project exports for backup and transfer.
 //
 // A scene is deliberately still just an ordered array of patches in source. A
 // performance is the larger performer-facing unit: source, the active scene name,
@@ -57,7 +58,10 @@ export function createPerformanceStore({
   }
 
   function list() {
-    return read().sort((a, b) => b.updatedAt - a.updatedAt);
+    // Storage order is the visible slot order. New saves append, updates stay in
+    // place, and imported additions go to the bottom so numbered shortcuts remain
+    // stable throughout a performance.
+    return read();
   }
 
   function get(id) {
@@ -100,7 +104,29 @@ export function createPerformanceStore({
     return write(next);
   }
 
-  return { list, get, save, remove };
+  /**
+   * Merge portable recall points into this browser without deleting unrelated local
+   * performances. Matching ids are restored from the backup; new ids are added.
+   */
+  function merge(entries) {
+    if (!Array.isArray(entries) || entries.some((entry) => !validPerformance(entry))) {
+      return { ok: false, reason: 'invalid-performances' };
+    }
+
+    const current = read();
+    const byId = new Map(current.map((entry) => [entry.id, entry]));
+    let added = 0;
+    let updated = 0;
+    for (const entry of entries) {
+      if (byId.has(entry.id)) updated += 1;
+      else added += 1;
+      byId.set(entry.id, clone(entry));
+    }
+    if (!write([...byId.values()])) return { ok: false, reason: 'storage' };
+    return { ok: true, imported: entries.length, added, updated };
+  }
+
+  return { list, get, save, remove, merge };
 }
 
 function validPerformance(entry) {

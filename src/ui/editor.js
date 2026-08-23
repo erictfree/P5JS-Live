@@ -28,6 +28,32 @@ const RESERVED_PATCH_NAMES = new Set([
   'activate', 'param', 'reset', 'ShaderChain', 'StreamRoom',
 ]);
 
+/** VS Code-style movement of the current line or selected consecutive lines. */
+export function moveLines(source, selectionStart, selectionEnd, direction) {
+  const lines = source.split('\n');
+  const beforeStart = source.slice(0, selectionStart);
+  const startLine = beforeStart.split('\n').length - 1;
+  const effectiveEnd = selectionEnd > selectionStart && source[selectionEnd - 1] === '\n'
+    ? selectionEnd - 1
+    : selectionEnd;
+  const endLine = source.slice(0, effectiveEnd).split('\n').length - 1;
+  if (direction < 0 && startLine === 0) return null;
+  if (direction > 0 && endLine >= lines.length - 1) return null;
+
+  const selected = lines.splice(startLine, endLine - startLine + 1);
+  const destination = direction < 0 ? startLine - 1 : startLine + 1;
+  const adjacentLength = direction < 0
+    ? lines[destination].length + 1
+    : lines[startLine].length + 1;
+  lines.splice(destination, 0, ...selected);
+  const delta = direction < 0 ? -adjacentLength : adjacentLength;
+  return {
+    source: lines.join('\n'),
+    selectionStart: selectionStart + delta,
+    selectionEnd: selectionEnd + delta,
+  };
+}
+
 function patchScaffold(name) {
   return `// %% patch ${name}\n\nconst ${name} = {\n  draw({ time, audio }) {\n    \n  },\n};`;
 }
@@ -626,6 +652,26 @@ export function createEditor(textarea, handlers) {
 
       bodyEditor.addEventListener('keydown', (event) => {
         const accel = event.metaKey || event.ctrlKey;
+        if (event.altKey && !accel && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
+          event.preventDefault();
+          const moved = moveLines(
+            bodyEditor.value,
+            bodyEditor.selectionStart,
+            bodyEditor.selectionEnd,
+            event.key === 'ArrowUp' ? -1 : 1,
+          );
+          if (moved) {
+            replaceFoldedRange(
+              bodyEditor,
+              0,
+              bodyEditor.value.length,
+              moved.source,
+              moved.selectionStart,
+              moved.selectionEnd,
+            );
+          }
+          return;
+        }
         if (
           (event.key === 'Backspace' || event.key === 'Delete') &&
           bodyEditor.selectionStart !== bodyEditor.selectionEnd
@@ -855,6 +901,23 @@ export function createEditor(textarea, handlers) {
     }
   }
 
+  /**
+   * Replace the complete project outside the browser's active text-edit transaction.
+   *
+   * A performance recall can originate in an inline folded-cell textarea. Running
+   * execCommand while that textarea is still dispatching the shortcut, then replacing
+   * its DOM and attempting to refocus it, can stall Safari's rendering process while
+   * media audio continues. Whole-project changes deliberately start a new undo history,
+   * so a direct authoritative assignment is both safer and semantically correct.
+   */
+  function replaceProjectSource(next) {
+    const active = document.activeElement;
+    if (active === textarea || foldedView?.contains(active)) active.blur();
+    textarea.value = String(next);
+    changed();
+    resetNavigation();
+  }
+
   function flash(ok, visibleTargets = []) {
     const targets = mirror ? [textarea, mirror, ...visibleTargets] : [textarea, ...visibleTargets];
     for (const node of targets) node.classList.remove('flash-ok', 'flash-bad');
@@ -1024,6 +1087,26 @@ export function createEditor(textarea, handlers) {
 
   textarea.addEventListener('keydown', (event) => {
     const accel = event.metaKey || event.ctrlKey;
+
+    if (event.altKey && !accel && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault();
+      const moved = moveLines(
+        textarea.value,
+        textarea.selectionStart,
+        textarea.selectionEnd,
+        event.key === 'ArrowUp' ? -1 : 1,
+      );
+      if (moved) {
+        replaceRange(
+          0,
+          textarea.value.length,
+          moved.source,
+          moved.selectionStart,
+          moved.selectionEnd,
+        );
+      }
+      return;
+    }
 
     // Chromium normally deletes a selected textarea range itself. Handle it here as
     // well because this transparent textarea sits over a separate syntax mirror, and
@@ -1381,10 +1464,9 @@ export function createEditor(textarea, handlers) {
       return textarea.value;
     },
     set value(next) {
-      write(next, true);
-      changed();
-      resetNavigation();
+      replaceProjectSource(next);
     },
+    replaceProjectSource,
     focus: () => textarea.focus(),
     setFolded,
     foldAll,
@@ -1410,6 +1492,13 @@ export function createEditor(textarea, handlers) {
     addStrategyToScene,
     patchSource(name) {
       return findBlocks(textarea.value).find((block) => isPatchBlock(block, name))?.text ?? null;
+    },
+    currentPatchSource() {
+      const at = folded && lastSourceCaret !== null ? lastSourceCaret : textarea.selectionStart;
+      const block = blockAt(textarea.value, at);
+      const description = block ? describeBlock(block.text) : '';
+      const match = /^(?:strategy|patch)\s+([A-Za-z_$][\w$]*)$/.exec(description);
+      return match ? { name: match[1], source: block.text.trimEnd() } : null;
     },
     /** Focus the binding that defines a strategy without changing source. */
     revealStrategy(name) {

@@ -213,14 +213,23 @@ Editor behavior:
 - Tab and Shift+Tab adjust selected lines.
 - `Cmd/Ctrl+/` adds or removes one comment layer. Nested comments are preserved.
 - `Cmd/Ctrl+Option/Alt+T` tidies the current cell without evaluating it.
+- `Option/Alt+Up/Down` moves the current line or selected consecutive lines.
 - `Cmd/Ctrl+Alt+[` folds all; `Cmd/Ctrl+Alt+]` unfolds all.
 - `Cmd/Ctrl+Alt+/` opens the command sheet.
 - `Cmd/Ctrl+Option/Alt+A` opens the AI source editor.
 - The Project panel's **code size** setting also changes folded and projected code.
 
-Named performances are listed newest-updated-first. `Cmd/Ctrl+Option/Alt+1…9`
-recalls the corresponding numbered performance, including while the editor has
-focus. An empty number slot leaves the current performance unchanged.
+Named performances keep stable insertion-order slots: new saves appear at the
+bottom, while updates remain in place. `Cmd/Ctrl+Option/Alt+1…9` recalls the
+corresponding numbered performance, including while the editor has focus. An empty
+number slot leaves the current performance unchanged.
+`Cmd/Ctrl+Option/Alt+S` appends a timestamped quick save and reports its stable slot
+in the runtime status message.
+
+Project export includes the current source and parameters plus every named
+performance and the distinct patch source stored inside it. Import runs the working
+source first, then merges valid performance records by identity. It never removes
+unrelated performances already saved in the browser. Audio files are not embedded.
 
 In the structured editor, hover a boundary in the far-left gutter to reveal
 **+ New patch**. It inserts an object-patch cell, opens it, and places the cursor in

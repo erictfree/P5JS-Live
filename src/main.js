@@ -22,6 +22,13 @@ import { createAIAssistant } from './ui/aiAssistant.js';
 import { createAISettings } from './ai/settings.js';
 import { createProjectStore } from './persistence/projectStore.js';
 import {
+  createPatchStore,
+  parsePatchSource,
+  patchFromShareHash,
+  patchShareHash,
+  portablePatchSource,
+} from './persistence/patchStore.js';
+import {
   createPerformanceStore,
   performanceShortcutIndex,
 } from './persistence/performanceStore.js';
@@ -56,11 +63,14 @@ const STARTER_PATCHES = findCells(STARTER_SOURCE).flatMap((cell) => {
   }];
 });
 
-const PATCH_LIBRARY = [
+const BUILT_IN_PATCH_LIBRARY = [
   ...STARTER_PATCHES,
   ...LIBRARY.map((entry) => ({ ...entry, title: entry.name, origin: 'system' })),
   ...COMMUNITY_PATCHES,
-].sort((a, b) => a.title.localeCompare(b.title));
+];
+const patchStore = createPatchStore();
+const PATCH_LIBRARY = [...BUILT_IN_PATCH_LIBRARY, ...patchStore.list()]
+  .sort((a, b) => a.title.localeCompare(b.title));
 
 const diagnostics = createDiagnostics();
 const registry = createRegistry();
@@ -202,6 +212,114 @@ const aiAssistant = createAIAssistant({
     panels.selectToolView('ai');
   },
 });
+
+// --- portable patch sharing ----------------------------------------------------
+
+function refreshSharedPatch(patch) {
+  if (BUILT_IN_PATCH_LIBRARY.some((entry) => entry.name === patch.name)) {
+    return { ok: false, error: `“${patch.name}” already belongs to the built-in library. Rename the shared patch first.` };
+  }
+  const saved = patchStore.save(patch);
+  if (!saved.ok) return saved;
+  const previous = PATCH_LIBRARY.findIndex(
+    (entry) => entry.origin === 'shared' && entry.name === saved.patch.name,
+  );
+  if (previous === -1) PATCH_LIBRARY.push(saved.patch);
+  else PATCH_LIBRARY.splice(previous, 1, saved.patch);
+  PATCH_LIBRARY.sort((a, b) => a.title.localeCompare(b.title));
+  panels.renderAll();
+  return saved;
+}
+
+function patchUnderCursor() {
+  const current = editor.currentPatchSource();
+  if (!current) {
+    diagnostics.warn('Put the cursor inside a patch first', 'Scenes and loose statements are not patch files.');
+    return null;
+  }
+  const portable = portablePatchSource(current.source);
+  if (!portable.ok) {
+    diagnostics.error(`Could not share ${current.name}`, portable.error);
+    return null;
+  }
+  return portable.patch;
+}
+
+function downloadPatch(patch) {
+  const blob = new Blob([`${patch.source}\n`], { type: 'text/javascript' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${patch.name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()}.p5patch.js`;
+  link.hidden = true;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+  return link.download;
+}
+
+document.getElementById('export-patch').addEventListener('click', () => {
+  const patch = patchUnderCursor();
+  if (!patch) return;
+  diagnostics.success(`Exported ${downloadPatch(patch)}`, 'Only this patch source was included.');
+});
+
+document.getElementById('share-patch-link').addEventListener('click', async () => {
+  const patch = patchUnderCursor();
+  if (!patch) return;
+  const url = `${location.href.split('#')[0]}${patchShareHash(patch)}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    diagnostics.success(`Copied share link for ${patch.title}`, `${url.length.toLocaleString()} characters · opening it adds the patch as Available without running it.`);
+  } catch (error) {
+    diagnostics.error('Could not copy the patch link', error.message);
+  }
+});
+
+document.getElementById('import-patch').addEventListener('click', () => {
+  document.getElementById('import-patch-file').click();
+});
+
+async function confirmSharedPatch(parsed, label) {
+  if (!parsed?.ok) {
+    diagnostics.error(`Could not import ${label}`, parsed?.error ?? 'Unreadable patch');
+    return false;
+  }
+  const existing = PATCH_LIBRARY.find((entry) => entry.name === parsed.patch.name);
+  const confirmed = await dialog.ask({
+    title: `${existing ? 'Update' : 'Import'} “${parsed.patch.title}”?`,
+    body: existing
+      ? `A patch named ${parsed.patch.name} is already available. This replaces that shared library entry but does not edit or evaluate the installed project source.`
+      : 'This adds one patch to Shared patches as Available. It will not install, activate, or run it.',
+    preview: parsed.patch.source.slice(0, 1200),
+    warning: 'Inspect shared source before installing and evaluating it. p5js live does not sandbox patch code.',
+    confirmLabel: existing ? 'Update shared patch' : 'Add as available',
+  });
+  if (!confirmed) return false;
+  const result = refreshSharedPatch(parsed.patch);
+  if (!result.ok) {
+    diagnostics.error(`Could not import ${parsed.patch.title}`, result.error);
+    return false;
+  }
+  diagnostics.success(
+    `${parsed.patch.title} added to Shared patches`,
+    'Status: Available. Choose Install source when you want it in this project.',
+  );
+  return true;
+}
+
+document.getElementById('import-patch-file').addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  if (!file) return;
+  await confirmSharedPatch(parsePatchSource(await file.text()), file.name);
+});
+
+const linkedPatch = patchFromShareHash(location.hash);
+if (linkedPatch) {
+  confirmSharedPatch(linkedPatch, 'shared patch link');
+}
 
 function networkIdentifier(label) {
   const words = label
@@ -974,6 +1092,31 @@ function recallPerformanceSlot(index) {
   return recallPerformance(performance);
 }
 
+function quickSavePerformance() {
+  const now = new Date();
+  const name = `Quick ${now.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  })}`;
+  const result = performanceStore.save(performanceSnapshot(name));
+  if (!result.ok) {
+    diagnostics.error('Could not quick-save performance', result.reason);
+    return result;
+  }
+  const slot = performanceStore.list().findIndex(
+    (performance) => performance.id === result.performance.id,
+  ) + 1;
+  renderPerformances();
+  diagnostics.success(
+    `Quick-saved performance to slot ${slot}`,
+    slot <= 9
+      ? `${name} · recall with Cmd/Ctrl+Option/Alt+${slot}`
+      : `${name} · recall it from Project → Performances`,
+  );
+  return { ...result, slot };
+}
+
 document.getElementById('save-performance-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const name = performanceNameInput.value.trim();
@@ -1146,8 +1289,12 @@ document.getElementById('insert-demo-scene').addEventListener('click', buildDemo
 // --- project export / import -----------------------------------------------------
 
 document.getElementById('export-project').addEventListener('click', () => {
-  const name = projectStore.download(editor.value);
-  diagnostics.success(`Exported ${name}`);
+  const performances = performanceStore.list();
+  const name = projectStore.download(editor.value, { performances });
+  diagnostics.success(
+    `Exported ${name}`,
+    `${performances.length} named performance${performances.length === 1 ? '' : 's'} included. Audio files remain separate.`,
+  );
 });
 
 document.getElementById('import-project').addEventListener('click', () => {
@@ -1244,8 +1391,10 @@ document.getElementById('import-file').addEventListener('change', async (event) 
     title: `Import "${file.name}"?`,
     body:
       `This project contains ${importedSource.split('\n').length} lines of JavaScript ` +
-      `including its scene arrays. Importing replaces your current editor contents ` +
-      `and runs this code immediately.`,
+      `including its scene arrays and ${parsed.data.performances.length} named ` +
+      `performance${parsed.data.performances.length === 1 ? '' : 's'}. Importing replaces ` +
+      `your current editor contents, runs this code immediately, and merges the named ` +
+      `performances with those already in this browser.`,
     preview: importedSource.slice(0, 1200),
     warning:
       'p5js live runs imported code with the same privileges as your own. It is not a ' +
@@ -1270,8 +1419,21 @@ document.getElementById('import-file').addEventListener('change', async (event) 
     return;
   }
   projectStore.restoreSettings(parsed.data);
+  const performanceImport = performanceStore.merge(parsed.data.performances);
+  if (!performanceImport.ok) {
+    diagnostics.warn(
+      `Imported ${file.name}, but could not restore its named performances`,
+      performanceImport.reason,
+    );
+  }
+  renderPerformances();
   projection.setActiveCode(importedSource);
-  diagnostics.success(`Imported ${file.name}`);
+  diagnostics.success(
+    `Imported ${file.name}`,
+    performanceImport.ok
+      ? `${performanceImport.imported} named performance${performanceImport.imported === 1 ? '' : 's'} restored.`
+      : 'Working source and parameters restored.',
+  );
 });
 
 // Drop an audio file anywhere on the stage.
@@ -1331,6 +1493,11 @@ window.addEventListener('keydown', (event) => {
   if (performanceIndex !== null) {
     event.preventDefault();
     if (!event.repeat) recallPerformanceSlot(performanceIndex);
+    return;
+  }
+  if (accel && event.altKey && !event.shiftKey && event.code === 'KeyS') {
+    event.preventDefault();
+    if (!event.repeat) quickSavePerformance();
     return;
   }
   if (accel && event.altKey && event.code === 'BracketLeft') {

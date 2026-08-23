@@ -288,10 +288,13 @@ textures, and deployment.
 - A first-frame failure restores the previous patch or scene.
 - **Set safe** captures source, scene, parameters, versions, and compatible state.
 - Press `0` or use **Restore safe** to restore that checkpoint.
-- Named performances remain in the current browser.
-- Saved performances are numbered newest-first; use `Cmd/Ctrl+Option/Alt+1…9` to
-  recall one of the first nine without leaving the editor.
-- Export projects that must move or be backed up.
+- Named performances remain in the current browser and are included in project
+  exports. Import merges them by identity instead of deleting unrelated local saves.
+- Saved performances use stable insertion-order slots and new saves appear at the
+  bottom. Use `Cmd/Ctrl+Option/Alt+1…9` to recall one of the first nine without
+  leaving the editor.
+- Export the project to back up the current source, parameters, and every named
+  performance. Audio files remain separate.
 
 p5js live evaluates trusted JavaScript, not sandboxed code. An infinite loop can freeze
 the tab. See [SECURITY.md](../SECURITY.md).
@@ -304,8 +307,10 @@ the tab. See [SECURITY.md](../SECURITY.md).
 | `Cmd/Ctrl+Shift+Enter` | Evaluate the complete editor |
 | `Cmd/Ctrl+/` | Toggle one comment layer |
 | `Cmd/Ctrl+Option/Alt+T` | Tidy the current cell |
+| `Option/Alt+Up/Down` | Move the current line or selected lines |
 | `Cmd/Ctrl+Option/Alt+A` | Open the AI source editor |
 | `Cmd/Ctrl+Option/Alt+1…9` | Recall the corresponding numbered saved performance |
+| `Cmd/Ctrl+Option/Alt+S` | Quick-save to a new numbered performance slot |
 | `Cmd/Ctrl+Alt+N` | Start a new performance from the default scene |
 | `Esc` | Release editor focus |
 | `Space` | Play or pause audio |

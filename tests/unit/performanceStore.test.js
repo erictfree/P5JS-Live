@@ -33,7 +33,7 @@ describe('named performance persistence', () => {
     expect(performanceShortcutIndex({ metaKey: true, ctrlKey: false, altKey: true, shiftKey: false, code: 'Digit0' })).toBe(null);
   });
 
-  it('saves complete named recall points and lists newest first', () => {
+  it('saves complete named recall points in stable insertion order', () => {
     const storage = fakeStorage();
     let time = 100;
     let id = 0;
@@ -47,15 +47,15 @@ describe('named performance persistence', () => {
     store.save(snapshot('Second'));
 
     const performances = store.list();
-    expect(performances.map((entry) => entry.name)).toEqual(['Second', 'First']);
-    expect(performances[0]).toMatchObject({
+    expect(performances.map((entry) => entry.name)).toEqual(['First', 'Second']);
+    expect(performances[1]).toMatchObject({
       id: 'slot-2',
       sceneName: 'scene',
       safeScene: 'scene',
       audio: { analysis: { smoothing: 0.4, autoGain: false }, loop: true },
       view: { folded: true, projectionLayout: 'canvas', fpsThreshold: 45 },
     });
-    expect(performances[0].params[0]).toMatchObject({ name: 'energy', value: 0.7 });
+    expect(performances[1].params[0]).toMatchObject({ name: 'energy', value: 0.7 });
   });
 
   it('updates a slot without changing its identity or creation time', () => {
@@ -104,6 +104,34 @@ describe('named performance persistence', () => {
     store.save(snapshot('Second'));
     expect(store.remove(first.id)).toBe(true);
     expect(store.list().map((entry) => entry.name)).toEqual(['Second']);
+  });
+
+  it('merges portable performances by identity without deleting local saves', () => {
+    const store = createPerformanceStore({
+      storage: fakeStorage(),
+      now: (() => { let time = 100; return () => ++time; })(),
+      makeId: (() => { let id = 0; return () => `slot-${++id}`; })(),
+    });
+    const local = store.save(snapshot('Local only')).performance;
+    const matching = store.save(snapshot('Before backup')).performance;
+    const result = store.merge([
+      { ...matching, name: 'Restored from backup', updatedAt: matching.updatedAt + 50 },
+      {
+        ...snapshot('Backup only'),
+        id: 'portable-slot',
+        createdAt: 10,
+        updatedAt: 20,
+      },
+    ]);
+
+    expect(result).toEqual({ ok: true, imported: 2, added: 1, updated: 1 });
+    expect(store.get(local.id).name).toBe('Local only');
+    expect(store.get(matching.id).name).toBe('Restored from backup');
+    expect(store.get('portable-slot').source).toContain('plasma');
+    expect(store.merge([{ name: 'incomplete' }])).toMatchObject({
+      ok: false,
+      reason: 'invalid-performances',
+    });
   });
 
   it('fails softly when browser storage is unavailable or corrupt', () => {

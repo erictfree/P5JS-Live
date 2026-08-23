@@ -9,6 +9,7 @@ library configuration and every field is required:
 // @author Your Name
 // @description One sentence explaining what it draws.
 // @category community
+// @version 1
 
 const myPatch = {
   draw({ audio }) {
@@ -26,3 +27,8 @@ Valid categories are:
 
 Run `npm run build:patches` after adding or changing a file. Invalid or missing metadata
 stops the build instead of silently placing the patch in the wrong group.
+
+The same source-only format is used by **Library → Share current patch** in the
+browser. **Export** downloads one `.p5patch.js` file, **copy link** puts its source in
+the URL fragment, and **import** adds a received file under Shared patches as
+Available. None of these actions installs, activates, or evaluates the patch.

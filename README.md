@@ -98,8 +98,9 @@ audio. The file picker accepts MP3, WAV, OGG, M4A, and AAC files; codec support
 depends on the browser.
 
 To stop the server, press `Ctrl+C` in the terminal. Working source and named
-performances remain in that browser. Export projects that need to move to another
-browser or computer.
+performances remain in that browser. Project export includes the current source,
+parameters, and every named performance so they can move to another browser or
+computer. Audio files remain separate.
 
 ## First edit
 
@@ -138,6 +139,12 @@ To write a patch, hover in the far-left gutter beside a folded cell and select t
 subtle `+`. Enter a JavaScript name. p5js live inserts an object patch and places the
 cursor in `draw()`.
 
+To share only that patch, leave the cursor inside its cell and use **Library → Share
+current patch**. Export creates a human-readable `.p5patch.js` file; **copy link**
+encodes the same source in the URL fragment. Opening a link or importing a file adds
+the patch under **Shared patches** as Available—it does not install, activate, or run
+the code.
+
 ## AI source editor (beta)
 
 Press `Cmd/Ctrl+Option/Alt+A`, or open **Tools → AI**. Add your own OpenAI API key,
@@ -160,8 +167,10 @@ projects or exports. A ChatGPT subscription does not include API access.
 | `Cmd/Ctrl+Shift+Enter` | Evaluate the complete editor |
 | `Cmd/Ctrl+/` | Toggle one comment layer |
 | `Cmd/Ctrl+Option/Alt+T` | Tidy the current cell |
+| `Option/Alt+Up/Down` | Move the current line or selected lines |
 | `Cmd/Ctrl+Option/Alt+A` | Open the AI source editor |
-| `Cmd/Ctrl+Option/Alt+1…9` | Recall the corresponding numbered saved performance |
+| `Cmd/Ctrl+Option/Alt+1…9` | Recall the corresponding stable numbered performance slot |
+| `Cmd/Ctrl+Option/Alt+S` | Quick-save to a new numbered performance slot |
 | `Cmd/Ctrl+Alt+N` | Start a new performance from the default scene |
 | `Esc` | Release editor focus |
 | `Space` | Play or pause audio |

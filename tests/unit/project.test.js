@@ -177,6 +177,25 @@ describe('export is human-readable', () => {
     expect(data.params[0].name).toBe('trail');
     expect(Date.parse(data.exportedAt)).not.toBeNaN();
   });
+
+  it('round-trips named performances containing their own authored patch source', () => {
+    const { store } = setup();
+    const performances = [{
+      id: 'afterglow',
+      name: 'Afterglow',
+      createdAt: 10,
+      updatedAt: 20,
+      source: 'const myNewPatch = { draw() {} };\nconst scene = [myNewPatch];\nactivate(scene);',
+      params: [],
+      audio: {},
+      view: {},
+    }];
+    const parsed = store.parseProject(store.exportProject(SOURCE, { performances }));
+
+    expect(parsed.ok).toBe(true);
+    expect(parsed.data.performances).toEqual(performances);
+    expect(parsed.data.performances[0].source).toContain('myNewPatch');
+  });
 });
 
 describe('import parsing is separate from running', () => {
@@ -188,6 +207,7 @@ describe('import parsing is separate from running', () => {
     expect(parsed.data.source).toBe(SOURCE);
     expect(parsed.data).not.toHaveProperty('scenes');
     expect(parsed.data.safeScene).toBe('tunnel');
+    expect(parsed.data.performances).toEqual([]);
   });
 
   it('still imports projects exported under former product names', () => {

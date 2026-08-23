@@ -1,6 +1,7 @@
 // Performance behavior in the real page: projection, recovery, and import.
 
 import { test, expect } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 const TONE = fileURLToPath(new URL('../fixtures/test-tone.wav', import.meta.url));
@@ -2087,11 +2088,22 @@ test.describe('project portability', () => {
     await boot(page);
     await selectTool(page, 'Project');
 
+    await page.evaluate(() => window.p5jsLive.performanceStore.save({
+      name: 'Portable custom patch',
+      source: 'const myNewPatch = { draw() {} }; const scene = [myNewPatch]; activate(scene);',
+      params: [],
+      audio: {},
+      view: {},
+    }));
+
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Export this project as JSON' }).click(),
+      page.getByRole('button', { name: 'Export this project and all named performances as JSON' }).click(),
     ]);
     expect(download.suggestedFilename()).toMatch(/^p5js-live-project-\d{4}-\d{2}-\d{2}\.json$/);
+    const exported = JSON.parse(await readFile(await download.path(), 'utf8'));
+    expect(exported.performances).toHaveLength(1);
+    expect(exported.performances[0].source).toContain('myNewPatch');
   });
 
   test('import requires an explicit confirmation and can be cancelled', async ({ page }) => {
@@ -2106,6 +2118,16 @@ test.describe('project portability', () => {
         'activate(main);',
       ],
       params: [],
+      performances: [{
+        id: 'imported-performance',
+        name: 'Imported set',
+        createdAt: 10,
+        updatedAt: 20,
+        source: 'const savedPatch = { draw() {} }; const saved = [savedPatch]; activate(saved);',
+        params: [],
+        audio: {},
+        view: {},
+      }],
     });
 
     await page.locator('#import-file').setInputFiles({
@@ -2136,6 +2158,9 @@ test.describe('project portability', () => {
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.registry.hasStrategy('imported')))
       .toBe(true);
+    await expect
+      .poll(() => page.evaluate(() => window.p5jsLive.performanceStore.get('imported-performance')?.name))
+      .toBe('Imported set');
   });
 
   test('reset goes back to the starter without reloading the page', async ({ page }) => {
@@ -2207,6 +2232,102 @@ test.describe('project portability', () => {
 
     await expect(page.locator('.dialog-backdrop')).toBeHidden();
     await expect(page.locator('#diagnostics-list')).toContainText('Not a p5js live project');
+  });
+});
+
+test.describe('patch sharing and live commands', () => {
+  test('imports one patch as Available without installing or running it', async ({ page }) => {
+    await boot(page);
+    await selectTool(page, 'Library');
+    const source = [
+      '// %% patch studentGlow',
+      '// @title Student Glow',
+      '// @author Priya',
+      '// @description A shared glow.',
+      '// @category visual',
+      '// @version 1',
+      '',
+      'const studentGlow = { draw() { circle(20, 20, 10); } };',
+    ].join('\n');
+    await page.locator('#import-patch-file').setInputFiles({
+      name: 'student-glow.p5patch.js',
+      mimeType: 'text/javascript',
+      buffer: Buffer.from(source),
+    });
+    const dialog = page.locator('.dialog-backdrop');
+    await expect(dialog).toContainText('Student Glow');
+    await dialog.getByRole('button', { name: 'Add as available' }).click();
+
+    const row = page.locator('[data-library="studentGlow"]');
+    await expect(row).toContainText('Available');
+    await expect(row).toContainText('Priya');
+    expect(await page.evaluate(() => window.p5jsLive.registry.hasStrategy('studentGlow'))).toBe(false);
+    expect(await page.locator('#code').inputValue()).not.toContain('studentGlow');
+  });
+
+  test('keeps performance slots stable and reports the quick-save slot', async ({ page }) => {
+    await boot(page);
+    await selectTool(page, 'Project');
+    await page.locator('#performance-name').fill('First');
+    await page.getByRole('button', { name: 'Save current' }).click();
+
+    await page.locator('#code').focus();
+    await page.keyboard.press('Control+Alt+s');
+    await expect(page.locator('.performance-title')).toHaveText([/1\. First/, /2\. Quick/]);
+    await expect(page.locator('#stat-status')).toContainText('slot 2');
+
+    await page.locator('#performance-name').fill('Third');
+    await page.getByRole('button', { name: 'Save current' }).click();
+    await expect(page.locator('.performance-title')).toHaveText([/1\. First/, /2\. Quick/, /3\. Third/]);
+  });
+
+  test('recalls a performance safely while an expanded patch editor has the cursor', async ({ page }) => {
+    const pageErrors = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    await boot(page, { folded: true });
+    await selectTool(page, 'Project');
+    await page.locator('#performance-name').fill('Starter');
+    await page.getByRole('button', { name: 'Save current' }).click();
+
+    const alternate = [
+      '// %% patch movingDot',
+      'const movingDot = { draw({ time }) { circle(100 + sin(time) * 40, 100, 20); } };',
+      '',
+      '// %% scene alternate',
+      'const alternate = [movingDot];',
+      'activate(alternate);',
+    ].join('\n');
+    await page.evaluate((source) => {
+      window.p5jsLive.editor.value = source;
+      window.p5jsLive.editor.evaluateBuffer();
+      window.p5jsLive.editor.setFolded(true);
+    }, alternate);
+
+    const patch = page.locator('.folded-block[data-block-description="patch movingDot"]');
+    await patch.locator('summary').click();
+    const inlineEditor = patch.locator('.folded-source-editor');
+    await inlineEditor.focus();
+    await inlineEditor.evaluate((editor) => editor.setSelectionRange(20, 20));
+    const before = await page.evaluate(() => window.frameCount);
+
+    await page.keyboard.press('Control+Alt+1');
+    await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeSceneName()))
+      .toBe('scene');
+    await page.waitForTimeout(250);
+    expect(await page.evaluate(() => window.frameCount)).toBeGreaterThan(before);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('moves adjacent editor lines with Alt+Arrow', async ({ page }) => {
+    await boot(page, { folded: false });
+    await page.evaluate(() => {
+      window.p5jsLive.editor.value = 'one\ntwo\nthree';
+      const code = document.getElementById('code');
+      code.focus();
+      code.setSelectionRange(5, 5);
+    });
+    await page.keyboard.press('Alt+ArrowDown');
+    await expect(page.locator('#code')).toHaveValue('one\nthree\ntwo');
   });
 });
 

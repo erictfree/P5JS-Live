@@ -10,6 +10,7 @@ const LIBRARY_GROUPS = Object.freeze([
   { key: 'visual', label: 'Sources / drawing patches' },
   { key: 'shader', label: 'Effects / shaders' },
   { key: 'community', label: 'Community patches' },
+  { key: 'shared', label: 'Shared patches' },
 ]);
 
 export function createPanels({
@@ -140,7 +141,11 @@ export function createPanels({
     }
 
     const sections = LIBRARY_GROUPS.flatMap((group) => {
-      const entries = visible.filter((entry) => entry.category === group.key);
+      const entries = visible.filter((entry) =>
+        group.key === 'shared'
+          ? entry.origin === 'shared'
+          : entry.origin !== 'shared' && entry.category === group.key,
+      );
       if (entries.length === 0) return [];
       return [librarySection(group, entries, known, installed, inSceneSource)];
     });
@@ -296,7 +301,7 @@ export function createPanels({
 
     const origin = document.createElement('span');
     origin.className = `version library-origin ${entry.origin}`;
-    origin.textContent = entry.origin === 'community' ? entry.author : 'system';
+    origin.textContent = ['community', 'shared'].includes(entry.origin) ? entry.author : 'system';
 
     const status = document.createElement('span');
     status.className = `patch-status ${lifecycle}`;
@@ -307,7 +312,7 @@ export function createPanels({
     actions.className = 'actions';
     let action;
     if (!installed) {
-      const actionTitle = entry.origin === 'community'
+      const actionTitle = ['community', 'shared'].includes(entry.origin)
         ? `Install ${entry.title} patch source by ${entry.author} — ${entry.blurb}`
         : `Install ${entry.title} system patch source — ${entry.blurb}`;
       action = button('Install source', actionTitle, () => onInsertLibrary?.(entry));

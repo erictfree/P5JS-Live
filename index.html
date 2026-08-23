@@ -178,6 +178,7 @@
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd></dt><dd>evaluate the whole buffer</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>/</kbd></dt><dd>toggle a reversible comment layer on the selected lines</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Option/Alt</kbd>+<kbd>T</kbd></dt><dd>tidy indentation in the current code cell</dd>
+            <dt><kbd>Option/Alt</kbd>+<kbd>↑/↓</kbd></dt><dd>move the current line or selected lines</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Z</kbd></dt><dd>undo · <kbd>Shift</kbd> to redo</dd>
             <dt><kbd>Enter</kbd></dt><dd>new line with smart indentation</dd>
             <dt><kbd>Tab</kbd></dt><dd>indent · <kbd>Shift</kbd> to outdent</dd>
@@ -186,6 +187,7 @@
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>/</kbd></dt><dd>show or hide this key-command sheet while editing</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd></dt><dd>open the AI source editor</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Option/Alt</kbd>+<kbd>1…9</kbd></dt><dd>recall the corresponding numbered saved performance</dd>
+            <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Option/Alt</kbd>+<kbd>S</kbd></dt><dd>quick-save the current window to a new numbered performance slot</dd>
             <dt><kbd>Esc</kbd></dt><dd>release editor focus</dd>
             <dt><kbd>Space</kbd></dt><dd>play / pause</dd>
             <dt><kbd>0</kbd></dt><dd>restore the complete safe state</dd>
@@ -401,6 +403,15 @@ const publishMain = room.publish({
                   >Insert demo</button>
                 </span>
               </div>
+              <div class="row" id="patch-sharing-row">
+                <span class="name">Share current patch</span>
+                <span class="actions">
+                  <button id="export-patch" type="button" title="Download the patch under the editor cursor" aria-label="Export the current patch as a p5patch JavaScript file">export</button>
+                  <button id="share-patch-link" type="button" title="Copy a link containing the patch under the editor cursor" aria-label="Copy a share link for the current patch">copy link</button>
+                  <button id="import-patch" type="button" title="Import a shared patch into Available patches without running it" aria-label="Import a shared patch file">import</button>
+                </span>
+              </div>
+              <input id="import-patch-file" type="file" accept=".js,.p5patch.js,text/javascript,application/javascript" hidden />
               <div id="library-filters" class="filter-tabs" role="group" aria-label="Filter patch library">
                 <button type="button" data-library-filter="all" aria-pressed="true">All <span id="library-count-all">0</span></button>
                 <button type="button" data-library-filter="installed" aria-pressed="false">Installed <span id="library-count-installed">0</span></button>
@@ -458,7 +469,7 @@ const publishMain = room.publish({
               </header>
               <div class="body">
                 <p class="hint performance-hint">
-                  Named local recall points for the complete working window. Audio files remain separate.
+                  Stable numbered recall slots for the complete working window. New saves go to the bottom. Project export includes them; audio files remain separate.
                 </p>
                 <form id="save-performance-form" class="performance-save-row">
                   <input
@@ -493,10 +504,10 @@ const publishMain = room.publish({
               <div class="row">
                 <span class="name">project file</span>
                 <span class="actions">
-                  <button id="export-project" type="button" title="Export this project as JSON" aria-label="Export this project as JSON">
+                  <button id="export-project" type="button" title="Export this project and all named performances as JSON" aria-label="Export this project and all named performances as JSON">
                     export
                   </button>
-                  <button id="import-project" type="button" title="Import a project file" aria-label="Import a project file">
+                  <button id="import-project" type="button" title="Import a project file and merge its named performances" aria-label="Import a project file and merge its named performances">
                     import
                   </button>
                   <button

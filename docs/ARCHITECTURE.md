@@ -152,9 +152,12 @@ Audio starts only after a user gesture. With no source, the host supplies silenc
 ## Persistence and Safe State
 
 Project schema 6 stores source, the safe-scene preference, and live parameter values.
-It does not store compiled functions or derived scene membership. Reload evaluates
-the source through the normal validation path. Older registration-model schemas are
-not read.
+Portable exports additionally include every named performance, each with its own
+source, parameters, audio-analysis settings, and view settings. Import evaluates the
+working source first, then merges valid performances by identity without deleting
+unrelated browser-local saves. Project files do not store compiled functions, audio
+files, or derived scene membership. Reload evaluates source through the normal
+validation path. Older registration-model schemas are not read.
 
 Safe State also captures installed implementations, version history, evaluator
 bindings, active scene and order, parameters, and clone-compatible instance state.
