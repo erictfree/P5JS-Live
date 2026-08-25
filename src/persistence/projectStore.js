@@ -43,7 +43,12 @@ const READABLE_FORMATS = new Set([
 const SCHEMA = 6;
 const READABLE_SCHEMAS = new Set([6]);
 
-export function createProjectStore({ registry, diagnostics, storage = globalThis.localStorage } = {}) {
+export function createProjectStore({
+  registry,
+  diagnostics,
+  controlManager = null,
+  storage = globalThis.localStorage,
+} = {}) {
   let timer = null;
 
   function snapshot(editorSource) {
@@ -59,6 +64,7 @@ export function createProjectStore({ registry, diagnostics, storage = globalThis
         max,
         step,
       })),
+      controls: controlManager?.snapshotMappings?.() ?? [],
     };
   }
 
@@ -123,6 +129,7 @@ export function createProjectStore({ registry, diagnostics, storage = globalThis
       // explicitly — the performer's tuning outranks the source's default.
       registry.setParam(param.name, param.value);
     }
+    controlManager?.restoreMappings?.(data.controls ?? []);
   }
 
   function clear() {
@@ -155,6 +162,7 @@ export function createProjectStore({ registry, diagnostics, storage = globalThis
         source: data.source.split('\n'),
         safeScene: data.safeScene,
         params: data.params,
+        controls: data.controls,
         ...extra,
       },
       null,
@@ -216,6 +224,7 @@ export function createProjectStore({ registry, diagnostics, storage = globalThis
         source,
         safeScene: data.safeScene ?? null,
         params: Array.isArray(data.params) ? data.params : [],
+        controls: Array.isArray(data.controls) ? data.controls : [],
         performances: data.performances ?? [],
       },
     };

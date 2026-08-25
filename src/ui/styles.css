@@ -1547,6 +1547,102 @@ button.ai-open-button {
   width: 120px;
 }
 
+.controller-setup {
+  border-bottom: 1px solid var(--line);
+}
+
+.controller-status-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.new-param-form {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid var(--accent);
+  background: rgb(11 10 16 / 88%);
+}
+
+.new-param-form > label,
+.new-param-number-grid label,
+.new-param-kind-fields label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.new-param-form input,
+.new-param-form select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.new-param-form > label + label {
+  margin-top: 9px;
+}
+
+.new-param-number-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 9px 0;
+}
+
+.new-param-kind-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 9px 0;
+}
+
+.new-param-number-grid[hidden],
+.new-param-kind-fields[hidden] {
+  display: none;
+}
+
+.new-param-checkbox {
+  align-content: center;
+  grid-template-columns: auto 1fr !important;
+  justify-content: start;
+}
+
+.new-param-checkbox input {
+  width: auto;
+}
+
+.param-control-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 1fr) auto minmax(7rem, 1.4fr) auto;
+  gap: 7px;
+  align-items: center;
+}
+
+.param-control-row .mapping {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.82em;
+}
+
+.param-button {
+  min-width: 7rem;
+}
+
+.param-button.is-on {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 55%, transparent);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+}
+
+.param-control-row select {
+  min-width: 7rem;
+  max-width: 11rem;
+}
+
+.param-empty {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+}
+
 .copies {
   color: var(--accent);
   font-size: 11px;

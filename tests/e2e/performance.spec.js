@@ -445,8 +445,8 @@ activate(laserScene);`);
     await boot(page);
 
     const library = page.locator('#strategy-library');
-    await expect(library.locator('[data-library]')).toHaveCount(29);
-    await expect(page.getByRole('button', { name: /^All 29$/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(library.locator('[data-library]')).toHaveCount(40);
+    await expect(page.getByRole('button', { name: /^All 40$/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-library="laserFan"]')).toHaveAttribute('data-origin', 'system');
     await expect(page.locator('[data-library="plasma"]')).toHaveAttribute('data-origin', 'system');
     await expect(page.locator('[data-available="laserFan"]')).toContainText('laserFan');
@@ -619,6 +619,60 @@ activate(show);`;
       }))
       .toEqual({ running: true, error: null });
     await expect(page.locator('[data-library="shaderFlow"]')).toContainText('Running');
+  });
+
+  test('compiles and renders the Glass Origin procedural WebGL shader', async ({ page }) => {
+    const pageErrors = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    await boot(page);
+    await page.getByRole('button', {
+      name: /^Install Glass Origin system patch source —/,
+    }).click();
+
+    await replaceInEditorAndEvaluate(
+      page,
+      'const scene = [\n  asciiNoise,\n  plasma,\n];',
+      'const scene = [\n  glassOrigin,\n];',
+    );
+
+    await expect
+      .poll(() => {
+        return page.evaluate(() => {
+          const strategy = window.p5jsLive.controller.snapshot().strategies
+            .find(({ name }) => name === 'glassOrigin');
+          return { running: strategy?.running, error: strategy?.lastError?.message ?? null };
+        });
+      })
+      .toEqual({ running: true, error: null });
+    await expect(page.locator('[data-library="glassOrigin"]')).toContainText('Running');
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('compiles and renders the Pattern CRT procedural WebGL shader', async ({ page }) => {
+    const pageErrors = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    await boot(page);
+    await page.getByRole('button', {
+      name: /^Install Pattern CRT system patch source —/,
+    }).click();
+
+    await replaceInEditorAndEvaluate(
+      page,
+      'const scene = [\n  asciiNoise,\n  plasma,\n];',
+      'const scene = [\n  patternCRT,\n];',
+    );
+
+    await expect
+      .poll(() => {
+        return page.evaluate(() => {
+          const strategy = window.p5jsLive.controller.snapshot().strategies
+            .find(({ name }) => name === 'patternCRT');
+          return { running: strategy?.running, error: strategy?.lastError?.message ?? null };
+        });
+      })
+      .toEqual({ running: true, error: null });
+    await expect(page.locator('[data-library="patternCRT"]')).toContainText('Running');
+    expect(pageErrors).toEqual([]);
   });
 
   test('layers a small drawing patch through modular transform shaders', async ({ page }) => {
@@ -921,9 +975,7 @@ test.describe('the minimal display', () => {
     await page.waitForTimeout(150);
     expect(await page.evaluate(() => window.frameCount)).toBeGreaterThan(frameBefore);
     await expect(welcome).toBeVisible();
-    const mascot = welcome.getByAltText(
-      'Cartoon live coder wearing headphones at a laptop',
-    );
+    const mascot = welcome.getByAltText('p5js.live robot mascot coding on a laptop');
     await expect(mascot).toBeVisible();
     expect(await mascot.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
     await expect(
@@ -1743,7 +1795,7 @@ circle(20, 20, 10);
       .toEqual(['asciiNoise', 'plasma']);
   });
 
-  test('the drawer keeps disabled Network last without duplicating the scene', async ({ page }) => {
+  test('the drawer keeps Controllers available without duplicating the scene', async ({ page }) => {
     await boot(page, { tools: false });
     await page.locator('#tools-toggle').click();
 
@@ -1755,8 +1807,8 @@ circle(20, 20, 10);
     await expect(page.locator('#network-panel')).toBeHidden();
     expect(await page.locator('#tool-tabs [data-tool-view]').evaluateAll((tabs) =>
       tabs.map((tab) => tab.dataset.toolView),
-    )).toEqual(['audio', 'library', 'messages', 'project', 'ai', 'network']);
-    await expect(page.getByRole('tab', { name: 'Network disabled' })).toBeDisabled();
+    )).toEqual(['audio', 'library', 'messages', 'project', 'ai', 'controls']);
+    await expect(page.getByRole('tab', { name: 'Controllers' })).toBeEnabled();
     await expect(page.locator('#scene-panel')).toHaveCount(0);
     await expect(page.locator('#code')).toHaveValue(/const scene = \[/);
     await expect(page.locator('#parameters-panel')).toBeHidden();
@@ -1766,6 +1818,83 @@ circle(20, 20, 10);
     await page.getByRole('tab', { name: 'Project' }).click();
     await expect(page.locator('#project-panel')).toBeVisible();
     await expect(page.locator('#project-panel')).toContainText('Recovery point');
+  });
+
+  test('creates visible live controls and learns MIDI without manual CC or note entry', async ({ page }) => {
+    await page.addInitScript(() => {
+      const input = {
+        manufacturer: 'Student',
+        name: 'Knob Box',
+        state: 'connected',
+        connection: 'open',
+        onmidimessage: null,
+      };
+      const access = { inputs: new Map([['knobs', input]]), onstatechange: null };
+      window.__testMidiInput = input;
+      Object.defineProperty(navigator, 'requestMIDIAccess', {
+        configurable: true,
+        value: async (options) => {
+          window.__testMidiOptions = options;
+          return access;
+        },
+      });
+    });
+    await boot(page, { tools: false });
+    await page.locator('#tools-toggle').click();
+    await selectTool(page, 'Controllers');
+
+    await expect(page.locator('#controls-panel')).toBeVisible();
+    await expect(page.locator('#param-list')).toContainText('No live controls yet');
+    await page.locator('#new-live-param').click();
+    await page.locator('#new-param-name').fill('ringSpeed');
+    await page.locator('#new-param-value').fill('0.6');
+    await page.locator('#new-param-min').fill('0');
+    await page.locator('#new-param-max').fill('3');
+    await page.locator('#new-param-step').fill('0.01');
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+    await expect.poll(() => page.evaluate(() =>
+      window.p5jsLive.registry.listParams().find(({ name }) => name === 'ringSpeed')?.value,
+    )).toBe(0.6);
+    await expect(page.locator('#code')).toHaveValue(/^\/\/ %% controls\ncontrol\("ringSpeed", 0.6, \{ type: "continuous", min: 0, max: 3, step: 0.01 \}\);/);
+
+    await page.locator('#connect-midi').click();
+    await expect(page.locator('#midi-status')).toHaveText('1 input');
+    await page.getByRole('button', { name: 'Assign a MIDI control to ringSpeed' }).click();
+    await expect(page.getByRole('button', { name: 'Waiting for a MIDI control for ringSpeed' })).toBeVisible();
+    await page.evaluate(() => {
+      window.__testMidiInput.onmidimessage({ data: Uint8Array.from([0xb0, 21, 127]) });
+    });
+
+    await expect.poll(() => page.evaluate(() =>
+      window.p5jsLive.registry.listParams().find(({ name }) => name === 'ringSpeed')?.value,
+    )).toBe(3);
+    await expect(page.locator('#param-list')).toContainText('Student · Knob Box · Ch 1 · CC 21');
+
+    await page.locator('#new-live-param').click();
+    await page.locator('#new-param-name').fill('flash');
+    await page.locator('#new-param-type').selectOption('button');
+    await page.locator('#new-param-button-mode').selectOption('momentary');
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(page.locator('#code')).toHaveValue(
+      /control\("flash", false, \{ type: "button", mode: "momentary" \}\);/,
+    );
+    await page.getByRole('button', { name: 'Assign a MIDI control to flash' }).click();
+    await page.evaluate(() => {
+      window.__testMidiInput.onmidimessage({ data: Uint8Array.from([0x90, 36, 118]) });
+    });
+    await expect.poll(() => page.evaluate(() =>
+      window.p5jsLive.registry.listParams().find(({ name }) => name === 'flash')?.value,
+    )).toBe(true);
+    await expect(page.getByRole('button', { name: 'Turn off flash' })).toBeVisible();
+    await page.evaluate(() => {
+      window.__testMidiInput.onmidimessage({ data: Uint8Array.from([0x80, 36, 0]) });
+    });
+    await expect.poll(() => page.evaluate(() =>
+      window.p5jsLive.registry.listParams().find(({ name }) => name === 'flash')?.value,
+    )).toBe(false);
+    await expect(page.locator('#param-list')).toContainText('Note 36');
+    expect(await page.evaluate(() => window.__testMidiOptions)).toEqual({ sysex: false });
   });
 
   test('the drawer restores its last selected tab', async ({ page }) => {
@@ -1826,7 +1955,7 @@ test.describe('safe-state recovery', () => {
 
     await page.evaluate(() => {
       window.p5jsLive.evaluator.evaluate(
-        'const chaos = { draw() { circle(10, 10, 5); } }; const wild = [chaos]; activate(wild); param("safeProbe", 9);',
+        'const chaos = { draw() { circle(10, 10, 5); } }; const wild = [chaos]; activate(wild); control("safeProbe", 9);',
         { label: 'buffer' },
       );
     });
@@ -1976,7 +2105,7 @@ test.describe('named Performance recall', () => {
       'const alternate = { draw() { circle(40, 40, 20); } };',
       '// %% scene other',
       'const other = [alternate];',
-      'param("energy", 0.2, { min: 0, max: 1 });',
+      'control("energy", 0.2, { min: 0, max: 1 });',
       'activate(other);',
     ].join('\n');
     await page.evaluate((source) => {

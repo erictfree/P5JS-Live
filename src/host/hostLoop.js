@@ -20,7 +20,7 @@ export function createHostLoop({
   evaluator,
   diagnostics,
   drawing,
-  controls = {},
+  keyboard = {},
   fpsThreshold = 30, // configurable from the Project panel
   now = () => performance.now() / 1000,
   onCodeError = () => {},
@@ -40,6 +40,7 @@ export function createHostLoop({
   // One draw-input object, reused every frame for every strategy. Avoid
   // unbounded per-frame allocation, and a performance can run for half an hour.
   // `state` is swapped per instance immediately before the call.
+  const liveControls = {};
   const drawInputs = {
     audio: null,
     canvas: null,
@@ -47,8 +48,11 @@ export function createHostLoop({
     dt: 0,
     time: 0,
     sceneTime: 0,
-    params: {},
-    controls,
+    controls: liveControls,
+    // Temporary source-compatibility alias. New code and all teaching material use
+    // `controls`; old saved performances can still open while students migrate them.
+    params: liveControls,
+    keyboard,
   };
 
   /**
@@ -59,7 +63,7 @@ export function createHostLoop({
    * being on stage, not of being registered.
    */
   const entered = new Set();
-  /** Start a frame: advance clocks, refresh params, handle scene transitions. */
+  /** Start a frame: advance clocks, refresh live controls, handle scene transitions. */
   function beginFrame(audio, canvas = null) {
     const t = now();
     const dt = Math.min(t - lastFrameAt, MAX_DT);
@@ -83,7 +87,7 @@ export function createHostLoop({
     drawInputs.dt = dt;
     drawInputs.time = t - startTime;
     drawInputs.sceneTime = t - sceneEnteredAt;
-    registry.paramValues(drawInputs.params);
+    registry.paramValues(drawInputs.controls);
     return drawInputs;
   }
 

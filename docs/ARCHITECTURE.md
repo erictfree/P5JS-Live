@@ -17,6 +17,7 @@ src/host/hostLoop.js        lifecycle calls, frame boundaries, and rollback
 src/shaders/shaderChain.js  single-input GPU operator compiler and patch
 src/language/sourceBlocks.js statement and // %% cell discovery
 src/audio/                  audio graph and feature processing
+src/control/                Web MIDI input and parameter mappings
 src/network/                StreamRoom objects and WebRTC client manager
 src/ui/                     editors, read-only views, and projection
 src/persistence/            schema-versioned source and settings storage
@@ -71,7 +72,7 @@ a staging environment, and captures declarations.
 - An inline value receives an identity such as `scene[1]`.
 - An array containing only patch values is a scene.
 - Other functions, classes, arrays, and values remain ordinary bindings.
-- `activate`, `reset`, and `param` are the injected live commands.
+- `activate`, `reset`, and `control` are the injected live commands.
 
 Bindings persist between evaluations, so a later array contains the actual values
 declared earlier. `activate(scene)` receives the array itself; no string registry is
@@ -131,7 +132,7 @@ source before it changes the runtime.
 
 ## Runtime, controller, and views
 
-The registry, evaluator, host loop, audio engine, network manager, and diagnostics are
+The registry, evaluator, host loop, audio engine, control manager, network manager, and diagnostics are
 the runtime model. `src/app/controller.js` exposes data-only snapshots and named
 actions. `src/ui` receives the controller, not the registry or evaluator. `main.js`
 adapts browser events, p5 callbacks, source insertion, import/export, and transport.
@@ -151,7 +152,7 @@ Audio starts only after a user gesture. With no source, the host supplies silenc
 
 ## Persistence and Safe State
 
-Project schema 6 stores source, the safe-scene preference, and live parameter values.
+Project schema 6 stores source, the safe-scene preference, and live-control values.
 Portable exports additionally include every named performance, each with its own
 source, parameters, audio-analysis settings, and view settings. Import evaluates the
 working source first, then merges valid performances by identity without deleting
@@ -160,9 +161,20 @@ files, or derived scene membership. Reload evaluates source through the normal
 validation path. Older registration-model schemas are not read.
 
 Safe State also captures installed implementations, version history, evaluator
-bindings, active scene and order, parameters, and clone-compatible instance state.
+bindings, active scene and order, parameters, controller mappings, and clone-compatible instance state.
 The first successful starter or saved scene becomes the initial checkpoint. **Set
 safe** replaces it only after success. Restore reports state it could not clone.
+
+## External controllers
+
+The host-level `controlManager` requests Web MIDI only after an explicit user action.
+It parses CC and note messages, learns one portable mapping per parameter, and batches
+updates through the registry. Evaluated patches never receive device handles, and MIDI
+messages never invoke patch methods or source evaluation.
+
+The UI creates ordinary `control()` declarations in a dedicated `// %% controls` cell.
+Mapping snapshots participate in project persistence, performances, Safe State, and
+recall checkpoints while controller permission and live browser handles remain local.
 
 ## Networking
 

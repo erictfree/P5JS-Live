@@ -14,6 +14,7 @@ import { createStateStore } from './host/stateStore.js';
 import { createEvaluator } from './host/evaluator.js';
 import { createHostLoop } from './host/hostLoop.js';
 import { createAudioEngine } from './audio/audioEngine.js';
+import { createControlManager } from './control/controlManager.js';
 import { createEditor } from './ui/editor.js';
 import { createPanels } from './ui/panels.js';
 import { createProjection } from './ui/projection.js';
@@ -65,7 +66,11 @@ const STARTER_PATCHES = findCells(STARTER_SOURCE).flatMap((cell) => {
 
 const BUILT_IN_PATCH_LIBRARY = [
   ...STARTER_PATCHES,
-  ...LIBRARY.map((entry) => ({ ...entry, title: entry.name, origin: 'system' })),
+  ...LIBRARY.map((entry) => ({
+    ...entry,
+    title: entry.title ?? entry.name,
+    origin: 'system',
+  })),
   ...COMMUNITY_PATCHES,
 ];
 const patchStore = createPatchStore();
@@ -78,9 +83,10 @@ const stateStore = createStateStore({ diagnostics });
 const evaluator = createEvaluator({ registry, stateStore, diagnostics });
 const audio = createAudioEngine({ diagnostics });
 const network = getDefaultNetworkManager();
+const controlManager = createControlManager({ registry, diagnostics });
 
 // Read-only keyboard state, handed to strategies as one of the draw inputs.
-const controls = { keys: new Set(), shift: false, alt: false };
+const keyboard = { keys: new Set(), shift: false, alt: false };
 
 /**
  * p5 drawing isolation for one strategy invocation.
@@ -117,7 +123,7 @@ const host = createHostLoop({
   evaluator,
   diagnostics,
   drawing,
-  controls,
+  keyboard,
   onCodeError: (name) => showCodeError(name),
 });
 const controller = createAppController({
@@ -128,8 +134,9 @@ const controller = createAppController({
   audio,
   host,
   network,
+  controlManager,
 });
-const projectStore = createProjectStore({ registry, diagnostics });
+const projectStore = createProjectStore({ registry, diagnostics, controlManager });
 const performanceStore = createPerformanceStore({ diagnostics });
 const projection = createProjection({
   controller,
@@ -198,10 +205,54 @@ const panels = createPanels({
   onAddToScene: addPatchToScene,
   onAddNetworkStream: addNetworkStream,
   onRestoreSafe: restoreSafeState,
+  onCreateParam: createLiveParam,
   onLocateStrategy: (name) => {
     if (editor.revealStrategy(name)) toggleReference(true);
   },
 });
+
+function createLiveParam(spec) {
+  const { name } = spec;
+  if (!/^[A-Za-z_$][\w$]*$/.test(name) || ['__proto__', 'prototype', 'constructor'].includes(name)) {
+    return { ok: false, error: 'Use a JavaScript-style name such as ringSpeed.' };
+  }
+  if (registry.listParams().some((entry) => entry.name === name)) {
+    return { ok: false, error: `A live control named “${name}” already exists.` };
+  }
+
+  let declaration;
+  if (spec.type === 'button') {
+    const mode = spec.mode === 'toggle' ? 'toggle' : 'momentary';
+    declaration = `control(${JSON.stringify(name)}, ${Boolean(spec.value)}, { type: "button", mode: "${mode}" });`;
+  } else if (spec.type === 'choice') {
+    const choices = [...new Set((spec.choices ?? []).map((choice) => String(choice).trim()).filter(Boolean))];
+    if (choices.length < 2) return { ok: false, error: 'Enter at least two different choices.' };
+    const value = String(spec.value ?? '').trim();
+    if (!choices.includes(value)) return { ok: false, error: 'Initial choice must appear in the choices list.' };
+    declaration = `control(${JSON.stringify(name)}, ${JSON.stringify(value)}, { type: "choice", choices: ${JSON.stringify(choices)} });`;
+  } else {
+    const { value, min, max, step } = spec;
+    if (![value, min, max, step].every(Number.isFinite)) {
+      return { ok: false, error: 'Initial, minimum, maximum, and step must be numbers.' };
+    }
+    if (!(max > min)) return { ok: false, error: 'Maximum must be greater than minimum.' };
+    if (!(step > 0)) return { ok: false, error: 'Step must be greater than zero.' };
+    if (value < min || value > max) {
+      return { ok: false, error: 'Initial value must be between minimum and maximum.' };
+    }
+    declaration = `control(${JSON.stringify(name)}, ${value}, { type: "continuous", min: ${min}, max: ${max}, step: ${step} });`;
+  }
+
+  editor.insertControlDeclaration(declaration);
+  const result = evaluator.evaluate(declaration, { label: `control ${name}` });
+  if (!result.ok) return { ok: false, error: result.error?.message ?? 'Evaluation failed.' };
+  projection.setActiveCode(declaration);
+  diagnostics.success(
+    `Live control created — ${name}`,
+    `The declaration was added to // %% controls. Use controls.${name} in a patch, or choose Learn MIDI here.`,
+  );
+  return { ok: true, declaration };
+}
 
 const aiAssistant = createAIAssistant({
   editor,
@@ -943,6 +994,7 @@ function performanceSnapshot(name) {
       max,
       step,
     })),
+    controls: controlManager.snapshotMappings(),
     audio: {
       analysis: audio.featureOptions(),
       loop: audio.status().looping,
@@ -1069,6 +1121,7 @@ function recallPerformance(performance) {
   host.reset();
   registry.reset();
   stateStore.clear();
+  controlManager.restoreMappings([]);
   editor.value = performanceSource;
   const result = evaluator.evaluate(performanceSource, { label: `performance ${performance.name}` });
   if (!result.ok) {
@@ -1334,6 +1387,7 @@ function loadStarterProject(message) {
   host.reset();
   registry.reset();
   stateStore.clear();
+  controlManager.restoreMappings([]);
 
   editor.value = STARTER_SOURCE;
   evaluator.evaluate(STARTER_SOURCE, { label: 'starter' });
@@ -1435,6 +1489,7 @@ document.getElementById('import-file').addEventListener('change', async (event) 
   host.reset();
   registry.reset();
   stateStore.clear();
+  controlManager.restoreMappings([]);
   editor.value = importedSource;
   const result = evaluator.evaluate(importedSource, { label: file.name });
   evaluator.applyPending();
@@ -1505,9 +1560,9 @@ const COMMANDS = {
 };
 
 window.addEventListener('keydown', (event) => {
-  controls.keys.add(event.key);
-  controls.shift = event.shiftKey;
-  controls.alt = event.altKey;
+  keyboard.keys.add(event.key);
+  keyboard.shift = event.shiftKey;
+  keyboard.alt = event.altKey;
 
   // Structural editor commands deliberately work with the caret still in code.
   // `event.code` keeps the brackets stable on keyboard layouts where Alt changes
@@ -1570,15 +1625,16 @@ window.addEventListener('keydown', (event) => {
   command();
 });
 window.addEventListener('keyup', (event) => {
-  controls.keys.delete(event.key);
-  controls.shift = event.shiftKey;
-  controls.alt = event.altKey;
+  keyboard.keys.delete(event.key);
+  keyboard.shift = event.shiftKey;
+  keyboard.alt = event.altKey;
 });
 
 // Save on the way out, so a mid-set refresh does not lose the last edit.
 window.addEventListener('beforeunload', () => {
   projectStore.save(editor.value);
   network.dispose();
+  controlManager.dispose();
 });
 
 // Exposed for automated browser tests and for patch authors who want to inspect the
@@ -1596,5 +1652,6 @@ window.p5jsLive = {
   projectStore,
   performanceStore,
   network,
+  controlManager,
   aiAssistant,
 };

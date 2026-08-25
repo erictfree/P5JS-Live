@@ -73,8 +73,9 @@ can be drawn, composited, fed back, or used as a shader texture.
 - Local use needs no account and does not start networking.
 - Peer-mesh networking is for small rooms. Production use needs STUN/TURN; larger
   audiences need an SFU.
-- MIDI, recording/replay, isolated worker execution, and fluent multi-source shader
-  routing are not implemented.
+- OSC, recording/replay, isolated worker execution, and fluent multi-source shader
+  routing are not implemented. Direct Web MIDI control is available in supporting
+  browsers through declared live controls.
 
 See [NETWORKING.md](NETWORKING.md) for network deployment and security boundaries.
 

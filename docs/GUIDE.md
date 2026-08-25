@@ -93,8 +93,28 @@ p5js live passes one object to each patch. Destructure only what you need.
 | `audio` | Level, bands, beat, and plain-array spectrum/waveform data |
 | `state` | Persistent data for this occurrence of the patch |
 | `canvas` | Main p5 renderer; also usable as a shader source |
-| `params` | Values created with `param()` |
-| `controls` | Read-only keyboard state |
+| `controls` | Values created with `control()` |
+| `keyboard` | Read-only physical keyboard state |
+
+## Live controls and MIDI controllers
+
+`control()` publishes a named value that patches read from `draw({ controls })`. The
+**Controllers** panel is always available, even when the project has no parameters.
+Choose **+ Live parameter**, select **Continuous**, **Button**, or **Choice**, and
+p5js live writes the ordinary `control()` declaration into a `// %% controls` cell for
+you. Buttons may be momentary (on while held) or toggle (each press switches state).
+
+To assign hardware in a browser with Web MIDI support:
+
+1. Plug in and power on the MIDI controller.
+2. Open **Controllers** and choose **Connect MIDI**.
+3. Choose **Learn MIDI** beside a live control.
+4. Move a knob or fader, strike a pad, or press a switch.
+
+The assignment changes the same value as its onscreen slider, button, or choice menu.
+It survives project and performance recall; the patch source remains
+hardware-independent. Direct Web MIDI is
+feature-detected, so unsupported browsers show a clear explanation instead of failing.
 
 p5 globals such as `circle`, `fill`, `noise`, `width`, and `height` remain available.
 

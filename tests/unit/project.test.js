@@ -29,6 +29,18 @@ function setup() {
   return { registry, storage, store };
 }
 
+function fakeControls(initial = []) {
+  let mappings = structuredClone(initial);
+  return {
+    snapshotMappings: () => structuredClone(mappings),
+    restoreMappings: (next) => {
+      mappings = structuredClone(next ?? []);
+      return mappings.length;
+    },
+    current: () => structuredClone(mappings),
+  };
+}
+
 const SOURCE = [
   'const wash = { draw() {} };',
   'const rings = { draw() {} };',
@@ -83,6 +95,27 @@ describe('local persistence', () => {
     createProjectStore({ registry: fresh, storage: fakeStorage() }).restoreSettings(store.load());
 
     expect(fresh.listParams()[0].value).toBe(0.25);
+  });
+
+  it('round-trips external controller mappings without live device handles', () => {
+    const registry = createRegistry();
+    const storage = fakeStorage();
+    const controls = fakeControls([{
+      param: 'trail',
+      transport: 'midi',
+      device: 'Test · Knobs',
+      type: 'cc',
+      channel: 1,
+      number: 21,
+    }]);
+    const store = createProjectStore({ registry, storage, controlManager: controls });
+    store.save(SOURCE);
+    expect(store.load().controls).toEqual(controls.current());
+
+    const restored = fakeControls();
+    createProjectStore({ registry, storage, controlManager: restored }).restoreSettings(store.load());
+    expect(restored.current()).toEqual(controls.current());
+    expect(JSON.stringify(store.load())).not.toContain('onmidimessage');
   });
 
   it('starts fresh rather than throwing on a corrupt or outdated save', () => {

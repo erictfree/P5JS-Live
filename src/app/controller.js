@@ -147,6 +147,7 @@ export function createAppController({
   audio,
   host,
   network = null,
+  controlManager = null,
 }) {
   let latestAudio = null;
   let sourceProvider = () => '';
@@ -159,6 +160,7 @@ export function createAppController({
   const unsubscribeRegistry = registry.subscribe(notify);
   const unsubscribeDiagnostics = diagnostics.subscribe(notify);
   const unsubscribeNetwork = network?.subscribe?.(notify) ?? (() => {});
+  const unsubscribeControls = controlManager?.subscribe?.(notify) ?? (() => {});
 
   function projectSignature(source = sourceProvider()) {
     return JSON.stringify({
@@ -174,6 +176,7 @@ export function createAppController({
         order: registry.activeInstances().map((instance) => instance.strategy),
       },
       params: registry.listParams().map(({ name, value }) => ({ name, value })),
+      controls: controlManager?.snapshotMappings?.() ?? [],
     });
   }
 
@@ -190,6 +193,7 @@ export function createAppController({
       registry: registry.snapshotRuntime(),
       states: stateStore.snapshotAll(),
       bindings: evaluator.snapshotBindings(),
+      controls: controlManager?.snapshotMappings?.() ?? [],
       signature: projectSignature(source),
     };
   }
@@ -205,6 +209,7 @@ export function createAppController({
     host.reset({ preserveDefinitions: preserved });
     registry.restoreRuntime(checkpoint.registry);
     evaluator.restoreBindings(checkpoint.bindings);
+    controlManager?.restoreMappings?.(checkpoint.controls ?? []);
     const stateResult = stateStore.restoreAll(checkpoint.states);
     const missing = [...new Set([...(checkpoint.states?.skipped ?? []), ...stateResult.skipped])];
     return {
@@ -376,6 +381,11 @@ export function createAppController({
       safeScene: registry.safeSceneName(),
       safeState: safeStateStatus(),
       params: registry.listParams().map((entry) => ({ ...entry })),
+      externalControl: controlManager?.snapshot?.() ?? {
+        midi: { supported: false, status: 'unsupported', devices: [], lastMessage: null },
+        learning: null,
+        mappings: [],
+      },
       history,
       network: network?.snapshot?.() ?? {
         service: null,
@@ -410,6 +420,18 @@ export function createAppController({
 
     setParam(name, value) {
       return registry.setParam(name, value);
+    },
+
+    connectMidi() {
+      return controlManager?.connectMidi?.() ?? Promise.resolve({ ok: false, reason: 'unsupported' });
+    },
+
+    learnMidi(name) {
+      return controlManager?.learn?.(name) ?? false;
+    },
+
+    removeControlBinding(name) {
+      return controlManager?.removeBinding?.(name) ?? false;
     },
 
     joinNetworkRoom(config) {
@@ -474,6 +496,7 @@ export function createAppController({
       unsubscribeRegistry();
       unsubscribeDiagnostics();
       unsubscribeNetwork();
+      unsubscribeControls();
       listeners.clear();
     },
   };

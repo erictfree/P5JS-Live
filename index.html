@@ -277,19 +277,97 @@
             data-tool-view="ai"
           >AI <span class="beta-badge">beta</span></button>
           <button
-            id="tools-tab-network"
+            id="tools-tab-controls"
             type="button"
             role="tab"
             aria-selected="false"
-            aria-controls="network-panel"
-            data-tool-view="network"
-            aria-disabled="true"
-            title="Network streaming is temporarily unavailable"
-            disabled
-          >Network <span class="beta-badge">disabled</span></button>
+            aria-controls="controls-panel"
+            data-tool-view="controls"
+          >Controllers</button>
         </div>
 
         <div id="panels">
+          <section
+            class="tool-view"
+            id="controls-panel"
+            role="tabpanel"
+            aria-labelledby="tools-tab-controls"
+            data-tool-panel="controls"
+            hidden
+          >
+            <div class="body controller-setup">
+              <p class="hint">
+                Live controls belong to the code. MIDI Learn connects a hardware knob, fader, or pad without putting device details in a patch.
+              </p>
+              <div class="row controller-status-row">
+                <span class="name">MIDI</span>
+                <span class="version" id="midi-status">not connected</span>
+                <span class="actions">
+                  <button id="connect-midi" type="button">Connect MIDI</button>
+                </span>
+              </div>
+              <div id="midi-devices" class="hint">No MIDI inputs connected.</div>
+            </div>
+
+            <section class="tool-section" id="parameters-panel">
+              <header class="tool-section-heading">
+                <h2>Live controls <span class="summary-count" id="parameter-summary-count">0</span></h2>
+                <button id="new-live-param" type="button">＋ Live control</button>
+              </header>
+              <div class="body">
+                <form id="new-param-form" class="new-param-form" hidden>
+                  <label>
+                    <span>Name</span>
+                    <input id="new-param-name" required pattern="[A-Za-z_$][A-Za-z0-9_$]*" autocomplete="off" placeholder="ringSpeed" />
+                  </label>
+                  <label>
+                    <span>Type</span>
+                    <select id="new-param-type">
+                      <option value="continuous">Continuous — knob or slider</option>
+                      <option value="button">Button — pad or switch</option>
+                      <option value="choice">Choice — named options</option>
+                    </select>
+                  </label>
+                  <div class="new-param-number-grid" id="new-param-continuous-fields">
+                    <label><span>Initial</span><input id="new-param-value" type="number" value="0.5" step="any" required /></label>
+                    <label><span>Minimum</span><input id="new-param-min" type="number" value="0" step="any" required /></label>
+                    <label><span>Maximum</span><input id="new-param-max" type="number" value="1" step="any" required /></label>
+                    <label><span>Step</span><input id="new-param-step" type="number" value="0.01" min="0.000001" step="any" required /></label>
+                  </div>
+                  <div class="new-param-kind-fields" id="new-param-button-fields" hidden>
+                    <label>
+                      <span>Behavior</span>
+                      <select id="new-param-button-mode">
+                        <option value="momentary">Momentary — on while held</option>
+                        <option value="toggle">Toggle — press to switch</option>
+                      </select>
+                    </label>
+                    <label class="new-param-checkbox">
+                      <input id="new-param-button-initial" type="checkbox" />
+                      <span>Initially on</span>
+                    </label>
+                  </div>
+                  <div class="new-param-kind-fields" id="new-param-choice-fields" hidden>
+                    <label>
+                      <span>Choices <small>comma separated</small></span>
+                      <input id="new-param-choices" autocomplete="off" value="circle, square, triangle" />
+                    </label>
+                    <label>
+                      <span>Initial choice</span>
+                      <input id="new-param-choice-initial" autocomplete="off" value="circle" />
+                    </label>
+                  </div>
+                  <div id="new-param-error" class="row-error" hidden></div>
+                  <div class="actions">
+                    <button type="submit">Create</button>
+                    <button id="cancel-new-param" type="button">Cancel</button>
+                  </div>
+                </form>
+                <div id="param-list"></div>
+              </div>
+            </section>
+          </section>
+
           <section
             class="tool-view"
             id="audio-panel"
@@ -441,10 +519,6 @@ const publishMain = room.publish({
                 </div>
               </details>
             </div>
-            <section class="tool-section" id="parameters-panel" hidden>
-              <h2>Live parameters <span class="summary-count" id="parameter-summary-count">0</span></h2>
-              <div class="body" id="param-list"></div>
-            </section>
           </section>
 
           <section

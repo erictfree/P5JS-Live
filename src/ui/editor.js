@@ -4,6 +4,7 @@
 
 import {
   findBlocks,
+  findCells,
   blockAt,
   describeBlock,
   insertSceneMember,
@@ -25,7 +26,7 @@ const RESERVED_PATCH_NAMES = new Set([
   'var', 'void', 'while', 'with', 'yield',
   // These are evaluator-provided bindings, so declaring one in a cell would collide
   // with the live-coding API even though it is a legal JavaScript identifier.
-  'activate', 'param', 'reset', 'ShaderChain', 'StreamRoom',
+  'activate', 'control', 'param', 'reset', 'ShaderChain', 'StreamRoom',
 ]);
 
 /** VS Code-style movement of the current line or selected consecutive lines. */
@@ -1394,6 +1395,28 @@ export function createEditor(textarea, handlers) {
     return next;
   }
 
+  /** Keep UI-authored parameter declarations visible in one ordinary code cell. */
+  function insertControlDeclaration(declaration) {
+    const existing = findCells(textarea.value).find((cell) => cell.label === 'controls');
+    let next;
+    let caret;
+    if (existing) {
+      const cell = existing.text.trimEnd();
+      const replacement = `${cell}\n${declaration}\n`;
+      next = textarea.value.slice(0, existing.start) + replacement + textarea.value.slice(existing.end);
+      caret = existing.start + replacement.length - 1;
+    } else {
+      const prefix = `// %% controls\n${declaration}\n\n`;
+      next = prefix + textarea.value.trimStart();
+      caret = prefix.length - 2;
+    }
+    write(moveSceneCellsLast(next), true);
+    textarea.setSelectionRange(caret, caret);
+    lastSourceCaret = caret;
+    changed();
+    return { source: textarea.value, declaration };
+  }
+
   function replaceNamedBlock(description, source) {
     const target = findBlocks(textarea.value).find((block) => {
       const label = describeBlock(block.text).replace(/^strategy\s+/, 'patch ');
@@ -1488,6 +1511,7 @@ export function createEditor(textarea, handlers) {
     flashCodeError,
     appendSource,
     insertPatchSource,
+    insertControlDeclaration,
     replaceNamedBlock,
     addStrategyToScene,
     patchSource(name) {

@@ -17,6 +17,27 @@ const COUNTER_COPIES = `
 `;
 
 describe('first-class strategy instances', () => {
+  it('supplies declared live values as controls and physical keys as keyboard', () => {
+    const h = createTestHost();
+    h.evaluator.evaluate(`
+      control("flash", false, { type: "button", mode: "momentary" });
+      const probe = {
+        draw({ controls, keyboard }) {
+          globalThis.__liveContext = { flash: controls.flash, keyboard };
+        }
+      };
+      const show = [probe];
+      activate(show);
+    `);
+    h.frame();
+    h.registry.setParam('flash', true);
+    h.frame();
+
+    expect(globalThis.__liveContext.flash).toBe(true);
+    expect(globalThis.__liveContext.keyboard).toEqual({});
+    delete globalThis.__liveContext;
+  });
+
   it('keeps a stable scene object while its implementation is replaced', () => {
     const h = createTestHost();
     h.evaluator.evaluate(`

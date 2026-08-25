@@ -8,10 +8,10 @@
 // Breathing Ellipse is the deliberately tiny first example: one object and one shape.
 // The small remix set adds three transparent drawing layers and five ShaderChain
 // treatments that are intentionally short enough to understand during a performance.
-// Configuration remains ordinary JavaScript, with one param() example for a control
+// Configuration remains ordinary JavaScript, with one control() example for a value
 // that can be performed live from the Parameters panel.
 
-/** @typedef {{ name: string, blurb: string, category: 'visual'|'utility'|'shader'|'community', source: string }} LibraryEntry */
+/** @typedef {{ name: string, title?: string, blurb: string, category: 'visual'|'utility'|'shader'|'community', source: string }} LibraryEntry */
 
 /** @type {LibraryEntry[]} */
 export const LIBRARY = [
@@ -42,7 +42,7 @@ const breathingEllipse = {
 // The video file stays on this computer and is not included in project exports.
 // Evaluate this method call when you want to choose or replace the file:
 //   localVideo.choose();
-param("videoSpeed", 1, { min: 0.1, max: 4, step: 0.05 });
+control("videoSpeed", 1, { type: "continuous", min: 0.1, max: 4, step: 0.05 });
 
 class LocalVideo {
   #video = null;
@@ -175,7 +175,7 @@ class LocalVideo {
 }
 
 const localVideo = new LocalVideo({
-  speed: ({ params }) => params.videoSpeed,
+  speed: ({ controls }) => controls.videoSpeed,
   fit: "contain",
   opacity: 1,
 });`,
@@ -749,15 +749,15 @@ const audioMeters = {
     source: `// %% patch checkerZoom
 // checkerZoom — a translucent, rotating club-floor grid.
 // Add solidBackground before it when the scene should clear each frame.
-// checkerSpeed appears in the Parameters panel.
-param("checkerSpeed", 0.08, { min: -0.4, max: 0.4, step: 0.01 });
+// checkerSpeed appears in the Controllers panel.
+control("checkerSpeed", 0.08, { type: "continuous", min: -0.4, max: 0.4, step: 0.01 });
 
-const checkerZoom = ({ audio, time, params }) => {
+const checkerZoom = ({ audio, time, controls }) => {
   const cell = 58 + audio.bass * 38;
   const extent = Math.hypot(width, height) * 0.75;
 
   translate(width / 2, height / 2);
-  rotate(time * params.checkerSpeed);
+  rotate(time * controls.checkerSpeed);
   rectMode(CENTER);
   noStroke();
   blendMode(ADD);
@@ -873,6 +873,490 @@ const spectrumHalo = {
     }
   },
 };`,
+  },
+
+  {
+    name: 'glassOrigin',
+    title: 'Glass Origin',
+    category: 'shader',
+    blurb: 'Procedural glass tunnel source adapted from Frostbyte’s FragCoord shader.',
+    source: `// %% patch glassOrigin
+// @title Glass Origin
+// @author Frostbyte — https://fragcoord.xyz/u/Frostbyte
+// @description A procedural glass tunnel source shader. Put effects after it.
+// Original shader: https://fragcoord.xyz/s/tbe1g319
+// SPDX-License-Identifier: CC-BY-NC-SA-4.0
+// Copyright (c) 2026 @Frostbyte
+// License: https://creativecommons.org/licenses/by-nc-sa/4.0/
+//
+// AlgoLab adaptation: p5/WebGL wrapper, portable GLSL ES helpers and live controls.
+class GlassOrigin {
+  #output = null;
+  #program = null;
+
+  constructor({
+    speed = 1,
+    glow = 1,
+    spin = 0,
+    audioDrive = 0.35,
+  } = {}) {
+    // Each value may be a number or a function of the normal draw context.
+    this.speed = speed;
+    this.glow = glow;
+    this.spin = spin;
+    this.audioDrive = audioDrive;
+  }
+
+  #vertexSource = \`
+    precision highp float;
+
+    attribute vec3 aPosition;
+    attribute vec2 aTexCoord;
+    varying vec2 vTexCoord;
+
+    void main() {
+      vTexCoord = aTexCoord;
+      vec4 position = vec4(aPosition, 1.0);
+      position.xy = position.xy * 2.0 - 1.0;
+      gl_Position = position;
+    }
+  \`;
+
+  #fragmentSource = \`
+    precision highp float;
+
+    varying vec2 vTexCoord;
+    uniform vec2 uResolution;
+    uniform float uTime;
+    uniform vec3 uAudio;
+    uniform float uSpeed;
+    uniform float uGlow;
+    uniform float uSpin;
+    uniform float uAudioDrive;
+
+    const mat3 NOISE_MATRIX = mat3(
+      -0.57, 0.81, 0.10,
+      -0.28, -0.30, 0.90,
+       0.77, 0.49, 0.40
+    );
+
+    vec3 path(float z) {
+      return vec3(cos(z * 0.02) * 20.0, cos(z * 0.05) * 3.0, z);
+    }
+
+    mat2 rotate2d(float angle) {
+      float c = cos(angle);
+      float s = sin(angle);
+      return mat2(c, -s, s, c);
+    }
+
+    // Xor's dot noise, golfed by Fabrice:
+    // https://fragcoord.xyz/s/pf29h2wz
+    float dotNoise(vec3 point) {
+      return dot(
+        cos(NOISE_MATRIX * point),
+        sin(1.6 * (point * NOISE_MATRIX))
+      );
+    }
+
+    // Inigo Quilez cosine palette (MIT):
+    // https://www.shadertoy.com/view/ll2GD3
+    vec3 palette(float t) {
+      return clamp(
+        vec3(0.455, 0.322, 0.216)
+        + vec3(-0.073, 0.119, 0.150)
+        * cos(6.28318 * (
+          vec3(20.0, 1.0, 1.0) * t
+          + vec3(0.100, -0.256, -0.231)
+        )),
+        0.0,
+        1.0
+      );
+    }
+
+    // GLSL ES 1.00 does not guarantee tanh(), so use its stable positive-domain
+    // approximation. The raymarch accumulation is non-negative here.
+    vec3 softTanh(vec3 value) {
+      return value / (1.0 + abs(value));
+    }
+
+    void main() {
+      vec2 fragCoord = vec2(vTexCoord.x, 1.0 - vTexCoord.y) * uResolution;
+      float drive = 1.0 + uAudio.x * uAudioDrive;
+      float time = uTime * uSpeed * drive;
+      vec3 camera = path(time * 10.0);
+      vec3 forward = normalize(path(time * 10.0 + 1.0) - camera);
+      vec3 right = normalize(vec3(forward.z, 0.0, -forward.x));
+      vec3 up = normalize(cross(right, forward));
+      vec2 screen = (fragCoord - 0.5 * uResolution) / uResolution.y;
+      vec3 ray = normalize(mat3(-right, up, forward) * vec3(screen, 2.0));
+
+      float distanceTravelled = 0.0;
+      float field = 0.0;
+      vec3 point = camera;
+      vec3 colour = vec3(0.0);
+
+      for (int index = 0; index < 150; index++) {
+        field = 0.001 + abs(field) * 0.1;
+        distanceTravelled += field;
+        colour += palette(point.z * 0.1 + float(index) * 2.0) / max(field, 0.001);
+
+        point = ray * distanceTravelled + camera;
+        vec3 unrotated = point;
+        point.xy = rotate2d(length(path(time).xy) * 0.05 + uSpin) * point.xy;
+
+        field = sin(point.z + point.y) * 0.1 - 0.2;
+        float grain = abs(dotNoise(point) + dotNoise(point / 8.0) * 4.0);
+        field += grain + grain * 0.2;
+        field = max(
+          1.5 + sin(point.z * 0.2 + point.y * 0.4)
+          - length((unrotated - path(point.z)).xy),
+          field
+        );
+      }
+
+      float audioGlow = 1.0 + uAudio.y * uAudioDrive * 0.8;
+      vec3 exposure = colour * colour * (uGlow * audioGlow / 200000000.0);
+      gl_FragColor = vec4(softTanh(exposure) * 1.5, 1.0);
+    }
+  \`;
+
+  #value(setting, context) {
+    return typeof setting === "function" ? setting(context) : setting;
+  }
+
+  #ensureShader() {
+    if (!this.#output) {
+      this.#output = createGraphics(width, height, WEBGL);
+      this.#output.pixelDensity(1);
+      this.#output.noStroke();
+      this.#program = this.#output.createShader(this.#vertexSource, this.#fragmentSource);
+    } else if (this.#output.width !== width || this.#output.height !== height) {
+      this.#output.resizeCanvas(width, height);
+    }
+  }
+
+  draw(context) {
+    this.#ensureShader();
+    this.#output.clear();
+    this.#output.shader(this.#program);
+    this.#program.setUniform("uResolution", [width, height]);
+    this.#program.setUniform("uTime", context.time);
+    this.#program.setUniform("uAudio", [
+      context.audio.bass,
+      context.audio.mid,
+      context.audio.treble,
+    ]);
+    this.#program.setUniform("uSpeed", this.#value(this.speed, context));
+    this.#program.setUniform("uGlow", this.#value(this.glow, context));
+    this.#program.setUniform("uSpin", this.#value(this.spin, context));
+    this.#program.setUniform("uAudioDrive", this.#value(this.audioDrive, context));
+    this.#output.rect(0, 0, width, height);
+    image(this.#output, 0, 0, width, height);
+  }
+
+  dispose() {
+    this.#output?.remove();
+    this.#output = null;
+    this.#program = null;
+  }
+}
+
+const glassOrigin = new GlassOrigin({
+  speed: 1,
+  glow: ({ audio }) => 0.9 + audio.mid * 0.35,
+  spin: ({ time }) => sin(time * 0.12) * 0.08,
+  audioDrive: 0.35,
+});`,
+  },
+
+  {
+    name: 'patternCRT',
+    title: 'Pattern CRT',
+    category: 'shader',
+    blurb: 'Five mathematical pattern generators cycling through a curved CRT display.',
+    source: `// %% patch patternCRT
+// @title Pattern CRT
+// @author David A. Roberts — https://davidar.io
+// @description Five mathematical pattern generators presented through a CRT simulation.
+// Copyright (c) 2016 David A Roberts
+// License: not specified in the supplied original source.
+//
+// CRT curvature, vignette, scanlines and grille adapted in the original from:
+// https://www.shadertoy.com/view/XtlSD7
+//
+// AlgoLab adaptation: p5/WebGL wrapper, configurable supersampling and live controls.
+class PatternCRT {
+  #output = null;
+  #program = null;
+
+  constructor({
+    speed = 1,
+    scale = 1,
+    curvature = 1,
+    scanlines = 1,
+    quality = 3,
+    audioDrive = 0.2,
+  } = {}) {
+    // Every setting may also be a function of { audio, time, controls, ... }.
+    this.speed = speed;
+    this.scale = scale;
+    this.curvature = curvature;
+    this.scanlines = scanlines;
+    this.quality = quality; // supersampling grid: 1 (fast) through 4 (smooth)
+    this.audioDrive = audioDrive;
+  }
+
+  #vertexSource = \`
+    precision highp float;
+
+    attribute vec3 aPosition;
+    attribute vec2 aTexCoord;
+    varying vec2 vTexCoord;
+
+    void main() {
+      vTexCoord = aTexCoord;
+      vec4 position = vec4(aPosition, 1.0);
+      position.xy = position.xy * 2.0 - 1.0;
+      gl_Position = position;
+    }
+  \`;
+
+  #fragmentSource = \`
+    precision highp float;
+
+    varying vec2 vTexCoord;
+    uniform vec2 uResolution;
+    uniform float uTime;
+    uniform vec3 uAudio;
+    uniform float uSpeed;
+    uniform float uScale;
+    uniform float uCurvature;
+    uniform float uScanlines;
+    uniform float uQuality;
+    uniform float uAudioDrive;
+
+    #define PI 3.141592653589793
+
+    vec2 crtCurveUV(vec2 uv) {
+      uv = uv * 2.0 - 1.0;
+      vec2 offset = abs(uv.yx) / vec2(6.0, 4.0);
+      uv += uv * offset * offset * uCurvature;
+      return uv * 0.5 + 0.5;
+    }
+
+    void drawVignette(inout vec3 colour, vec2 uv) {
+      float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
+      vignette = clamp(pow(max(16.0 * vignette, 0.0), 0.3), 0.0, 1.0);
+      colour *= vignette;
+    }
+
+    void drawScanline(inout vec3 colour, vec2 uv, float time) {
+      float scanline = clamp(
+        0.95 + 0.05 * cos(PI * (uv.y + 0.008 * time) * 240.0),
+        0.0,
+        1.0
+      );
+      float grille = 0.85 + 0.15 * clamp(1.5 * cos(PI * uv.x * 640.0), 0.0, 1.0);
+      colour *= mix(1.0, scanline * grille * 1.2, uScanlines);
+    }
+
+    float atanp(vec2 point) {
+      return atan(point.y, point.x);
+    }
+
+    float cubeRoot(float value) {
+      return sign(value) * pow(abs(value), 1.0 / 3.0);
+    }
+
+    float square(float value) {
+      return value * value;
+    }
+
+    vec3 margarita(vec2 point) {
+      float z = length(point) - 3.5 * atanp(point) + sin(point.x) + cos(point.y);
+      if (mod(z, 7.0 * PI) < PI / 2.0) return vec3(1.0, 0.0, 0.0);
+      if (mod(z, PI) < PI / 2.0) return vec3(0.0);
+      return vec3(1.0);
+    }
+
+    vec3 digitalBacteria(vec2 point) {
+      point /= 4.0;
+      float x = square(sin(point.x) + point.y) + square(cos(point.y) + point.x);
+      float y = cos(10.0 * point.x) + cos(10.0 * point.y) - sin(point.x * point.y);
+      float z = square(sin(floor(point.x)) + floor(point.y))
+        + square(cos(floor(point.y)) + floor(point.x));
+      if (17.0 < x && x < 21.0 && 17.0 < z && z < 21.0 && y < 0.0) {
+        return vec3(1.0, 1.0, 85.0 / 256.0);
+      }
+      if (17.0 < z && z < 21.0) return vec3(85.0 / 256.0, 0.0, 0.0);
+      if (17.0 < x && x < 21.0) return vec3(170.0 / 256.0, 170.0 / 256.0, 0.0);
+      return vec3(85.0 / 256.0, 85.0 / 256.0, 0.0);
+    }
+
+    vec3 threesome(vec2 point) {
+      point /= 3.0;
+      float z = 1.0;
+      z *= sin(length(point + vec2(5.0, 0.0))) * cos(8.0 * atanp(point + vec2(5.0, 0.0)));
+      z *= sin(length(point - vec2(5.0, 5.0))) * cos(8.0 * atanp(point - vec2(5.0, 5.0)));
+      z *= sin(length(point + vec2(0.0, 5.0))) * cos(8.0 * atanp(point + vec2(0.0, 5.0)));
+      if ((-0.1 < z && z < 0.0) || 0.2 < z) return vec3(0.0);
+      return vec3(1.0);
+    }
+
+    vec3 plaidMeltdown(vec2 point) {
+      point /= 15.0;
+      point += 7.0;
+      float a = 2.0 * sin(point.x * sin(point.y) + point.y * sin(point.x));
+      float b = cubeRoot(sin(2.5 * sqrt(2.0) * (point.x - point.y)));
+      float c = cubeRoot(sin(2.5 * sqrt(2.0) * (point.x + point.y)));
+      float d = sin(80.0 * point.x) + sin(80.0 * point.y);
+      if (0.25 * (a + b + c) > 0.5 * d) return vec3(0.0);
+      return vec3(1.0);
+    }
+
+    vec3 sunlightRevealed(vec2 point) {
+      point /= 6.0;
+      point.x += 2.0;
+      float a = length(vec2(3.0 - point.x, point.y)) + abs(point.y) + abs(1.0 - point.x);
+      float f = atan(point.y, point.x - 1.0);
+      float c = atan(point.y, point.x - 3.0);
+      float radius = square(point.x - 1.0) + square(point.y);
+      vec3 colour = vec3(0.0);
+      bool mixed = false;
+
+      if (5.0 < a && a < 7.0 && mod(f, PI / 7.0) < PI / 14.0) {
+        colour += vec3(0.0, 82.0 / 256.0, 173.0 / 256.0);
+        if (mixed) colour /= 2.0;
+        mixed = true;
+      }
+      if (5.0 < a && a < 7.0 && mod(c, PI / 9.0) < PI / 18.0) {
+        colour += vec3(1.0, 0.0, 0.0);
+        if (mixed) colour /= 2.0;
+        mixed = true;
+      }
+      if (5.0 < a && a < 7.0 && mod(f, PI / 8.0) < PI / 16.0) {
+        colour += vec3(1.0, 1.0, 0.0);
+        if (mixed) colour /= 2.0;
+        mixed = true;
+      }
+      float safeF = sign(f) * max(abs(f), 0.0001);
+      if (
+        (45.0 - 3.0 * point.x) * PI / 180.0 < f
+        && f < (47.0 - point.x) * PI / 180.0
+        && point.y > 0.1 * point.x
+        && mod(log(max(radius, 0.0001)) / log(abs(safeF)), 2.0) < 1.0
+      ) {
+        colour += vec3(1.0);
+        if (mixed) colour /= 2.0;
+      }
+      return colour;
+    }
+
+    vec3 pattern(vec2 point, float time) {
+      float phase = mod(0.1 * time, 5.0);
+      if (phase < 1.0) return margarita(point);
+      if (phase < 2.0) return plaidMeltdown(point);
+      if (phase < 3.0) return sunlightRevealed(point);
+      if (phase < 4.0) return threesome(point);
+      return digitalBacteria(point);
+    }
+
+    void main() {
+      vec2 fragCoord = vec2(vTexCoord.x, 1.0 - vTexCoord.y) * uResolution;
+      float time = uTime * uSpeed;
+      float animation = mod(time, 10.0);
+      float samples = clamp(floor(uQuality + 0.5), 1.0, 4.0);
+      float sampleCount = samples * samples;
+      vec3 colour = vec3(0.0);
+
+      // A fixed upper bound is portable in WebGL 1; uQuality chooses how many
+      // samples actually run.
+      for (int index = 0; index < 16; index++) {
+        float sampleIndex = float(index);
+        if (sampleIndex >= sampleCount) continue;
+        vec2 offset = vec2(
+          floor(sampleIndex / samples),
+          mod(sampleIndex, samples)
+        ) / samples;
+        vec2 uv = (fragCoord + offset) / uResolution;
+        vec2 crtUV = crtCurveUV(uv);
+        if (crtUV.x < 0.0 || crtUV.x > 1.0 || crtUV.y < 0.0 || crtUV.y > 1.0) continue;
+
+        vec2 point = 50.0 * crtUV - 25.0;
+        float musicScale = 1.0 + uAudio.x * uAudioDrive;
+        point *= (0.75 + 0.05 * animation) * uScale * musicScale;
+        point += animation - 5.0;
+        point.x *= uResolution.x / uResolution.y;
+
+        if (animation < 2.0 || 8.0 < animation) {
+          float fade = smoothstep(0.0, 2.0, animation) - smoothstep(8.0, 10.0, animation);
+          float pixelScale = uResolution.y / 50.0 * samples * fade + 1.0;
+          point = floor(point * pixelScale) / pixelScale;
+        }
+
+        vec3 sampleColour = pattern(point, time);
+        drawVignette(sampleColour, crtUV);
+        drawScanline(sampleColour, uv, time);
+        colour += sampleColour / sampleCount;
+      }
+
+      colour *= 1.0 + uAudio.y * uAudioDrive * 0.35;
+      gl_FragColor = vec4(colour, 1.0);
+    }
+  \`;
+
+  #value(setting, context) {
+    return typeof setting === "function" ? setting(context) : setting;
+  }
+
+  #ensureShader() {
+    if (!this.#output) {
+      this.#output = createGraphics(width, height, WEBGL);
+      this.#output.pixelDensity(1);
+      this.#output.noStroke();
+      this.#program = this.#output.createShader(this.#vertexSource, this.#fragmentSource);
+    } else if (this.#output.width !== width || this.#output.height !== height) {
+      this.#output.resizeCanvas(width, height);
+    }
+  }
+
+  draw(context) {
+    this.#ensureShader();
+    this.#output.clear();
+    this.#output.shader(this.#program);
+    this.#program.setUniform("uResolution", [width, height]);
+    this.#program.setUniform("uTime", context.time);
+    this.#program.setUniform("uAudio", [
+      context.audio.bass,
+      context.audio.mid,
+      context.audio.treble,
+    ]);
+    this.#program.setUniform("uSpeed", this.#value(this.speed, context));
+    this.#program.setUniform("uScale", this.#value(this.scale, context));
+    this.#program.setUniform("uCurvature", this.#value(this.curvature, context));
+    this.#program.setUniform("uScanlines", this.#value(this.scanlines, context));
+    this.#program.setUniform("uQuality", this.#value(this.quality, context));
+    this.#program.setUniform("uAudioDrive", this.#value(this.audioDrive, context));
+    this.#output.rect(0, 0, width, height);
+    image(this.#output, 0, 0, width, height);
+  }
+
+  dispose() {
+    this.#output?.remove();
+    this.#output = null;
+    this.#program = null;
+  }
+}
+
+const patternCRT = new PatternCRT({
+  speed: 1,
+  scale: ({ audio }) => 1 + audio.bass * 0.08,
+  curvature: 1,
+  scanlines: 1,
+  quality: 3,
+  audioDrive: 0.2,
+});`,
   },
 
   {

@@ -20,7 +20,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
   const strategies = new Map();
   /** @type {Map<string, Array<{id: string, strategy: string}>>} */
   const scenes = new Map();
-  /** @type {Map<string, {value: any, min?: number, max?: number, step?: number}>} */
+  /** @type {Map<string, {value: any, type?: 'continuous'|'button'|'choice', mode?: 'momentary'|'toggle', choices?: string[], min?: number, max?: number, step?: number}>} */
   const params = new Map();
   let activeSceneName = null;
   let safeSceneName = null;
@@ -329,6 +329,19 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     return entry;
   }
 
+  /** Apply one input-frame of controller values with a single view notification. */
+  function setParams(values) {
+    let changed = 0;
+    for (const [name, value] of values ?? []) {
+      const entry = params.get(name);
+      if (!entry || Object.is(entry.value, value)) continue;
+      entry.value = value;
+      changed += 1;
+    }
+    if (changed) notify();
+    return changed;
+  }
+
   function paramValues(target = {}) {
     for (const key of Object.keys(target)) delete target[key];
     for (const [name, entry] of params) target[name] = entry.value;
@@ -373,6 +386,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     restoreRuntime,
     declareParam,
     setParam,
+    setParams,
     paramValues,
     listParams: () => [...params.entries()].map(([name, entry]) => ({ name, ...entry })),
     subscribe(listener) {

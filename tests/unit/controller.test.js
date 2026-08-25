@@ -138,7 +138,7 @@ const broken = { draw() { ((( } };`);
       const empty = [];
       activate(empty);
       activate(safe);
-      param("speed", 1, { min: 0, max: 2 });
+      control("speed", 1, { min: 0, max: 2 });
     `);
     h.frame(8);
 
@@ -166,7 +166,7 @@ const broken = { draw() { ((( } };`);
       };
       const trusted = [counter];
       activate(trusted);
-      param("speed", 1, { min: 0, max: 4 });
+      control("speed", 1, { min: 0, max: 4 });
     `;
     h.controller.setSourceProvider(() => source);
     h.evaluator.evaluate(source);
@@ -182,7 +182,7 @@ const broken = { draw() { ((( } };`);
       const counter = { draw({ state }) { state.version = 2; } };
       const empty = [];
       activate(empty);
-      param("speed", 0);
+      control("speed", 0);
     `;
     h.controller.sourceChanged();
     h.evaluator.evaluate(source);
@@ -218,7 +218,7 @@ const broken = { draw() { ((( } };`);
       };
       const trusted = [trustedPatch];
       activate(trusted);
-      param("energy", 0.75);
+      control("energy", 0.75);
     `;
     h.controller.setSourceProvider(() => source);
     h.evaluator.evaluate(source);
@@ -239,6 +239,49 @@ const broken = { draw() { ((( } };`);
     expect(h.stateStore.get('trustedPatch').frames).toBe(trustedFrames);
     expect(h.controller.snapshot().safeState.createdAt).toBe(safe.createdAt);
     h.controller.dispose();
+  });
+
+  it('includes controller mappings in safe-state dirtiness and restoration', () => {
+    const runtime = createTestHost();
+    let mappings = [{
+      param: 'speed', transport: 'midi', device: 'Knobs', type: 'cc', channel: 1, number: 21,
+    }];
+    const listeners = new Set();
+    const controlManager = {
+      snapshotMappings: () => structuredClone(mappings),
+      restoreMappings: (next) => {
+        mappings = structuredClone(next ?? []);
+        for (const listener of listeners) listener();
+      },
+      snapshot: () => ({
+        midi: { supported: true, status: 'connected', devices: [], lastMessage: null },
+        learning: null,
+        mappings: structuredClone(mappings),
+      }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+    const controller = createAppController({
+      ...runtime,
+      audio: { status: () => ({ source: 'none', contextState: 'running' }) },
+      controlManager,
+    });
+    let source = 'const patch = { draw() {} }; const scene = [patch]; activate(scene); control("speed", 1);';
+    controller.setSourceProvider(() => source);
+    runtime.evaluator.evaluate(source);
+    runtime.frame(2);
+    expect(controller.actions.setSafeState().ok).toBe(true);
+
+    mappings = [{ ...mappings[0], number: 22 }];
+    for (const listener of listeners) listener();
+    expect(controller.snapshot().safeState.dirty).toBe(true);
+
+    expect(controller.actions.restoreSafeState().ok).toBe(true);
+    expect(mappings[0].number).toBe(21);
+    expect(controller.snapshot().safeState.dirty).toBe(false);
+    controller.dispose();
   });
 
   it('notifies views without handing them model objects', () => {

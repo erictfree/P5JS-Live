@@ -22,6 +22,7 @@ export function createPanels({
   onRevert,
   onLocateStrategy,
   onRestoreSafe,
+  onCreateParam,
   storage = globalThis.localStorage,
 }) {
   const el = (id) => document.getElementById(id);
@@ -41,6 +42,26 @@ export function createPanels({
     params: el('param-list'),
     paramsPanel: el('parameters-panel'),
     paramsSummaryCount: el('parameter-summary-count'),
+    midiStatus: el('midi-status'),
+    midiDevices: el('midi-devices'),
+    connectMidi: el('connect-midi'),
+    newParam: el('new-live-param'),
+    newParamForm: el('new-param-form'),
+    newParamName: el('new-param-name'),
+    newParamType: el('new-param-type'),
+    newParamContinuousFields: el('new-param-continuous-fields'),
+    newParamValue: el('new-param-value'),
+    newParamMin: el('new-param-min'),
+    newParamMax: el('new-param-max'),
+    newParamStep: el('new-param-step'),
+    newParamButtonFields: el('new-param-button-fields'),
+    newParamButtonMode: el('new-param-button-mode'),
+    newParamButtonInitial: el('new-param-button-initial'),
+    newParamChoiceFields: el('new-param-choice-fields'),
+    newParamChoices: el('new-param-choices'),
+    newParamChoiceInitial: el('new-param-choice-initial'),
+    newParamError: el('new-param-error'),
+    cancelNewParam: el('cancel-new-param'),
     fps: el('stat-fps'),
     strategyCount: el('stat-strategies'),
     status: el('stat-status'),
@@ -366,37 +387,137 @@ export function createPanels({
   }
 
   function renderParams(snapshot) {
-    nodes.paramsPanel.hidden = snapshot.params.length === 0;
     nodes.paramsSummaryCount.textContent = String(snapshot.params.length);
     nodes.params.replaceChildren(
-      ...(snapshot.params.length ? snapshot.params.map(paramRow) : [hint('No parameters declared.')]),
+      ...(snapshot.params.length
+        ? snapshot.params.map((entry) => paramRow(entry, snapshot.externalControl))
+        : [paramEmpty()]),
     );
   }
 
-  function paramRow(entry) {
-    const row = document.createElement('label');
-    row.className = 'row param';
+  function paramEmpty() {
+    const empty = document.createElement('div');
+    empty.className = 'param-empty';
+    const message = hint('No live controls yet. Create one here and p5js.live will add its control() declaration to the code.');
+    const create = button('＋ Live control', 'Create a live control', () => showParamForm());
+    empty.append(message, create);
+    return empty;
+  }
+
+  function paramRow(entry, externalControl) {
+    const row = document.createElement('div');
+    row.className = 'row param param-control-row';
     const name = document.createElement('span');
     name.className = 'name';
     name.textContent = entry.name;
     const value = document.createElement('span');
     value.className = 'version';
-    value.textContent = format(entry.value);
+    const type = entry.type
+      ?? (typeof entry.value === 'boolean' ? 'button' : Array.isArray(entry.choices) ? 'choice' : 'continuous');
+    value.textContent = type === 'button' ? (entry.value ? 'On' : 'Off') : format(entry.value);
 
-    const input = document.createElement('input');
-    input.type = 'range';
-    input.min = entry.min ?? 0;
-    input.max = entry.max ?? 1;
-    input.step = entry.step ?? 0.01;
-    input.value = entry.value;
-    input.addEventListener('input', () => {
-      const next = Number(input.value);
-      controller.actions.setParam(entry.name, next);
-      value.textContent = format(next);
-    });
+    let input;
+    if (type === 'button') {
+      input = button(
+        entry.value ? 'On' : 'Off',
+        `${entry.value ? 'Turn off' : 'Turn on'} ${entry.name}`,
+        () => controller.actions.setParam(entry.name, !entry.value),
+      );
+      input.className = `param-button ${entry.value ? 'is-on' : ''}`;
+    } else if (type === 'choice') {
+      input = document.createElement('select');
+      for (const choice of entry.choices ?? []) {
+        const option = document.createElement('option');
+        option.value = choice;
+        option.textContent = choice;
+        option.selected = choice === entry.value;
+        input.append(option);
+      }
+      input.setAttribute('aria-label', `Set ${entry.name}`);
+      input.addEventListener('change', () => controller.actions.setParam(entry.name, input.value));
+    } else {
+      input = document.createElement('input');
+      input.type = 'range';
+      input.min = entry.min ?? 0;
+      input.max = entry.max ?? 1;
+      input.step = entry.step ?? 0.01;
+      input.value = entry.value;
+      input.addEventListener('input', () => {
+        const next = Number(input.value);
+        controller.actions.setParam(entry.name, next);
+        value.textContent = format(next);
+      });
+    }
 
-    row.append(name, value, input);
+    const mapping = externalControl.mappings.find((candidate) => candidate.param === entry.name);
+    const learning = externalControl.learning === entry.name;
+    const learn = button(
+      learning ? 'Move a control…' : mapping ? 'Relearn' : 'Learn MIDI',
+      learning ? `Waiting for a MIDI control for ${entry.name}` : `Assign a MIDI control to ${entry.name}`,
+      async () => {
+        if (!externalControl.midi.supported) return;
+        if (externalControl.midi.status === 'disconnected' || externalControl.midi.status === 'denied') {
+          const connected = await controller.actions.connectMidi();
+          if (!connected.ok) return;
+        }
+        controller.actions.learnMidi(entry.name);
+      },
+    );
+    learn.classList.toggle('is-on', learning);
+    if (!externalControl.midi.supported || !['continuous', 'button', 'choice'].includes(type)) {
+      learn.disabled = true;
+    }
+
+    row.append(name, value, input, learn);
+    if (mapping) {
+      const assignment = document.createElement('div');
+      assignment.className = 'mapping';
+      assignment.textContent = `${mapping.device} · Ch ${mapping.channel} · ${mapping.type === 'cc' ? 'CC' : 'Note'} ${mapping.number}`;
+      assignment.append(' ', button('remove', `Remove MIDI assignment from ${entry.name}`, () => {
+        controller.actions.removeControlBinding(entry.name);
+      }));
+      row.append(assignment);
+    }
     return row;
+  }
+
+  function renderExternalControl(snapshot) {
+    const midi = snapshot.externalControl.midi;
+    const labels = {
+      unsupported: 'unavailable in this browser',
+      disconnected: 'not connected',
+      connecting: 'requesting permission…',
+      waiting: 'ready · no inputs',
+      connected: `${midi.devices.length} input${midi.devices.length === 1 ? '' : 's'}`,
+      denied: 'permission denied',
+    };
+    nodes.midiStatus.textContent = labels[midi.status] ?? midi.status;
+    nodes.connectMidi.disabled = !midi.supported || midi.status === 'connecting';
+    nodes.connectMidi.textContent = midi.status === 'connected' || midi.status === 'waiting'
+      ? 'Refresh MIDI'
+      : 'Connect MIDI';
+    nodes.midiDevices.textContent = !midi.supported
+      ? 'Direct MIDI is not supported here. Use Chrome, Edge, or another browser with Web MIDI support.'
+      : midi.devices.length
+        ? midi.devices.map((device) => device.name).join(' · ')
+        : 'No MIDI inputs connected.';
+  }
+
+  function showParamForm(show = true) {
+    nodes.newParamForm.hidden = !show;
+    nodes.newParamError.hidden = true;
+    if (show) nodes.newParamName.focus();
+  }
+
+  function showParamType(type = nodes.newParamType.value) {
+    nodes.newParamContinuousFields.hidden = type !== 'continuous';
+    nodes.newParamButtonFields.hidden = type !== 'button';
+    nodes.newParamChoiceFields.hidden = type !== 'choice';
+    nodes.newParamName.placeholder = type === 'button'
+      ? 'flash'
+      : type === 'choice'
+        ? 'shape'
+        : 'ringSpeed';
   }
 
   function renderHistory(snapshot) {
@@ -597,6 +718,7 @@ export function createPanels({
     renderStrategies(snapshot);
     renderLibrary(snapshot);
     renderSafeState(snapshot);
+    renderExternalControl(snapshot);
     renderParams(snapshot);
     renderHistory(snapshot);
     renderNetwork(snapshot);
@@ -664,6 +786,45 @@ export function createPanels({
     renderLibrary(controller.snapshot());
   });
   nodes.restoreSafe.addEventListener('click', () => onRestoreSafe?.());
+  nodes.connectMidi.addEventListener('click', () => controller.actions.connectMidi());
+  nodes.newParam.addEventListener('click', () => showParamForm());
+  nodes.cancelNewParam.addEventListener('click', () => showParamForm(false));
+  nodes.newParamType.addEventListener('change', () => showParamType());
+  nodes.newParamForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const type = nodes.newParamType.value;
+    const spec = type === 'button'
+      ? {
+        name: nodes.newParamName.value.trim(),
+        type,
+        value: nodes.newParamButtonInitial.checked,
+        mode: nodes.newParamButtonMode.value,
+      }
+      : type === 'choice'
+        ? {
+          name: nodes.newParamName.value.trim(),
+          type,
+          value: nodes.newParamChoiceInitial.value.trim(),
+          choices: nodes.newParamChoices.value.split(','),
+        }
+        : {
+          name: nodes.newParamName.value.trim(),
+          type: 'continuous',
+          value: Number(nodes.newParamValue.value),
+          min: Number(nodes.newParamMin.value),
+          max: Number(nodes.newParamMax.value),
+          step: Number(nodes.newParamStep.value),
+        };
+    const result = onCreateParam?.(spec) ?? { ok: false, error: 'Parameter creation is unavailable.' };
+    if (!result.ok) {
+      nodes.newParamError.textContent = result.error ?? 'Could not create the parameter.';
+      nodes.newParamError.hidden = false;
+      return;
+    }
+    nodes.newParamName.value = '';
+    showParamForm(false);
+  });
+  showParamType();
   nodes.networkJoinForm.addEventListener('submit', (event) => {
     event.preventDefault();
     const name = nodes.networkRoomName.value.trim();

@@ -280,7 +280,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
         diagnostics?.info(`${op.name} state reset${count > 1 ? ` (${count} copies)` : ''}`);
         break;
       }
-      case 'param':
+      case 'control':
         registry.declareParam(op.name, op.value, op.options);
         break;
       default:

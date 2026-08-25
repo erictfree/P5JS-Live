@@ -154,8 +154,8 @@ describe('the system patch library', () => {
     expect(entry.source).toContain('class LocalVideo');
     expect(entry.source).toContain('picker.accept = "video/*"');
     expect(entry.source).toContain('localVideo.choose()');
-    expect(entry.source).toContain('param("videoSpeed", 1');
-    expect(entry.source).toContain('speed: ({ params }) => params.videoSpeed');
+    expect(entry.source).toContain('control("videoSpeed", 1');
+    expect(entry.source).toContain('speed: ({ controls }) => controls.videoSpeed');
     expect(entry.source).toContain('video.muted = true');
     expect(entry.source).toContain('video.defaultMuted = true');
     expect(entry.source).toContain('video.volume = 0');
@@ -249,11 +249,11 @@ describe('the system patch library', () => {
     expect(implementation.running).toBe(false);
   });
 
-  it('gives an arrow-function patch a declared live parameter', () => {
+  it('gives an arrow-function patch a declared live control', () => {
     const source = LIBRARY.find((entry) => entry.name === 'checkerZoom').source;
-    expect(source).toContain('param("checkerSpeed", 0.08');
-    expect(source).toContain('({ audio, time, params }) =>');
-    expect(source).toContain('time * params.checkerSpeed');
+    expect(source).toContain('control("checkerSpeed", 0.08');
+    expect(source).toContain('({ audio, time, controls }) =>');
+    expect(source).toContain('time * controls.checkerSpeed');
     expect(source).not.toContain('fill(4, 4, 10, 35)');
     expect(source).not.toContain('rect(0, 0, width, height)');
   });
@@ -350,6 +350,47 @@ const customPatch = { draw() { fill(100, 145, 255, 230); } };`;
     expect(entry.source).toContain('.rotate(({ time, audio }) =>');
     expect(entry.source).toContain('.scale(({ audio }) =>');
     expect(entry.source).toContain('.hue(({ time, audio }) =>');
+  });
+
+  it('ships the credited Glass Origin procedural shader as a configurable class', () => {
+    const entry = LIBRARY.find(({ name }) => name === 'glassOrigin');
+    expect(entry).toMatchObject({
+      title: 'Glass Origin',
+      category: 'shader',
+    });
+    expect(entry.source).toContain('SPDX-License-Identifier: CC-BY-NC-SA-4.0');
+    expect(entry.source).toContain('Copyright (c) 2026 @Frostbyte');
+    expect(entry.source).toContain('https://fragcoord.xyz/s/tbe1g319');
+    expect(entry.source).toContain('class GlassOrigin');
+    expect(entry.source).toContain('const glassOrigin = new GlassOrigin({');
+    expect(entry.source).toContain('glow: ({ audio }) =>');
+
+    const h = createTestHost();
+    expect(h.evaluator.evaluate(entry.source).ok).toBe(true);
+    h.host.commitPendingChanges();
+    expect(h.registry.hasStrategy('glassOrigin')).toBe(true);
+    expect(h.registry.activeInstancesOf('glassOrigin')).toHaveLength(0);
+  });
+
+  it('ships the credited Pattern CRT procedural shader as a configurable class', () => {
+    const entry = LIBRARY.find(({ name }) => name === 'patternCRT');
+    expect(entry).toMatchObject({
+      title: 'Pattern CRT',
+      category: 'shader',
+    });
+    expect(entry.source).toContain('Copyright (c) 2016 David A Roberts');
+    expect(entry.source).toContain('https://davidar.io');
+    expect(entry.source).toContain('https://www.shadertoy.com/view/XtlSD7');
+    expect(entry.source).toContain('License: not specified');
+    expect(entry.source).toContain('class PatternCRT');
+    expect(entry.source).toContain('const patternCRT = new PatternCRT({');
+    expect(entry.source).toContain('scale: ({ audio }) =>');
+
+    const h = createTestHost();
+    expect(h.evaluator.evaluate(entry.source).ok).toBe(true);
+    h.host.commitPendingChanges();
+    expect(h.registry.hasStrategy('patternCRT')).toBe(true);
+    expect(h.registry.activeInstancesOf('patternCRT')).toHaveLength(0);
   });
 
   it('ships ten installable standard effects with live controls and no backgrounds', () => {

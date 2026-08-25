@@ -19,6 +19,14 @@ const snapshot = (name = 'Afterglow') => ({
   sceneName: 'scene',
   safeScene: 'scene',
   params: [{ name: 'energy', value: 0.7, min: 0, max: 1, step: 0.1 }],
+  controls: [{
+    param: 'energy',
+    transport: 'midi',
+    device: 'Test · Knobs',
+    type: 'cc',
+    channel: 1,
+    number: 21,
+  }],
   audio: { analysis: { smoothing: 0.4, autoGain: false }, loop: true },
   view: { folded: true, codeHidden: false, projectionLayout: 'canvas', fpsThreshold: 45 },
 });
@@ -56,6 +64,7 @@ describe('named performance persistence', () => {
       view: { folded: true, projectionLayout: 'canvas', fpsThreshold: 45 },
     });
     expect(performances[1].params[0]).toMatchObject({ name: 'energy', value: 0.7 });
+    expect(performances[1].controls[0]).toMatchObject({ param: 'energy', number: 21 });
   });
 
   it('updates a slot without changing its identity or creation time', () => {

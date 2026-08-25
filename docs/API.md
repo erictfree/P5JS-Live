@@ -80,8 +80,8 @@ supplies the object on each frame.
 | `dt` | Seconds since the previous draw, bounded after stalls |
 | `time` | Seconds since the host started |
 | `sceneTime` | Seconds since the active scene changed |
-| `params` | Values declared with `param()` |
-| `controls` | Read-only keyboard state |
+| `controls` | Values declared with `control()` |
+| `keyboard` | Read-only physical keyboard state |
 
 A patch may ignore the input:
 
@@ -180,7 +180,7 @@ The copies share one implementation but have separate state. They appear as
 ```js
 activate(scene);     // activate at the next frame boundary
 reset(laserFan);     // recreate state for every active copy
-param("trail", 0.08, { min: 0, max: 0.3 });
+control("trail", 0.08, { type: "continuous", min: 0, max: 0.3 });
 ```
 
 Commands take JavaScript values, not string names. Edit arrays to add, remove,
@@ -305,18 +305,59 @@ const average = audio.waveform.reduce((sum, sample) => sum + abs(sample), 0)
   / max(1, audio.waveform.length);
 ```
 
-## Live parameters
+## Live controls
 
 ```js
-param("checkerSpeed", 0.08, { min: -0.4, max: 0.4, step: 0.01 });
+control("checkerSpeed", 0.08, {
+  type: "continuous",
+  min: -0.4,
+  max: 0.4,
+  step: 0.01,
+});
 
-const checkerZoom = ({ time, params }) => {
-  rotate(time * params.checkerSpeed);
+const checkerZoom = ({ time, controls }) => {
+  rotate(time * controls.checkerSpeed);
 };
 ```
 
-Re-evaluating `param()` keeps the performer's current value instead of restoring the
+Re-evaluating `control()` keeps the performer's current value instead of restoring the
 source default.
+
+Live controls are project-wide named values. Open **Controllers** to create one
+without writing the declaration by hand: **+ Live parameter** asks for the name,
+type and its settings, then adds the declaration to a dedicated `// %% controls` code
+cell. The generated declaration is evaluated by itself, so a half-finished patch
+elsewhere in the editor is not run.
+
+```js
+control("zoom", 1, {
+  type: "continuous",
+  min: 0.5,
+  max: 3,
+  step: 0.01,
+});
+
+control("flash", false, {
+  type: "button",
+  mode: "momentary", // or "toggle"
+});
+
+control("shape", "circle", {
+  type: "choice",
+  choices: ["circle", "square", "triangle"],
+});
+```
+
+Older declarations without `type` remain valid. Numbers infer Continuous, booleans
+infer Button, and values with a `choices` array infer Choice.
+
+In browsers with Web MIDI support, choose **Connect MIDI**, choose **Learn MIDI**, and
+move a knob or fader or strike a pad. Continuous controls map across their numeric
+range. Momentary buttons follow note press/release; toggle buttons change only on a
+new press. Choice controls divide the incoming range among their named choices. The hardware mapping is stored
+with projects, safe states and named performances but remains separate from patch
+source, so shared patches do not assume another performer's controller. Standard MIDI
+CC and note messages are supported; System Exclusive access is never requested.
 
 ## ShaderChain
 

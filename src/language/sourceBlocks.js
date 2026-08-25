@@ -548,8 +548,8 @@ export function describeBlock(text) {
   const activateCommand = /\bactivate\s*\(\s*([A-Za-z_$][\w$]*)/.exec(text);
   if (activateCommand) return `activate ${activateCommand[1]}`;
 
-  const namedCommand = /\bparam\s*\(\s*["'`]([^"'`]+)["'`]/.exec(text);
-  if (namedCommand) return `param ${namedCommand[1]}`;
+  const namedCommand = /\b(?:control|param)\s*\(\s*["'`]([^"'`]+)["'`]/.exec(text);
+  if (namedCommand) return `control ${namedCommand[1]}`;
 
   const objectCommand = /\breset\s*\(\s*([A-Za-z_$][\w$]*)/.exec(text);
   if (objectCommand) return `reset ${objectCommand[1]}`;

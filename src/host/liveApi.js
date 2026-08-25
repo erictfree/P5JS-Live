@@ -18,6 +18,8 @@ import { StreamRoom } from '../network/streamRoom.js';
 export const LIVE_API_NAMES = [
   'activate',
   'reset',
+  'control',
+  // Compatibility only for saved projects created before the student-facing rename.
   'param',
   'ShaderChain',
   'StreamRoom',
@@ -125,6 +127,15 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
     return value;
   }
 
+  function declareControl(name, value, options = {}) {
+    assertName('Control', name);
+    if (typeof value !== 'number' && typeof value !== 'boolean' && typeof value !== 'string') {
+      throw new TypeError(`control("${name}", ...) value must be a number, boolean, or string`);
+    }
+    operations.push({ type: 'control', name, value, options });
+    return name;
+  }
+
   const api = {
     ShaderChain,
     StreamRoom,
@@ -143,14 +154,10 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
       return strategy;
     },
 
-    param(name, value, options = {}) {
-      assertName('Parameter', name);
-      if (typeof value !== 'number' && typeof value !== 'boolean' && typeof value !== 'string') {
-        throw new TypeError(`param("${name}", ...) value must be a number, boolean, or string`);
-      }
-      operations.push({ type: 'param', name, value, options });
-      return name;
-    },
+    control: declareControl,
+    // Do not advertise this alias in the editor or documentation; it only keeps
+    // already-saved performances recoverable.
+    param: declareControl,
   };
 
   /** Resolve command objects after the evaluator has captured same-buffer bindings. */

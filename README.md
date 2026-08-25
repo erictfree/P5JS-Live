@@ -97,9 +97,14 @@ The source picker waits for an audio file, microphone, or silence before startin
 audio. The file picker accepts MP3, WAV, OGG, M4A, and AAC files; codec support
 depends on the browser.
 
+The **Controllers** panel can create visible `control()` declarations and map live
+controls to MIDI knobs, faders, or pads with MIDI Learn. Direct MIDI is available
+when the browser implements Web MIDI; unsupported browsers leave the rest of the
+instrument fully functional.
+
 To stop the server, press `Ctrl+C` in the terminal. Working source and named
 performances remain in that browser. Project export includes the current source,
-parameters, and every named performance so they can move to another browser or
+live-control values, and every named performance so they can move to another browser or
 computer. Audio files remain separate.
 
 ## First edit
