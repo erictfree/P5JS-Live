@@ -374,13 +374,13 @@ activate(laserScene);`);
       .toEqual(['asciiNoise', 'plasma']);
   });
 
-  test('Add to scene moves a top-level scene line down when the caret begins that line', async ({ page }) => {
+  test('Add to scene moves a top-level scene line down when the caret is inside that line', async ({ page }) => {
     await boot(page, { tools: true });
     await page.getByRole('button', { name: /^Install checkerZoom system patch source —/ }).click();
     await page.locator('#code').evaluate((editor) => {
       const plasmaLine = editor.value.indexOf('  plasma,');
       editor.focus();
-      editor.setSelectionRange(plasmaLine, plasmaLine);
+      editor.setSelectionRange(plasmaLine + 5, plasmaLine + 5);
       editor.dispatchEvent(new Event('select', { bubbles: true }));
     });
 
@@ -409,7 +409,7 @@ activate(laserScene);`);
     await expect(scene).toBeVisible();
     await expect(scene.locator('.folded-source-editor')).toBeFocused();
     await expect(scene.locator('.folded-source-editor')).toHaveValue(
-      /checkerZoom,[\s\S]*plasma,/,
+      /plasma,[\s\S]*checkerZoom,/,
     );
     expect(await page.evaluate(() => window.p5jsLive.registry.activeInstancesOf('checkerZoom').length))
       .toBe(0);
@@ -445,8 +445,8 @@ activate(laserScene);`);
     await boot(page);
 
     const library = page.locator('#strategy-library');
-    await expect(library.locator('[data-library]')).toHaveCount(40);
-    await expect(page.getByRole('button', { name: /^All 40$/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(library.locator('[data-library]')).toHaveCount(44);
+    await expect(page.getByRole('button', { name: /^All 44$/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-library="laserFan"]')).toHaveAttribute('data-origin', 'system');
     await expect(page.locator('[data-library="plasma"]')).toHaveAttribute('data-origin', 'system');
     await expect(page.locator('[data-available="laserFan"]')).toContainText('laserFan');
@@ -672,6 +672,72 @@ activate(show);`;
       })
       .toEqual({ running: true, error: null });
     await expect(page.locator('[data-library="patternCRT"]')).toContainText('Running');
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('compiles and renders the Transparent Cube Field procedural WebGL shader', async ({ page }) => {
+    const pageErrors = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    await boot(page);
+    await page.getByRole('button', {
+      name: /^Install Transparent Cube Field system patch source —/,
+    }).click();
+
+    await replaceInEditorAndEvaluate(
+      page,
+      'const scene = [\n  asciiNoise,\n  plasma,\n];',
+      'const scene = [\n  transparentCubeField,\n];',
+    );
+
+    await expect
+      .poll(() => {
+        return page.evaluate(() => {
+          const strategy = window.p5jsLive.controller.snapshot().strategies
+            .find(({ name }) => name === 'transparentCubeField');
+          return { running: strategy?.running, error: strategy?.lastError?.message ?? null };
+        });
+      })
+      .toEqual({ running: true, error: null });
+    await expect(page.locator('[data-library="transparentCubeField"]')).toContainText('Running');
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('compiles and renders the Menger Light Tunnel procedural WebGL shader', async ({ page }) => {
+    const pageErrors = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    await boot(page);
+    await page.getByRole('button', {
+      name: /^Install Menger Light Tunnel system patch source —/,
+    }).click();
+
+    await replaceInEditorAndEvaluate(
+      page,
+      'const scene = [\n  asciiNoise,\n  plasma,\n];',
+      'const scene = [\n  mengerLightTunnel,\n];',
+    );
+
+    await expect
+      .poll(() => {
+        return page.evaluate(() => {
+          const strategy = window.p5jsLive.controller.snapshot().strategies
+            .find(({ name }) => name === 'mengerLightTunnel');
+          return { running: strategy?.running, error: strategy?.lastError?.message ?? null };
+        });
+      })
+      .toEqual({ running: true, error: null });
+    await expect(page.locator('[data-library="mengerLightTunnel"]')).toContainText('Running');
+    await expect.poll(() => page.evaluate(() => {
+      const canvas = document.querySelector('#stage canvas');
+      const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+      let luminousSamples = 0;
+      for (let y = 0; y < canvas.height; y += 12) {
+        for (let x = 0; x < canvas.width; x += 12) {
+          const index = (y * canvas.width + x) * 4;
+          if (pixels[index] + pixels[index + 1] + pixels[index + 2] > 24) luminousSamples += 1;
+        }
+      }
+      return luminousSamples;
+    })).toBeGreaterThan(100);
     expect(pageErrors).toEqual([]);
   });
 
@@ -2447,7 +2513,7 @@ test.describe('patch sharing and live commands', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('moves adjacent editor lines with Alt+Arrow', async ({ page }) => {
+  test('moves adjacent editor lines with the browser-safe shortcut', async ({ page }) => {
     await boot(page, { folded: false });
     await page.evaluate(() => {
       window.p5jsLive.editor.value = 'one\ntwo\nthree';
@@ -2455,7 +2521,7 @@ test.describe('patch sharing and live commands', () => {
       code.focus();
       code.setSelectionRange(5, 5);
     });
-    await page.keyboard.press('Alt+ArrowDown');
+    await page.keyboard.press('Control+Shift+ArrowDown');
     await expect(page.locator('#code')).toHaveValue('one\nthree\ntwo');
   });
 

@@ -97,6 +97,7 @@ const keyboard = { keys: new Set(), shift: false, alt: false };
  * These are the defaults documented in docs/API.md.
  */
 const drawing = {
+  groups: new Map(),
   push: () => push(),
   pop: () => pop(),
   resetDefaults() {
@@ -113,6 +114,59 @@ const drawing = {
     strokeJoin(MITER);
     textAlign(LEFT, BASELINE);
     textSize(12);
+  },
+  syncGroups(activeIds) {
+    const active = new Set(activeIds);
+    for (const [id, graphics] of this.groups) {
+      if (active.has(id)) continue;
+      graphics.remove();
+      this.groups.delete(id);
+    }
+  },
+  beginGroup(id) {
+    const pInst = stageCanvas?._pInst;
+    if (!pInst) return null;
+    let graphics = this.groups.get(id);
+    if (!graphics || graphics.width !== width || graphics.height !== height) {
+      graphics?.remove();
+      graphics = createGraphics(width, height);
+      graphics.pixelDensity(1);
+      this.groups.set(id, graphics);
+    }
+    graphics.clear();
+    const parentRenderer = pInst._renderer;
+    const parentGlobalRenderer = window._renderer;
+    const parentDrawingContext = window.drawingContext;
+    const parentColorMode = window.colorMode;
+    pInst._renderer = graphics._renderer;
+    window._renderer = graphics._renderer;
+    window.drawingContext = graphics.drawingContext;
+    // colorMode() stores its ranges on the p5 object it is invoked on. Merely swapping
+    // the renderer redirects shapes, but leaves global colorMode() attached to the root
+    // sketch; alpha values such as HSB's 0..1 range then reach the group as 0..255.
+    // Bind it to the actual p5.Graphics while this isolated target is active.
+    window.colorMode = graphics.colorMode.bind(graphics);
+    return {
+      id,
+      graphics,
+      pInst,
+      parentRenderer,
+      parentGlobalRenderer,
+      parentDrawingContext,
+      parentColorMode,
+    };
+  },
+  groupCanvas: (scope) => scope.graphics,
+  endGroup(scope) {
+    scope.pInst._renderer = scope.parentRenderer;
+    window._renderer = scope.parentGlobalRenderer;
+    window.drawingContext = scope.parentDrawingContext;
+    window.colorMode = scope.parentColorMode;
+    push();
+    this.resetDefaults();
+    noTint();
+    image(scope.graphics, 0, 0, width, height);
+    pop();
   },
 };
 
@@ -548,9 +602,7 @@ window.draw = function draw() {
 
   // The live coder configures the scene as an ordered array of strategy values.
   // Each function or object exposes the current drawing behavior.
-  for (const strategy of registry.activeStrategies()) {
-    host.drawStrategy(strategy, drawInputs);
-  }
+  host.drawScene(drawInputs);
 
   host.commitPendingChanges();
   // The first confirmed starter/saved scene becomes a complete recovery point.
@@ -1307,11 +1359,10 @@ function addPatchToScene(entry) {
   }
   const sceneName = registry.activeSceneName() ?? 'liveScene';
   const currentOrder = registry.activeInstances().map((instance) => instance.strategy);
-  const result = editor.addStrategyToScene(sceneName, entry.name, currentOrder, {
-    // Plasma samples everything drawn before it, so ordinary additions belong before
-    // it even when the performer presses Add to scene after Plasma is already active.
-    before: entry.name === 'plasma' ? null : 'plasma',
-  });
+  // A scene-array caret is an explicit placement choice. Without one, append at the
+  // bottom: post-processors and other order-sensitive patches should never silently
+  // reorder a patch the performer just added.
+  const result = editor.addStrategyToScene(sceneName, entry.name, currentOrder);
   if (!result.ok) {
     diagnostics.error(
       `Could not add ${entry.name} to ${sceneName}`,

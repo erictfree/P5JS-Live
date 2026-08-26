@@ -653,7 +653,10 @@ export function createEditor(textarea, handlers) {
 
       bodyEditor.addEventListener('keydown', (event) => {
         const accel = event.metaKey || event.ctrlKey;
-        if (event.altKey && !accel && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
+        const moveLineShortcut =
+          (accel && event.shiftKey && !event.altKey) ||
+          (event.altKey && !accel && !event.shiftKey);
+        if (moveLineShortcut && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
           event.preventDefault();
           const moved = moveLines(
             bodyEditor.value,
@@ -1089,7 +1092,10 @@ export function createEditor(textarea, handlers) {
   textarea.addEventListener('keydown', (event) => {
     const accel = event.metaKey || event.ctrlKey;
 
-    if (event.altKey && !accel && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
+    const moveLineShortcut =
+      (accel && event.shiftKey && !event.altKey) ||
+      (event.altKey && !accel && !event.shiftKey);
+    if (moveLineShortcut && ['ArrowUp', 'ArrowDown'].includes(event.key)) {
       event.preventDefault();
       const moved = moveLines(
         textarea.value,

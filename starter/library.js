@@ -1071,6 +1071,428 @@ const glassOrigin = new GlassOrigin({
   },
 
   {
+    name: 'transparentCubeField',
+    title: 'Transparent Cube Field',
+    category: 'shader',
+    blurb: 'Audio-reactive raymarched field of luminous, glass-like repeating cubes.',
+    source: `// %% patch transparentCubeField
+// @title Transparent Cube Field
+// @author Shane — https://www.shadertoy.com/user/Shane
+// @description A fast raymarched field of luminous, glass-like repeating cubes.
+// Original shader: https://www.shadertoy.com/view/ll2SRy
+// License: not specified in the supplied original source.
+//
+// Inspired by Fabrice Neyret's cube studies and Duke's port of Las's
+// "Cloudy Spikeball," as credited in the original shader comments.
+//
+// p5js.live adaptation: p5/WebGL wrapper plus audio-reactive live parameters.
+// This is a source shader: put it before post-processing effects in the scene.
+class TransparentCubeField {
+  #output = null;
+  #program = null;
+
+  constructor({
+    speed = 1,
+    thickness = 0.035,
+    jitter = 0.03,
+    glow = 1,
+    fisheye = 0.5,
+    swivel = 0.375,
+    audioDrive = 0.3,
+  } = {}) {
+    // Every setting may be a number or a function of the normal draw context.
+    this.speed = speed;
+    this.thickness = thickness;
+    this.jitter = jitter;
+    this.glow = glow;
+    this.fisheye = fisheye;
+    this.swivel = swivel;
+    this.audioDrive = audioDrive;
+  }
+
+  #vertexSource = \`
+    precision highp float;
+
+    attribute vec3 aPosition;
+    attribute vec2 aTexCoord;
+    varying vec2 vTexCoord;
+
+    void main() {
+      vTexCoord = aTexCoord;
+      vec4 position = vec4(aPosition, 1.0);
+      position.xy = position.xy * 2.0 - 1.0;
+      gl_Position = position;
+    }
+  \`;
+
+  #fragmentSource = \`
+    precision highp float;
+
+    varying vec2 vTexCoord;
+    uniform vec2 uResolution;
+    uniform float uTime;
+    uniform vec3 uAudio;
+    uniform float uSpeed;
+    uniform float uThickness;
+    uniform float uJitter;
+    uniform float uGlow;
+    uniform float uFisheye;
+    uniform float uSwivel;
+    uniform float uAudioDrive;
+
+    // Cheap vec3-to-vec3 hash from the original shader.
+    vec3 hash33(vec3 point) {
+      float noise = sin(dot(point, vec3(7.0, 157.0, 113.0)));
+      return fract(vec3(2097152.0, 262144.0, 32768.0) * noise);
+    }
+
+    float cubeField(vec3 point) {
+      // Offset each cell before repeating space to break up the lattice.
+      vec3 offset = hash33(floor(point)) * 0.2;
+      point = fract(point + offset) - 0.5;
+
+      // Blend a box distance with a small spherical term for convex faces.
+      float roundness = dot(point, point) - 0.21;
+      point = abs(point);
+      return max(max(point.x, point.y), point.z) * 0.95
+        + roundness * 0.05 - 0.21;
+    }
+
+    void main() {
+      vec2 fragCoord = vec2(vTexCoord.x, 1.0 - vTexCoord.y) * uResolution;
+      vec2 uv = (fragCoord - uResolution * 0.5) / uResolution.y;
+
+      float bassDrive = 1.0 + uAudio.x * uAudioDrive;
+      float time = uTime * uSpeed * bassDrive;
+      float lens = (1.0 - dot(uv, uv) * uFisheye) * 0.5;
+      vec3 ray = normalize(vec3(uv, lens));
+      vec3 origin = vec3(0.0, 0.0, time * 3.0);
+
+      float angle = time * uSwivel;
+      float cosine = cos(angle);
+      float sine = sin(angle);
+      mat2 rotation = mat2(cosine, sine, -sine, cosine);
+      ray.xz = rotation * ray.xz;
+      ray.xy = rotation * ray.xy;
+
+      float jitter = max(0.0, uJitter) * (1.0 + uAudio.z * uAudioDrive);
+      ray *= 1.0 - jitter * 0.5 + hash33(ray) * jitter;
+
+      float distanceTravelled = 0.0;
+      float layers = 0.0;
+      float surfaceDistance = 0.0;
+      float accumulatedDistance = 0.0;
+      float threshold = max(0.003, uThickness * (1.0 + uAudio.y * uAudioDrive * 0.3));
+      vec3 colour = vec3(0.0);
+
+      for (int index = 0; index < 56; index++) {
+        if (layers > 15.0 || colour.x > 1.0 || distanceTravelled > 10.0) break;
+
+        vec3 surfacePoint = origin + ray * distanceTravelled;
+        surfaceDistance = cubeField(surfacePoint);
+        accumulatedDistance =
+          (threshold - abs(surfaceDistance) * 15.0 / 16.0) / threshold;
+
+        if (accumulatedDistance > 0.0) {
+          float smoothDistance = accumulatedDistance * accumulatedDistance
+            * (3.0 - 2.0 * accumulatedDistance);
+          float light = smoothDistance / (1.0 + distanceTravelled * distanceTravelled * 0.25);
+          colour += vec3(light * 0.2 * uGlow * (1.0 + uAudio.y * uAudioDrive));
+          layers += 1.0;
+        }
+
+        distanceTravelled += max(abs(surfaceDistance) * 0.7, threshold * 1.5);
+      }
+
+      colour = max(colour, vec3(0.0));
+      float fireMix = dot(
+        sin(ray.yzx * 8.0 + sin(ray.zxy * 8.0)),
+        vec3(0.1666)
+      ) + 0.4;
+      colour = mix(
+        colour,
+        pow(colour.x * vec3(1.5, 1.0, 1.0), vec3(1.0, 2.5, 12.0)),
+        fireMix
+      );
+
+      float greenMix = dot(
+        sin(ray.yzx * 4.0 + sin(ray.zxy * 4.0)),
+        vec3(0.1666)
+      ) + 0.25;
+      colour = mix(
+        colour,
+        vec3(colour.x * colour.x * 0.85, colour.x, colour.x * colour.x * 0.3),
+        greenMix
+      );
+
+      gl_FragColor = vec4(max(colour, vec3(0.0)), 1.0);
+    }
+  \`;
+
+  #value(setting, context) {
+    return typeof setting === "function" ? setting(context) : setting;
+  }
+
+  #ensureShader() {
+    if (!this.#output) {
+      this.#output = createGraphics(width, height, WEBGL);
+      this.#output.pixelDensity(1);
+      this.#output.noStroke();
+      this.#program = this.#output.createShader(this.#vertexSource, this.#fragmentSource);
+    } else if (this.#output.width !== width || this.#output.height !== height) {
+      this.#output.resizeCanvas(width, height);
+    }
+  }
+
+  draw(context) {
+    this.#ensureShader();
+    this.#output.clear();
+    this.#output.shader(this.#program);
+    this.#program.setUniform("uResolution", [width, height]);
+    this.#program.setUniform("uTime", context.time);
+    this.#program.setUniform("uAudio", [
+      context.audio.bass,
+      context.audio.mid,
+      context.audio.treble,
+    ]);
+    this.#program.setUniform("uSpeed", this.#value(this.speed, context));
+    this.#program.setUniform("uThickness", this.#value(this.thickness, context));
+    this.#program.setUniform("uJitter", this.#value(this.jitter, context));
+    this.#program.setUniform("uGlow", this.#value(this.glow, context));
+    this.#program.setUniform("uFisheye", this.#value(this.fisheye, context));
+    this.#program.setUniform("uSwivel", this.#value(this.swivel, context));
+    this.#program.setUniform("uAudioDrive", this.#value(this.audioDrive, context));
+    this.#output.rect(0, 0, width, height);
+    image(this.#output, 0, 0, width, height);
+  }
+
+  dispose() {
+    this.#output?.remove();
+    this.#output = null;
+    this.#program = null;
+  }
+}
+
+const transparentCubeField = new TransparentCubeField({
+  speed: ({ audio }) => 0.8 + audio.bass * 0.35,
+  thickness: 0.035,
+  jitter: ({ audio }) => 0.018 + audio.treble * 0.018,
+  glow: ({ audio }) => 0.9 + audio.mid * 0.35,
+  fisheye: 0.5,
+  swivel: 0.375,
+  audioDrive: 0.3,
+});`,
+  },
+
+  {
+    name: 'mengerLightTunnel',
+    title: 'Menger Light Tunnel',
+    category: 'shader',
+    blurb: 'Fast audio-reactive flight through a glowing Menger tunnel and orbiting light.',
+    source: `// %% patch mengerLightTunnel
+// @title Menger Light Tunnel
+// @author Not identified in the supplied shader fragment
+// @description A performance-minded Menger tunnel with a moving light orb.
+// Original source URL and license were not included with the supplied fragment.
+//
+// p5js.live adaptation: portable GLSL ES camera math, initialized accumulators,
+// readable Menger layers, a p5/WebGL wrapper, and audio-reactive live parameters.
+// This is a source shader: put it before post-processing effects in the scene.
+class MengerLightTunnel {
+  #output = null;
+  #program = null;
+
+  constructor({
+    speed = 1,
+    scale = 4,
+    glow = 1,
+    orbSize = 0.01,
+    roll = 0.3,
+    audioDrive = 0.3,
+  } = {}) {
+    // Each setting may also be a function of { audio, time, controls, ... }.
+    this.speed = speed;
+    this.scale = scale; // Values from about 2 through 8 give useful variations.
+    this.glow = glow;
+    this.orbSize = orbSize;
+    this.roll = roll;
+    this.audioDrive = audioDrive;
+  }
+
+  #vertexSource = \`
+    precision highp float;
+
+    attribute vec3 aPosition;
+    attribute vec2 aTexCoord;
+    varying vec2 vTexCoord;
+
+    void main() {
+      vTexCoord = aTexCoord;
+      vec4 position = vec4(aPosition, 1.0);
+      position.xy = position.xy * 2.0 - 1.0;
+      gl_Position = position;
+    }
+  \`;
+
+  #fragmentSource = \`
+    precision highp float;
+
+    varying vec2 vTexCoord;
+    uniform vec2 uResolution;
+    uniform float uTime;
+    uniform vec3 uAudio;
+    uniform float uSpeed;
+    uniform float uScale;
+    uniform float uGlow;
+    uniform float uOrbSize;
+    uniform float uRoll;
+    uniform float uAudioDrive;
+
+    float lightAccumulation;
+    float animationTime;
+
+    vec3 path(float z) {
+      return vec3(cos(z * 0.05) * 16.0, cos(z * 0.1) * 8.0, z);
+    }
+
+    mat2 rotate2d(float angle) {
+      float cosine = cos(angle);
+      float sine = sin(angle);
+      return mat2(cosine, -sine, sine, cosine);
+    }
+
+    float orbDistance(vec3 point) {
+      vec3 pathPoint = path(point.z);
+      vec3 center = vec3(
+        pathPoint.x + sin(point.z * 0.4) * 0.4,
+        pathPoint.y + sin(sin(point.z * 0.3) + animationTime) * 0.5,
+        5.0 + animationTime + tan(cos(animationTime * 0.2) * 0.5) * 3.2
+      );
+      return length(point - center);
+    }
+
+    float mengerCross(vec3 point, float cellSize, float hole) {
+      vec3 repeated = abs(fract(point / cellSize) * cellSize - cellSize * 0.5);
+      return min(
+        max(repeated.x, repeated.y),
+        min(max(repeated.y, repeated.z), max(repeated.x, repeated.z))
+      ) - cellSize / hole;
+    }
+
+    float mengerField(vec3 point) {
+      float cellSize = clamp(uScale, 2.0, 8.0);
+      float distanceField = mengerCross(point, cellSize, 6.0);
+      cellSize /= 4.0;
+      return max(distanceField, mengerCross(point, cellSize, 3.5));
+    }
+
+    float sceneField(vec3 point) {
+      vec3 originalPoint = point;
+      point.xy -= path(point.z).xy;
+      point.y += 0.1;
+
+      float tunnel = max(1.0 - abs(point.x), 1.0 - abs(point.y));
+      tunnel = min(tunnel, mengerField(point));
+      float orb = orbDistance(originalPoint) - max(uOrbSize, 0.001);
+      tunnel = min(tunnel, orb);
+      lightAccumulation += 1.0 / max(orb, 0.001);
+      return min(orb, max(-originalPoint.y - 5.35, tunnel));
+    }
+
+    // The original uses tanh(), which is not guaranteed in GLSL ES 1.00.
+    vec4 softTanh(vec4 value) {
+      return value / (1.0 + abs(value));
+    }
+
+    void main() {
+      vec2 fragCoord = vec2(vTexCoord.x, 1.0 - vTexCoord.y) * uResolution;
+      float drive = 1.0 + uAudio.x * uAudioDrive;
+      animationTime = uTime * 6.0 * uSpeed * drive;
+      lightAccumulation = 0.0;
+
+      vec3 origin = path(animationTime);
+      vec3 forward = normalize(path(animationTime + 3.0) - origin);
+      vec3 right = normalize(vec3(forward.z, 0.0, -forward.x));
+      vec3 up = normalize(cross(right, forward));
+      vec2 screen = (fragCoord - uResolution * 0.5) / uResolution.y;
+      screen = rotate2d(sin(animationTime * 0.2) * uRoll) * screen;
+      vec3 direction = normalize(mat3(-right, up, forward) * vec3(screen, 1.0));
+
+      float distanceTravelled = 0.0;
+      vec4 colour = vec4(0.0);
+      float audioGlow = uGlow * (1.0 + uAudio.y * uAudioDrive);
+
+      for (int index = 0; index < 50; index++) {
+        if (distanceTravelled >= 50.0) break;
+        vec3 point = origin + direction * distanceTravelled;
+        float stepSize = 0.01 + 0.65 * abs(sceneField(point));
+        distanceTravelled += stepSize;
+
+        colour += vec4(2.0, 10.0, 4.0, 0.0)
+          * audioGlow / max(stepSize, 0.001);
+        colour -= 60.0 * vec4(2.0, 1.0, 8.0, 0.0)
+          * lightAccumulation / max(distanceTravelled, 0.001);
+      }
+
+      vec4 exposure = colour * colour / 400000000.0;
+      gl_FragColor = vec4(softTanh(exposure).rgb, 1.0);
+    }
+  \`;
+
+  #value(setting, context) {
+    return typeof setting === "function" ? setting(context) : setting;
+  }
+
+  #ensureShader() {
+    if (!this.#output) {
+      this.#output = createGraphics(width, height, WEBGL);
+      this.#output.pixelDensity(1);
+      this.#output.noStroke();
+      this.#program = this.#output.createShader(this.#vertexSource, this.#fragmentSource);
+    } else if (this.#output.width !== width || this.#output.height !== height) {
+      this.#output.resizeCanvas(width, height);
+    }
+  }
+
+  draw(context) {
+    this.#ensureShader();
+    this.#output.clear();
+    this.#output.shader(this.#program);
+    this.#program.setUniform("uResolution", [width, height]);
+    this.#program.setUniform("uTime", context.time);
+    this.#program.setUniform("uAudio", [
+      context.audio.bass,
+      context.audio.mid,
+      context.audio.treble,
+    ]);
+    this.#program.setUniform("uSpeed", this.#value(this.speed, context));
+    this.#program.setUniform("uScale", this.#value(this.scale, context));
+    this.#program.setUniform("uGlow", this.#value(this.glow, context));
+    this.#program.setUniform("uOrbSize", this.#value(this.orbSize, context));
+    this.#program.setUniform("uRoll", this.#value(this.roll, context));
+    this.#program.setUniform("uAudioDrive", this.#value(this.audioDrive, context));
+    this.#output.rect(0, 0, width, height);
+    image(this.#output, 0, 0, width, height);
+  }
+
+  dispose() {
+    this.#output?.remove();
+    this.#output = null;
+    this.#program = null;
+  }
+}
+
+const mengerLightTunnel = new MengerLightTunnel({
+  speed: ({ audio }) => 0.85 + audio.bass * 0.25,
+  scale: 4,
+  glow: ({ audio }) => 0.9 + audio.mid * 0.3,
+  orbSize: ({ audio }) => 0.01 + audio.treble * 0.012,
+  roll: 0.3,
+  audioDrive: 0.3,
+});`,
+  },
+
+  {
     name: 'patternCRT',
     title: 'Pattern CRT',
     category: 'shader',

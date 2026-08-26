@@ -44,16 +44,18 @@ scene, and **Running** completed a draw.
 window.draw = function draw() {
   const snapshot = audio.readFrame();
   const drawInputs = host.beginFrame(snapshot);
-
-  for (const patch of registry.activeStrategies()) {
-    host.drawStrategy(patch, drawInputs);
-  }
-
+  host.drawScene(drawInputs);
   host.commitPendingChanges();
 };
 ```
 
-Each scene entry is a stable registry instance. Lifecycle delegates resolve the
+The registry retains a recursive tree. Leaf entries are stable patch instances;
+nested arrays are transparent render-group nodes. The host recursively redirects the
+p5 renderer into a reusable `p5.Graphics` target for each group and composites it back
+into its parent. Controller and status views use a flattened leaf list, so existing
+Active/Running counts keep their simple meaning.
+
+Lifecycle delegates resolve the
 current implementation on every call. Object methods use
 `method.apply(implementation, args)`; functions are called directly. Therefore:
 
@@ -69,8 +71,8 @@ a staging environment, and captures declarations.
 
 - An object with `draw()` is a patch.
 - A function becomes a patch when a scene uses it.
-- An inline value receives an identity such as `scene[1]`.
-- An array containing only patch values is a scene.
+- An inline value receives a path identity such as `scene[1][0]`.
+- A top-level array is a scene; a nested array is an isolated render group.
 - Other functions, classes, arrays, and values remain ordinary bindings.
 - `activate`, `reset`, and `control` are the injected live commands.
 
@@ -112,7 +114,7 @@ implementations before clearing the registry.
 ## Identity, copies, and state
 
 A named binding is a stable patch identity. An anonymous entry uses its zero-based
-scene position. Moving an anonymous entry gives it a new identity.
+scene path. Moving an anonymous entry gives it a new identity.
 
 | Shared by copies | Per copy |
 | --- | --- |

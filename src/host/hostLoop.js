@@ -88,7 +88,21 @@ export function createHostLoop({
     drawInputs.time = t - startTime;
     drawInputs.sceneTime = t - sceneEnteredAt;
     registry.paramValues(drawInputs.controls);
+    drawing.syncGroups?.(activeGroupIds());
     return drawInputs;
+  }
+
+  function activeGroupIds() {
+    const ids = [];
+    const visit = (nodes) => {
+      for (const node of nodes ?? []) {
+        if (node?.kind !== 'group') continue;
+        ids.push(node.id);
+        visit(node.children);
+      }
+    };
+    visit(registry.activeTree?.());
+    return ids;
   }
 
   /** `exit` runs when an instance leaves the active scene. */
@@ -161,16 +175,14 @@ export function createHostLoop({
       // hidden JavaScript variable. Rebuild the visible scene-array binding from the
       // restored registry configuration so a later `activate(scene)` cannot accidentally
       // resurrect the failed function object. Named strategies restore normally.
-      const inline = /^(.*)\[(\d+)\]$/.exec(name);
+      const inline = /^([A-Za-z_$][\w$]*)((?:\[\d+\])+)$/.exec(name);
       if (inline && evaluator.hasBinding(inline[1])) {
         const previousScene = result.configurationSnapshot?.scenes
           ?.find((scene) => scene.name === inline[1]);
         if (previousScene) {
           evaluator.restoreBinding(
             inline[1],
-            previousScene.entries.map(
-              (strategyName) => registry.getStrategy(strategyName)?.definition,
-            ),
+            materializeScene(previousScene.entries),
           );
         }
       } else if (evaluator.hasBinding(name)) {
@@ -185,6 +197,40 @@ export function createHostLoop({
     } else {
       reportRepeatingError(record, threw);
     }
+  }
+
+  function materializeScene(entries) {
+    return (entries ?? []).map((entry) =>
+      Array.isArray(entry)
+        ? materializeScene(entry)
+        : registry.getStrategy(entry)?.definition);
+  }
+
+  /** Draw the recursive scene tree. Nested arrays receive transparent offscreen targets. */
+  function drawScene(inputs = drawInputs) {
+    const visit = (nodes) => {
+      for (const node of nodes ?? []) {
+        if (node?.kind !== 'group') {
+          drawStrategy(node, inputs);
+          continue;
+        }
+
+        const parentCanvas = drawInputs.canvas;
+        const scope = drawing.beginGroup?.(node.id);
+        if (!scope) {
+          visit(node.children);
+          continue;
+        }
+        try {
+          drawInputs.canvas = drawing.groupCanvas?.(scope) ?? parentCanvas;
+          visit(node.children);
+        } finally {
+          drawInputs.canvas = parentCanvas;
+          drawing.endGroup(scope);
+        }
+      }
+    };
+    visit(registry.activeTree?.() ?? registry.activeStrategies());
   }
 
   /** A committed strategy that throws every frame must not flood history or memory. */
@@ -325,10 +371,12 @@ export function createHostLoop({
     }
     entered.clear();
     lastStrategies.clear();
+    drawing.syncGroups?.([]);
   }
 
   return {
     beginFrame,
+    drawScene,
     drawStrategy,
     commitPendingChanges,
     reset,

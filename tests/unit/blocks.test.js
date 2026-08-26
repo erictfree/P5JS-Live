@@ -11,6 +11,7 @@ import {
   blockAt,
   describeBlock,
   insertSceneMember,
+  sceneMemberNames,
   moveSceneCellsLast,
   renameLegacyStarterScene,
   upgradeLegacyActivation,
@@ -184,6 +185,25 @@ const show = [
 activate(show);`);
   });
 
+  it('inserts before a top-level scene line when the cursor is inside its patch name', () => {
+    const scene = `// %% scene show
+const show = [
+  wash,
+  plasma,
+];
+activate(show);`;
+    const plasmaName = scene.indexOf('plasma') + 3;
+
+    expect(insertSceneMember(scene, 'show', 'rings', { at: plasmaName }))
+      .toBe(`// %% scene show
+const show = [
+  wash,
+  rings,
+  plasma,
+];
+activate(show);`);
+  });
+
   it('does not split a nested multi-line scene expression at the cursor', () => {
     const scene = `const scene = [
   makeShaderFlow({
@@ -276,6 +296,24 @@ activate(scene);`);
       .toBe('const scene = [rings, plasma];');
     expect(insertSceneMember('const scene = [wash];', 'scene', 'rings', { before: 'plasma' }))
       .toBe('const scene = [wash, rings];');
+  });
+});
+
+describe('sceneMemberNames', () => {
+  it('reads named leaves recursively without treating inline expressions as patches', () => {
+    const source = `const scene = [
+      background,
+      [asciiNoise, [plasma]],
+      ({ time }) => circle(time, 20, 10),
+      makeGroup(),
+      vignette,
+    ];`;
+    expect(sceneMemberNames(source, 'scene')).toEqual([
+      'background',
+      'asciiNoise',
+      'plasma',
+      'vignette',
+    ]);
   });
 });
 

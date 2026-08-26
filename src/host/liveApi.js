@@ -5,12 +5,13 @@
 //
 //   const waveScope = ({ audio }) => { ... };
 //   const laserFan = { draw({ audio }) { ... } };
-//   const scene = [waveScope, ({ time }) => circle(time, 40, 20), laserFan, plasma];
+//   const scene = [waveScope, [laserFan, plasma]];
 //
 // The evaluator captures those bindings. An object with draw() is immediately a
-// strategy; a function becomes one when it is placed in a scene. A top-level array of
-// strategies is a scene. Anonymous entries receive scene-local identities such as
-// `scene[1]`. Composition changes only by editing that array.
+// strategy; a function becomes one when it is placed in a scene. A top-level array is
+// a scene and a nested array is a transparent isolated render group. Anonymous entries
+// receive path-based identities such as `scene[1][0]`. Composition changes only by
+// editing that array.
 
 import { ShaderChain } from '../shaders/shaderChain.js';
 import { StreamRoom } from '../network/streamRoom.js';
@@ -38,8 +39,9 @@ function assertName(kind, name) {
 }
 
 /** Stable identity for an anonymous value occupying one scene-array slot. */
-export function inlineStrategyName(sceneName, index) {
-  return `${sceneName}[${index}]`;
+export function inlineStrategyName(sceneName, path) {
+  const indexes = Array.isArray(path) ? path : [path];
+  return `${sceneName}${indexes.map((index) => `[${index}]`).join('')}`;
 }
 
 /** Validate and return the exact function or object supplied by the patch author. */
@@ -97,11 +99,17 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
     return name;
   }
 
-  function normalizeSceneEntry(sceneName, index, entry, localNameOf = nameOf, sceneSource = source) {
+  function normalizeSceneEntry(sceneName, path, entry, localNameOf = nameOf, sceneSource = source) {
+    if (Array.isArray(entry)) {
+      return {
+        group: entry.map((child, index) =>
+          normalizeSceneEntry(sceneName, [...path, index], child, localNameOf, sceneSource)),
+      };
+    }
     const boundName = localNameOf(entry);
     const name = referenceStrategy(
       entry,
-      boundName ?? inlineStrategyName(sceneName, index),
+      boundName ?? inlineStrategyName(sceneName, path),
       boundName ? source : sceneSource,
     );
     return { strategy: name };
@@ -115,7 +123,7 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
       type: 'scene',
       name,
       entries: entries.map((entry, index) =>
-        normalizeSceneEntry(name, index, entry, localNameOf, sceneSource)),
+        normalizeSceneEntry(name, [index], entry, localNameOf, sceneSource)),
     });
     return name;
   }

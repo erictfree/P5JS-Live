@@ -18,8 +18,8 @@ p5js live owns p5 `setup()` and `draw()`. Live code supplies patches and scene a
 
 ### Keep composition in source
 
-The scene is a visible JavaScript array. Interface actions edit that source instead
-of maintaining a hidden graph.
+The scene is a visible JavaScript array. Nested arrays express isolated effect groups.
+Interface actions edit that source instead of maintaining a hidden graph.
 
 ### Replace small units
 
@@ -58,7 +58,7 @@ can be drawn, composited, fed back, or used as a shader texture.
 
 - File, microphone, and line-input audio analysis
 - Function, object, class-instance, factory, closure, and inline patches
-- Ordered scenes with independent state per occurrence
+- Recursive ordered scenes with isolated effect groups and independent state per occurrence
 - Transactional evaluation, version history, first-frame rollback, and Safe State
 - Built-in and community patch catalogs that install editable source
 - Standard `ShaderChain` GPU effects with wet/dry mix, blend modes, feedback, and

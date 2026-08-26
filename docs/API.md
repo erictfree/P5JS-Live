@@ -137,6 +137,39 @@ Earlier entries draw first. `activate()` accepts the array, not its name as a st
 Re-evaluating a scene changes its order without replacing unchanged patch
 implementations or their state.
 
+### Nested render groups
+
+A nested array is a transparent isolated group. Its entries render left to right on
+an offscreen target, then that target is composited into its parent at the array's
+position:
+
+```js
+const scene = [
+  solidBackground,
+  [asciiNoise, plasma],
+  vignette,
+];
+```
+
+Here `plasma` samples only `asciiNoise`; `vignette` sees the background plus the
+completed group. Nesting is recursive. A called factory may return a group, while a
+bare function in the array remains a per-frame function patch:
+
+This is intentionally not visually equivalent to the flat order
+`[solidBackground, asciiNoise, plasma]`: flat Plasma samples the background too.
+With the default nearly-black background and sparse ASCII, the isolated version may
+look very dark because Plasma transforms the group's existing pixels and preserves
+its transparency.
+
+```js
+const withGlow = (patch) => [patch, bloom];
+const scene = [solidBackground, withGlow(waveScope), vignette];
+```
+
+The factory runs when the scene cell evaluates. Spread syntax has ordinary JavaScript
+meaning: `...group` inserts its patches into the parent and therefore does not create
+an isolated target.
+
 Functions, objects, instances, and factory results may appear inline:
 
 ```js
@@ -163,8 +196,8 @@ Inline values are created when the scene cell evaluates. p5js live calls functio
 ### Identity and copies
 
 A named binding such as `laserFan` is a stable identity. An anonymous entry uses its
-zero-based scene position, such as `scene[1]`; moving it creates a new identity and
-fresh state.
+zero-based scene path, such as `scene[1]` or `scene[1][0]`; moving it creates a new
+identity and fresh state.
 
 The same patch may occur more than once:
 
@@ -209,11 +242,15 @@ complete buffer.
 
 Editor behavior:
 
+- **Add to scene** inserts before the top-level scene-array line containing the
+  cursor. A blank line is used directly. If the cursor is outside that array—or
+  inside a nested expression—the patch is appended at the bottom.
 - Enter preserves indentation and indents inside matching delimiters.
 - Tab and Shift+Tab adjust selected lines.
 - `Cmd/Ctrl+/` adds or removes one comment layer. Nested comments are preserved.
 - `Cmd/Ctrl+Option/Alt+T` tidies the current cell without evaluating it.
-- `Option/Alt+Up/Down` moves the current line or selected consecutive lines.
+- `Cmd/Ctrl+Shift+Up/Down` moves the current line or selected consecutive lines.
+  `Option/Alt+Up/Down` remains available in browsers that do not reserve it.
 - `Cmd/Ctrl+Alt+[` folds all; `Cmd/Ctrl+Alt+]` unfolds all.
 - `Cmd/Ctrl+Alt+/` opens the command sheet.
 - `Cmd/Ctrl+Option/Alt+A` opens the AI source editor.

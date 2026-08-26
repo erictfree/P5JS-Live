@@ -3,7 +3,7 @@
 // Views receive immutable snapshots and dispatch named actions. They never receive the
 // registry, state store, evaluator, audio engine, host loop, or authored objects themselves.
 
-import { findCells } from '../language/sourceBlocks.js';
+import { findCells, sceneMemberNames } from '../language/sourceBlocks.js';
 
 const LIFECYCLE_METHODS = ['state', 'enter', 'draw', 'beat', 'exit', 'dispose'];
 const FUNCTION_BUILT_INS = new Set(['length', 'name', 'arguments', 'caller', 'prototype']);
@@ -237,20 +237,8 @@ export function createAppController({
    * the live-coding interval after an edit and before Cmd/Ctrl+Enter. */
   function sceneSourceOrder(source = sourceProvider(), sceneName = registry.activeSceneName()) {
     if (!sceneName || typeof source !== 'string') return [];
-    const escaped = sceneName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const cell = findCells(source).find((candidate) => candidate.label === `scene ${sceneName}`);
-    const searchable = cell?.text ?? source;
-    const declaration = new RegExp(
-      `\\b(?:const|let|var)\\s+${escaped}\\s*=\\s*\\[([\\s\\S]*?)\\]`,
-    ).exec(searchable);
-    if (!declaration) return [];
-    const entries = declaration[1]
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/\/\/.*$/gm, '');
-    return entries
-      .split(',')
-      .map((entry) => entry.trim())
-      .filter((entry) => /^[A-Za-z_$][\w$]*$/.test(entry));
+    return sceneMemberNames(cell?.text ?? source, sceneName);
   }
 
   function safeStateStatus() {

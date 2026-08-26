@@ -198,7 +198,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
 
     for (const op of transaction.operations) {
       if (op.type === 'scene') {
-        const missing = op.entries
+        const missing = flattenSceneEntries(op.entries)
           .map((entry) => entry.strategy)
           .filter((name) => !strategyNames.has(name));
         if (missing.length) {
@@ -412,7 +412,17 @@ function canBeStrategy(value) {
 }
 
 function isStrategyArray(value) {
-  return Array.isArray(value) && value.length > 0 && value.every(canBeStrategy);
+  const isSceneEntry = (entry) =>
+    canBeStrategy(entry) || (Array.isArray(entry) && entry.every(isSceneEntry));
+  return Array.isArray(value) && value.length > 0 && value.every(isSceneEntry);
+}
+
+function flattenSceneEntries(entries, result = []) {
+  for (const entry of entries ?? []) {
+    if (Array.isArray(entry?.group)) flattenSceneEntries(entry.group, result);
+    else result.push(entry);
+  }
+  return result;
 }
 
 function declarationEntries(source) {

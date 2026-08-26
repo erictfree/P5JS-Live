@@ -138,6 +138,78 @@ describe('first-class strategy instances', () => {
 });
 
 describe('source-authoritative composition', () => {
+  it('renders nested arrays as recursive isolated groups in written order', () => {
+    const h = createTestHost();
+    globalThis.__nestedOrder = [];
+    h.evaluator.evaluate(`
+      const a = { draw({ canvas }) { __nestedOrder.push(["a", canvas?.id ?? "root"]); } };
+      const b = { draw({ canvas }) { __nestedOrder.push(["b", canvas?.id ?? "root"]); } };
+      const c = { draw({ canvas }) { __nestedOrder.push(["c", canvas?.id ?? "root"]); } };
+      const show = [a, [b, [c]], a];
+      activate(show);
+    `);
+    h.frame(2);
+
+    globalThis.__nestedOrder.length = 0;
+    h.drawing.groups.length = 0;
+    h.frame(1);
+
+    expect(globalThis.__nestedOrder).toEqual([
+      ['a', 'root'],
+      ['b', 'show:group[1]'],
+      ['c', 'show:group[1][1]'],
+      ['a', 'root'],
+    ]);
+    expect(h.drawing.groups).toEqual([
+      { type: 'begin', id: 'show:group[1]' },
+      { type: 'begin', id: 'show:group[1][1]' },
+      { type: 'end', id: 'show:group[1][1]' },
+      { type: 'end', id: 'show:group[1]' },
+    ]);
+    expect(h.registry.activeOrder()).toEqual(['a', 'b', 'c', 'a#2']);
+    delete globalThis.__nestedOrder;
+  });
+
+  it('calls a group factory once at evaluation while bare function patches run each frame', () => {
+    const h = createTestHost();
+    globalThis.__factoryCalls = 0;
+    globalThis.__frameCalls = 0;
+    h.evaluator.evaluate(`
+      const framePatch = () => { __frameCalls += 1; };
+      const objectPatch = { draw() {} };
+      const makeGroup = () => { __factoryCalls += 1; return [objectPatch]; };
+      const show = [framePatch, makeGroup()];
+      activate(show);
+    `);
+    h.frame(5);
+
+    expect(globalThis.__factoryCalls).toBe(1);
+    expect(globalThis.__frameCalls).toBeGreaterThan(1);
+    expect(h.registry.activeOrder()).toEqual(['framePatch', 'objectPatch']);
+    delete globalThis.__factoryCalls;
+    delete globalThis.__frameCalls;
+  });
+
+  it('preserves nested scene structure in configuration snapshots', () => {
+    const h = createTestHost();
+    h.evaluator.evaluate(`
+      const a = { draw() {} };
+      const b = { draw() {} };
+      const show = [a, [b, [a]]];
+      activate(show);
+    `);
+    h.frame(2);
+    const snapshot = h.registry.snapshotConfiguration();
+
+    h.evaluator.evaluate('const show = [b];');
+    h.frame(2);
+    h.registry.restoreConfiguration(snapshot);
+
+    expect(h.registry.snapshotConfiguration().scenes.find(({ name }) => name === 'show').entries)
+      .toEqual(['a', ['b', ['a']]]);
+    expect(h.registry.activeOrder()).toEqual(['a', 'b', 'a#2']);
+  });
+
   it('adds, removes, and reorders strategies by re-evaluating the array', () => {
     const h = createTestHost();
     h.evaluator.evaluate(`

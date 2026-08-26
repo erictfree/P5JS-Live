@@ -222,10 +222,10 @@ export function insertSceneMember(source, sceneName, memberName, { before = null
       ?? `${trailing?.[2] ?? ''}  `;
 
     // The caret can explicitly choose layer order without rebuilding the array.
-    // A blank line is replaced in place. At the beginning of a top-level entry,
-    // the new member is inserted before that line and the existing source moves
-    // down. Nested lines inside a function, object, or ShaderChain are ignored so
-    // insertion cannot split a valid expression.
+    // A blank line is replaced in place. Anywhere on a top-level entry selects that
+    // line as the insertion point: the new member is inserted before it and the
+    // existing source moves down. Nested lines inside a function, object, or
+    // ShaderChain are ignored so insertion cannot split a valid expression.
     if (Number.isInteger(at) && at > open && at <= close) {
       const lineStart = source.lastIndexOf('\n', at - 1) + 1;
       const nextNewline = source.indexOf('\n', at);
@@ -245,12 +245,11 @@ export function insertSceneMember(source, sceneName, memberName, { before = null
 
       const leading = line.match(/^[ \t]*/)?.[0] ?? '';
       const bodyLineStart = lineStart - (open + 1);
-      const beginsTopLevelLine =
+      const isTopLevelLine =
         lineStart > open &&
         lineStart <= close &&
-        at <= lineStart + leading.length &&
         structureDepth(masked, bodyLineStart) === 0;
-      if (beginsTopLevelLine) {
+      if (isTopLevelLine) {
         const isClosingLine = close >= lineStart && close <= lineEnd;
         const memberIndent = isClosingLine ? indent : (leading || indent);
         return source.slice(0, lineStart) +
@@ -294,6 +293,60 @@ export function insertSceneMember(source, sceneName, memberName, { before = null
     updatedBody = `${prefix}${separator}${memberName}${suffix}`;
   }
   return source.slice(0, open + 1) + updatedBody + source.slice(close);
+}
+
+/**
+ * Read named patch leaves from a scene array, including recursive nested groups.
+ * Inline expressions and factory calls intentionally have no source-level leaf name.
+ */
+export function sceneMemberNames(source, sceneName) {
+  if (!isIdentifier(sceneName)) return [];
+  const declaration = new RegExp(
+    `\\b(?:const|let|var)\\s+${escapeRegExp(sceneName)}\\s*=\\s*\\[`,
+  ).exec(source);
+  if (!declaration) return [];
+  const open = declaration.index + declaration[0].lastIndexOf('[');
+  const close = matchingSquareBracket(source, open);
+  if (close === -1) return [];
+
+  const collect = (body) => {
+    const names = [];
+    const masked = maskCommentsAndStrings(body);
+    const entries = [];
+    let start = 0;
+    let square = 0;
+    let round = 0;
+    let curly = 0;
+    for (let index = 0; index <= masked.length; index++) {
+      const ch = masked[index];
+      if (ch === '[') square += 1;
+      else if (ch === ']') square -= 1;
+      else if (ch === '(') round += 1;
+      else if (ch === ')') round -= 1;
+      else if (ch === '{') curly += 1;
+      else if (ch === '}') curly -= 1;
+      if ((ch === ',' || index === masked.length) && square === 0 && round === 0 && curly === 0) {
+        entries.push(masked.slice(start, index));
+        start = index + 1;
+      }
+    }
+
+    for (const entry of entries) {
+      const trimmed = entry.trim();
+      if (isIdentifier(trimmed)) {
+        names.push(trimmed);
+        continue;
+      }
+      if (!trimmed.startsWith('[')) continue;
+      const nestedClose = matchingSquareBracket(trimmed, 0);
+      if (nestedClose === trimmed.length - 1) {
+        names.push(...collect(trimmed.slice(1, nestedClose)));
+      }
+    }
+    return names;
+  };
+
+  return collect(source.slice(open + 1, close));
 }
 
 function isIdentifier(value) {

@@ -25,6 +25,18 @@ export function createTestHost({ fpsThreshold = 30, onCodeError = () => {} } = {
       this.depth--;
     },
     resetDefaults() {},
+    groups: [],
+    syncGroups() {},
+    beginGroup(id) {
+      this.groups.push({ type: 'begin', id });
+      return { id, canvas: { id } };
+    },
+    groupCanvas(scope) {
+      return scope.canvas;
+    },
+    endGroup(scope) {
+      this.groups.push({ type: 'end', id: scope.id });
+    },
   };
 
   let clock = 0;
@@ -47,7 +59,7 @@ export function createTestHost({ fpsThreshold = 30, onCodeError = () => {} } = {
     for (let i = 0; i < count; i++) {
       clock += step;
       const ctx = host.beginFrame(audio);
-      for (const strategy of registry.activeStrategies()) host.drawStrategy(strategy, ctx);
+      host.drawScene(ctx);
       host.commitPendingChanges();
     }
   }

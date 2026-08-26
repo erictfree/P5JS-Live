@@ -14,7 +14,8 @@ creative coders, performers, and the live-coding community.
 ## How it works
 
 A **patch** is a JavaScript function, object, or class instance that draws. A
-**scene** is an array of patches in layer order.
+**scene** is an array of patches in layer order. A nested array is a transparent,
+isolated render group, so effects inside it apply only to that group.
 
 ```js
 const pulse = {
@@ -28,7 +29,8 @@ const pulse = {
 
 const scene = [
   pulse,
-  plasma,
+  [asciiNoise, plasma],
+  vignette,
 ];
 
 activate(scene);
@@ -43,7 +45,7 @@ p5js live includes:
 - file, microphone, and line-input audio analysis;
 - normalized level, bass, mid, treble, beat, spectrum, and waveform data;
 - function, object, class, factory, closure, and inline patches;
-- ordered scenes with independent state for each patch occurrence;
+- recursive scenes with isolated effect groups and independent state per occurrence;
 - a source-based patch library and community patch catalog;
 - GPU post-processing through standard `ShaderChain` effects, wet/dry mix, blend
   modes, feedback, and custom WebGL patches;
@@ -98,7 +100,8 @@ audio. The file picker accepts MP3, WAV, OGG, M4A, and AAC files; codec support
 depends on the browser.
 
 The **Controllers** panel can create visible `control()` declarations and map live
-controls to MIDI knobs, faders, or pads with MIDI Learn. Direct MIDI is available
+controls to MIDI knobs, faders, switches, or drum pads with MIDI Learn. Continuous,
+momentary, toggle, and choice behaviors are supported. Direct MIDI is available
 when the browser implements Web MIDI; unsupported browsers leave the rest of the
 instrument fully functional.
 
@@ -129,6 +132,8 @@ To add a built-in patch:
 1. Open tools with `☰` or `Cmd/Ctrl+\`.
 2. In **Library**, select **Install source**.
 3. Select **Add to scene**.
+   The patch is appended at the bottom unless your cursor is on a top-level line in
+   the active scene array, in which case it is inserted at that line.
 4. Evaluate the opened scene with `Cmd/Ctrl+Enter`.
 
 The Library uses four distinct states:
@@ -172,7 +177,7 @@ projects or exports. A ChatGPT subscription does not include API access.
 | `Cmd/Ctrl+Shift+Enter` | Evaluate the complete editor |
 | `Cmd/Ctrl+/` | Toggle one comment layer |
 | `Cmd/Ctrl+Option/Alt+T` | Tidy the current cell |
-| `Option/Alt+Up/Down` | Move the current line or selected lines |
+| `Cmd/Ctrl+Shift+Up/Down` | Move the current line or selected lines (`Option/Alt+Up/Down` also works) |
 | `Cmd/Ctrl+Option/Alt+A` | Open the AI source editor |
 | `Cmd/Ctrl+Option/Alt+1…9` | Recall the corresponding stable numbered performance slot |
 | `Cmd/Ctrl+Option/Alt+S` | Quick-save to a new numbered performance slot |
@@ -226,6 +231,7 @@ check whether the transport says **Play**. Enter with silence to test visuals al
 | --- | --- |
 | [Guide](docs/GUIDE.md) | Patches, scenes, audio, shaders, networking, and recovery |
 | [API](docs/API.md) | Context fields, lifecycle, identity, commands, and exact behavior |
+| [Nested render groups](docs/NESTED-RENDER-GROUPS.md) | Recursive scene composition, factories, and effect scope |
 | [Networking (disabled)](docs/NETWORKING.md) | Inactive beta implementation and deployment notes |
 | [Architecture](docs/ARCHITECTURE.md) | Runtime design and implementation invariants |
 | [Product](docs/PRODUCT.md) | Purpose, principles, scope, and limits |

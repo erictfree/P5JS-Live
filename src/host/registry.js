@@ -1,6 +1,7 @@
 // Registry — named strategy implementations and the scenes that compose them.
 //
-// A scene is an ordered array of stable strategy instances. Re-evaluating a named
+// A scene is an ordered tree of stable strategy instances and transparent render
+// groups. Re-evaluating a named
 // function or object replaces the implementation behind every instance without
 // replacing the scene slots or their state. Candidates enter history only after
 // surviving a frame.
@@ -18,7 +19,7 @@ const STRATEGY_METHODS = ['state', 'enter', 'draw', 'beat', 'exit'];
 export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () => Date.now() } = {}) {
   /** @type {Map<string, any>} */
   const strategies = new Map();
-  /** @type {Map<string, Array<{id: string, strategy: string}>>} */
+  /** @type {Map<string, Array<any>>} */
   const scenes = new Map();
   /** @type {Map<string, {value: any, type?: 'continuous'|'button'|'choice', mode?: 'momentary'|'toggle', choices?: string[], min?: number, max?: number, step?: number}>} */
   const params = new Map();
@@ -141,7 +142,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     }
   }
 
-  /** Normalize a strategy name or scene entry into a stable runtime instance. */
+  /** Normalize a strategy name or leaf scene entry into a stable runtime instance. */
   function toInstance(order, entry) {
     const strategyName = typeof entry === 'string' ? entry : entry.strategy;
     const instance = {
@@ -185,13 +186,43 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     return typeof fn === 'function' ? fn.bind(implementation) : undefined;
   }
 
+  function toTree(sceneName, entries) {
+    const instances = [];
+    const visit = (entry, path) => {
+      const children = Array.isArray(entry) ? entry : entry?.group;
+      if (Array.isArray(children)) {
+        return {
+          id: `${sceneName}:group${path.map((index) => `[${index}]`).join('')}`,
+          kind: 'group',
+          children: children.map((child, index) => visit(child, [...path, index])),
+        };
+      }
+      const instance = toInstance(instances, entry);
+      instances.push(instance);
+      return instance;
+    };
+    return entries.map((entry, index) => visit(entry, [index]));
+  }
+
+  function flattenTree(tree, result = []) {
+    for (const node of tree ?? []) {
+      if (node?.kind === 'group') flattenTree(node.children, result);
+      else result.push(node);
+    }
+    return result;
+  }
+
+  function serializeTree(tree) {
+    return (tree ?? []).map((node) =>
+      node?.kind === 'group' ? serializeTree(node.children) : node.strategy);
+  }
+
   function defineScene(name, entries) {
-    const order = [];
-    for (const entry of entries) order.push(toInstance(order, entry));
-    scenes.set(name, order);
+    const tree = toTree(name, entries);
+    scenes.set(name, tree);
     if (activeSceneName === null) activeSceneName = name;
     notify();
-    return order;
+    return tree;
   }
 
   function activate(name) {
@@ -202,6 +233,10 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
   }
 
   function activeInstances() {
+    return flattenTree(activeTree());
+  }
+
+  function activeTree() {
     return activeSceneName === null ? [] : (scenes.get(activeSceneName) ?? []);
   }
 
@@ -236,7 +271,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     return {
       scenes: [...scenes.entries()].map(([name, order]) => ({
         name,
-        entries: order.map((instance) => instance.strategy),
+        entries: serializeTree(order),
       })),
       activeSceneName,
       safeSceneName,
@@ -248,9 +283,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     if (!snapshot) return false;
     scenes.clear();
     for (const scene of snapshot.scenes ?? []) {
-      const order = [];
-      for (const strategyName of scene.entries ?? []) order.push(toInstance(order, strategyName));
-      scenes.set(scene.name, order);
+      scenes.set(scene.name, toTree(scene.name, scene.entries ?? []));
     }
     activeSceneName =
       snapshot.activeSceneName !== null && scenes.has(snapshot.activeSceneName)
@@ -372,10 +405,15 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     activate,
     activeOrder,
     activeInstances,
+    activeTree,
     activeStrategies,
     activeInstancesOf,
     boundMethod,
-    listScenes: () => [...scenes.entries()].map(([name, order]) => ({ name, order: [...order] })),
+    listScenes: () => [...scenes.entries()].map(([name, tree]) => ({
+      name,
+      order: flattenTree(tree),
+      tree: [...tree],
+    })),
     activeSceneName: () => activeSceneName,
     setSafeScene,
     panic,

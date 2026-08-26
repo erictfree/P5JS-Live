@@ -393,6 +393,48 @@ const customPatch = { draw() { fill(100, 145, 255, 230); } };`;
     expect(h.registry.activeInstancesOf('patternCRT')).toHaveLength(0);
   });
 
+  it('ships Transparent Cube Field as a credited audio-reactive shader class', () => {
+    const entry = LIBRARY.find(({ name }) => name === 'transparentCubeField');
+    expect(entry).toMatchObject({
+      title: 'Transparent Cube Field',
+      category: 'shader',
+    });
+    expect(entry.source).toContain('https://www.shadertoy.com/view/ll2SRy');
+    expect(entry.source).toContain('License: not specified');
+    expect(entry.source).toContain('class TransparentCubeField');
+    expect(entry.source).toContain('const transparentCubeField = new TransparentCubeField({');
+    expect(entry.source).toContain('speed: ({ audio }) =>');
+    expect(entry.source).toContain('jitter: ({ audio }) =>');
+    expect(entry.source).not.toMatch(/\bbackground\s*\(/);
+
+    const h = createTestHost();
+    expect(h.evaluator.evaluate(entry.source).ok).toBe(true);
+    h.host.commitPendingChanges();
+    expect(h.registry.hasStrategy('transparentCubeField')).toBe(true);
+    expect(h.registry.activeInstancesOf('transparentCubeField')).toHaveLength(0);
+  });
+
+  it('ships Menger Light Tunnel as a parameterized audio-reactive shader class', () => {
+    const entry = LIBRARY.find(({ name }) => name === 'mengerLightTunnel');
+    expect(entry).toMatchObject({
+      title: 'Menger Light Tunnel',
+      category: 'shader',
+    });
+    expect(entry.source).toContain('@author Not identified');
+    expect(entry.source).toContain('Original source URL and license were not included');
+    expect(entry.source).toContain('class MengerLightTunnel');
+    expect(entry.source).toContain('const mengerLightTunnel = new MengerLightTunnel({');
+    expect(entry.source).toContain('speed: ({ audio }) =>');
+    expect(entry.source).toContain('orbSize: ({ audio }) =>');
+    expect(entry.source).not.toMatch(/\bbackground\s*\(/);
+
+    const h = createTestHost();
+    expect(h.evaluator.evaluate(entry.source).ok).toBe(true);
+    h.host.commitPendingChanges();
+    expect(h.registry.hasStrategy('mengerLightTunnel')).toBe(true);
+    expect(h.registry.activeInstancesOf('mengerLightTunnel')).toHaveLength(0);
+  });
+
   it('ships ten installable standard effects with live controls and no backgrounds', () => {
     expect(STANDARD_EFFECT_NAMES).toEqual([
       'transformFx', 'softBlur', 'edgeDetect', 'bloom', 'vignette',

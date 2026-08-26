@@ -134,6 +134,28 @@ const scene = [
 activate(scene);
 ```
 
+A nested array creates a transparent isolated group. Effects inside the group see
+only pixels drawn earlier in that group:
+
+```js
+const scene = [
+  solidBackground,
+  [asciiNoise, plasma], // Plasma processes ASCII Noise only
+  vignette,             // Vignette processes the combined outer scene
+];
+```
+
+Groups are recursive. A function call that returns an array runs once when the scene
+cell is evaluated; its result becomes a group. A bare function remains a patch called
+every frame. Spreading an array (`...patches`) inserts its members into the parent
+instead of isolating them. See [Nested render groups](NESTED-RENDER-GROUPS.md).
+
+Isolation changes an effect's input. In `[solidBackground, [asciiNoise, plasma]]`,
+Plasma sees only the sparse transparent ASCII layer—not `solidBackground`. Because
+the default background colour `[6, 8, 18]` is nearly black and Plasma transforms
+existing pixels rather than inventing an opaque background, this composition can look
+very dark. Use a brighter background or put richer drawing content inside the group.
+
 An inline function is also a patch:
 
 ```js
@@ -158,7 +180,8 @@ Available → Installed → Active → Running
 ```
 
 - **Install source** adds editable source to the project.
-- **Add to scene** edits the scene array.
+- **Add to scene** edits the scene array. Put the cursor on a top-level array line to
+  insert there; otherwise the new patch is appended at the bottom.
 - Evaluating the scene makes the patch **Active**.
 - A successful draw makes it **Running**.
 
@@ -327,7 +350,7 @@ the tab. See [SECURITY.md](../SECURITY.md).
 | `Cmd/Ctrl+Shift+Enter` | Evaluate the complete editor |
 | `Cmd/Ctrl+/` | Toggle one comment layer |
 | `Cmd/Ctrl+Option/Alt+T` | Tidy the current cell |
-| `Option/Alt+Up/Down` | Move the current line or selected lines |
+| `Cmd/Ctrl+Shift+Up/Down` | Move the current line or selected lines (`Option/Alt+Up/Down` also works) |
 | `Cmd/Ctrl+Option/Alt+A` | Open the AI source editor |
 | `Cmd/Ctrl+Option/Alt+1…9` | Recall the corresponding numbered saved performance |
 | `Cmd/Ctrl+Option/Alt+S` | Quick-save to a new numbered performance slot |
