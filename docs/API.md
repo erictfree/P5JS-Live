@@ -1,7 +1,8 @@
 # p5js live API
 
-p5js live code is JavaScript. The host owns p5 `setup()` and `draw()`; live code
-provides patches and scene arrays.
+p5js live code is JavaScript. The instrument keeps the canvas, animation clock, audio
+analysis, and active performance running; live code provides replaceable patches and
+scene arrays.
 
 ## Patch states
 

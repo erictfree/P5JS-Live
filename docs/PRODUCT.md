@@ -14,7 +14,8 @@ unrelated patches. Failed code does not replace the last working composition.
 
 ### Keep the host alive
 
-p5js live owns p5 `setup()` and `draw()`. Live code supplies patches and scene arrays.
+p5js live keeps the canvas, clock, audio analysis, and performance infrastructure
+running. Live code supplies replaceable patches and scene arrays.
 
 ### Keep composition in source
 

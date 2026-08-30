@@ -54,6 +54,17 @@ p5js live includes:
 - fullscreen, projected code, and a separate audience window;
 - beta peer-to-peer canvas sharing through `StreamRoom` objects.
 
+## Documentation
+
+- [User manual](docs/USER-MANUAL.md) — a progressive guide from the first edit to
+  audio arrays, objects, higher-order functions, MIDI, nested groups, shaders, and
+  live-performance recovery.
+- [Quick guide](docs/GUIDE.md) — the shortest practical route through the instrument.
+- [API reference](docs/API.md) — exact runtime fields, methods, and lifecycle rules.
+- [Nested render groups](docs/NESTED-RENDER-GROUPS.md) — isolated recursive
+  composition in detail.
+- [Architecture](docs/ARCHITECTURE.md) — host, evaluator, persistence, and view design.
+
 ## Install and run
 
 ### Requirements

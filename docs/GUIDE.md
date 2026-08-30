@@ -2,7 +2,8 @@
 
 p5js live keeps one p5 host running while you replace patches and scenes. Code is
 ordinary JavaScript. For exact fields and lifecycle behavior, see the
-[API reference](API.md).
+[API reference](API.md). For a progressive introduction through every major workflow
+and advanced composition pattern, see the [complete user manual](USER-MANUAL.md).
 
 ## Start
 

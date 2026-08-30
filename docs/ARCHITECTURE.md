@@ -1,13 +1,13 @@
 # p5js live architecture
 
-The host owns p5 `setup()` and `draw()`. Live code supplies functions and objects for
-the host to call. Replacing a patch does not recreate the canvas, clock, audio graph,
-network manager, or unrelated state.
+The persistent runtime keeps the canvas, animation clock, audio graph, network
+manager, and unrelated patch state alive. Live code supplies the replaceable visual
+behaviors it calls, so changing one patch does not restart the instrument.
 
 ## Modules
 
 ```text
-src/main.js                 p5 setup/draw and application wiring
+src/main.js                 browser lifecycle, frame wiring, and application setup
 src/app/controller.js       snapshots and actions between runtime and views
 src/host/registry.js        patch values, instances, scenes, and history
 src/host/stateStore.js      per-instance state and restoration
