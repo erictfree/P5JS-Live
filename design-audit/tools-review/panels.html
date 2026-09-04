@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inside Tools — interactive panel mockups</title>
+  <link rel="stylesheet" href="panels.css">
+</head>
+<body>
+  <header class="page-header"><a href="./">← Tools review</a><span>p5js.live / DESIGN STUDY 02</span></header>
+  <main>
+    <div class="intro"><div><p class="eyebrow">From direction to detail</p><h1>Inside Tools.</h1><p>Four working panel mockups. Try a workflow, then switch areas.</p></div><span class="prototype-label">MOCKUP · SAMPLE DATA</span></div>
+    <div class="workbench">
+      <section class="canvas" aria-label="Interactive Tools mockup">
+        <div class="canvas-toolbar"><span>Panel width</span><div role="group" aria-label="Mockup panel width"><button data-width="wide" aria-pressed="true">Wide</button><button data-width="compact" aria-pressed="false">Compact</button></div></div>
+        <div class="tools" id="tools">
+          <div class="tools-heading"><strong>Tools</strong><span class="scene-status"><i></i><span id="scene-name">afterglow</span></span></div>
+          <nav class="primary-nav" aria-label="Tool areas">
+            <button data-area="library" aria-pressed="true" aria-controls="library">Library</button>
+            <button data-area="controls" aria-pressed="false" aria-controls="controls">Controls</button>
+            <button data-area="audio" aria-pressed="false" aria-controls="audio">Audio</button>
+            <button data-area="performances" aria-pressed="false" aria-controls="performances">Performances</button>
+          </nav>
+          <div class="panel-scroll" id="panel-scroll">
+            <section class="area" id="library" aria-label="Library panel">
+              <div class="area-heading"><div><h2>Patch library</h2><p>Find the next layer for your scene.</p></div><span class="count">6 patches</span></div>
+              <label class="search-label" for="library-search"><span aria-hidden="true">⌕</span><input type="search" id="library-search" placeholder="Search patches, effects, or tags…" aria-label="Search patches"></label>
+              <div class="filters" role="group" aria-label="Patch scope"><button data-filter="all" aria-pressed="true">Browse <span id="count-all">6</span></button><button data-filter="installed" aria-pressed="false">In project <span id="count-installed">3</span></button><button data-filter="active" aria-pressed="false">In scene <span id="count-active">2</span></button></div>
+              <div class="list-toolbar"><label for="category">Show <select id="category" aria-label="Patch category"><option value="all">All categories</option><option value="Drawing">Drawing</option><option value="Effect">Effects</option></select></label><span id="library-count" role="status">6 results</span></div>
+              <div id="patch-list"></div>
+              <div id="library-empty" class="empty" hidden><h3>No patches found</h3><p>Try a shorter name or a different category.</p><button id="clear-filters" class="secondary">Clear filters</button></div>
+              <div class="pending-banner" id="pending-banner" hidden><div><strong>Scene changes ready</strong><p id="pending-description">Review source before running.</p></div><button class="primary" id="review-scene">Review scene</button></div>
+              <details class="quiet-details"><summary>How adding patches works</summary><p>Install places patch source in the project. Add updates the scene source. You review and run the scene when you are ready.</p></details>
+            </section>
+            <section class="area" id="controls" aria-label="Controls panel" hidden>
+              <div class="area-heading"><div><h2>Live controls</h2><p>Adjust the feel without leaving the scene.</p></div><button class="secondary small" id="new-control">+ Control</button></div>
+              <div class="control-card"><div class="control-heading"><label for="checker-speed">Checker speed</label><output for="checker-speed" id="checker-speed-value">0.08</output></div><input id="checker-speed" type="range" min="0" max="1" step="0.01" value="0.08"><div class="range-labels"><span>Still · 0</span><span>Fast · 1</span></div><div class="control-meta"><code>checkerSpeed</code><button class="mapping-button" data-map="checkerSpeed">Map MIDI</button></div></div>
+              <div class="control-card"><div class="control-heading"><label for="glow">Glow intensity</label><output for="glow" id="glow-value">0.60</output></div><input id="glow" type="range" min="0" max="1" step="0.01" value="0.60"><div class="range-labels"><span>Subtle · 0</span><span>Bright · 1</span></div><div class="control-meta"><code>glowIntensity</code><button class="mapping-button" data-map="glowIntensity">Map MIDI</button></div></div>
+              <div class="control-card compact-control"><div><label for="color-mode">Color palette</label><code>colorMode</code></div><select id="color-mode"><option>Afterglow</option> <option>Ice blue</option><option>Amber</option></select></div>
+              <div class="control-card compact-control"><div><span id="strobe-label">Strobe</span><code>strobeEnabled</code></div><button class="toggle" id="strobe" aria-pressed="false" aria-labelledby="strobe-label"><span class="toggle-dot"></span><span class="toggle-word" aria-hidden="true">Off</span></button></div>
+              <details class="device-details"><summary><span>MIDI devices</span><span class="subtle" id="midi-summary">Not connected</span></summary><div class="device-body"><p id="midi-description">Connect a controller to map knobs, faders, and pads.</p><button class="secondary" id="connect-midi">Connect demo controller</button></div></details>
+              <div class="tip"><strong>Every control has a home in code.</strong><p>Parameter names stay visible below their controls, so the interface and source are easy to connect.</p></div>
+            </section>
+            <section class="area" id="audio" aria-label="Audio panel" hidden>
+              <div class="area-heading"><div><h2>Audio source</h2><p>Choose what the visuals listen to.</p></div></div>
+              <div class="source-tabs" role="group" aria-label="Audio source type"><button data-source="file" aria-pressed="true">Audio file</button><button data-source="input" aria-pressed="false">Mic / line input</button></div>
+              <div id="file-source">
+                <div class="audio-file"><span class="file-icon" aria-hidden="true">♫</span><div><strong>afterglow-session.wav</strong><span>Demo track · 6:24</span></div><button class="text-button" id="replace-track">Replace</button></div>
+                <div class="waveform" id="waveform" aria-hidden="true"></div>
+                <label class="sr-only" for="track-position">Demo playback position</label><input type="range" id="track-position" min="0" max="384" value="92" step="1"><div class="time-row"><output id="track-time" for="track-position">1:32</output><span>6:24</span></div>
+                <div class="transport"><button class="primary" id="play-track" aria-pressed="false">▶ Play</button><button class="secondary" id="loop-track" aria-pressed="true">Loop on</button></div>
+              </div>
+              <div id="input-source" hidden><label class="field-label" for="input-device">Input device</label><select id="input-device"><option>Built-in microphone (demo)</option><option>Audio interface · Input 1–2 (demo)</option></select><div class="input-status"><span class="status-dot"></span>Input ready <span class="subtle">· sample signal</span></div></div>
+              <div class="signal-card"><div class="row-between"><h3>Signal</h3><span class="signal-state" id="signal-state">Paused</span></div><div class="meter" aria-label="Illustrative signal level"><span id="signal-level"></span></div><div class="range-labels"><span>−60 dB</span><span>−12</span><span>0</span></div><div class="audio-bands"><div><span>Low</span><strong>0.32</strong></div><div><span>Mid</span><strong>0.18</strong></div><div><span>High</span><strong>0.09</strong></div></div></div>
+              <details class="device-details"><summary>Analysis settings</summary><div class="device-body"><div class="control-heading"><label for="smoothing">Smoothing</label><output id="smoothing-value" for="smoothing">0.60</output></div><input id="smoothing" type="range" min="0" max="0.95" step="0.05" value="0.6"><label class="check-row"><input type="checkbox" checked> Auto-gain</label><p>Soften changes in the audio analysis and normalize quieter input.</p></div></details>
+              <p class="quiet-note">Playback, levels, and devices are simulated in this mockup.</p>
+            </section>
+            <section class="area" id="performances" aria-label="Performances panel" hidden>
+              <div class="area-heading"><div><h2>Performances</h2><p>Your saved scenes and working windows.</p></div><span class="count" id="performance-count">3 saved</span></div>
+              <div class="save-box"><label for="performance-name">Save the current performance</label><form id="save-performance"><input id="performance-name" placeholder="Name this moment…" maxlength="60" required><button class="primary" type="submit">Save</button></form><span>Creates a new recall slot. Audio stays separate.</span></div>
+              <div id="performance-list"></div>
+              <div class="recovery-card"><div class="row-between"><h3>Safe state</h3><span class="badge live" id="safe-state">Ready</span></div><p id="safe-note">afterglow · captured at 15:09</p><div class="button-row"><button class="secondary" id="set-safe">Set safe</button><button class="secondary" id="restore-safe">Restore safe</button></div></div>
+              <details class="device-details"><summary>Project files</summary><div class="device-body"><div class="button-row"><button class="secondary" id="export-demo">Export demo JSON</button><button class="secondary" id="import-demo">Preview import</button></div><p>Project files include named performances and source. Audio files remain separate.</p><hr><button class="danger-button" id="reset-demo">Reset mockup data…</button></div></details>
+            </section>
+            <section class="area" id="settings" aria-label="Settings panel" hidden><div class="area-heading"><div><h2>Interface settings</h2><p>Make the working view comfortable.</p></div></div><div class="control-card"><div class="control-heading"><label for="panel-opacity">Panel opacity</label><output id="panel-opacity-value" for="panel-opacity">100%</output></div><input id="panel-opacity" type="range" min="70" max="100" value="100"><p class="quiet-note">A solid background keeps controls readable over moving visuals.</p></div><div class="control-card"><div class="control-heading"><label for="code-size">Code size</label><output id="code-size-value" for="code-size">15px</output></div><input id="code-size" type="range" min="12" max="24" value="15"><pre class="code-preview" id="code-preview">checkerSpeed = control(0.08);
+activate(afterglow);</pre></div><label class="field-label" for="fps-warning">Warn when frame rate falls below</label><div class="inline-field"><input type="number" id="fps-warning" min="1" max="120" value="30"><span>FPS</span></div><p class="quiet-note">These settings only affect this preview.</p></section>
+            <section class="area" id="messages" aria-label="Messages panel" hidden><div class="area-heading"><div><h2>Messages</h2><p>See what needs attention first.</p></div><span class="badge warning">1 warning</span></div><div class="diagnostic warning-card"><strong>Frame rate dipped to 27 FPS</strong><p>Try reducing the number of drawing layers.</p><span>15:12 · Runtime warning</span></div><h3 class="section-label">Recent activity</h3><div class="activity"><i></i><div><strong>afterglow is running</strong><p>Scene accepted · 10 layers</p></div><time>15:09</time></div><div class="activity"><i></i><div><strong>Safe state captured</strong><p>Source and runtime saved</p></div><time>15:09</time></div><div class="activity"><i></i><div><strong>checkerSpeed updated</strong><p>0.08 · Applied</p></div><time>15:08</time></div><p class="quiet-note">Illustrative messages. The badge counts issues requiring attention, not every log entry.</p></section>
+            <section class="area" id="ai" aria-label="AI panel" hidden><div class="area-heading"><div><h2>AI assistant</h2><p>Describe a change, then review the source.</p></div><span class="count">Beta</span></div><label class="field-label" for="ai-prompt">What would you like to change?</label><textarea id="ai-prompt" rows="4" placeholder="Make the tunnel slower and the colors warmer…"></textarea><button class="primary full" id="ai-proposal">Show an example proposal</button><div id="ai-result" class="tip" hidden><strong>Example: a calmer tunnel</strong><pre class="code-preview">speed: 0.25 → 0.12
+hue: 205 → 28</pre><p>Proposed changes stay staged until you review and run them in the editor.</p></div><details class="device-details"><summary>Connection settings</summary><div class="device-body"><p>Model selection and API credentials belong here. This mockup has no connection and requests no credentials.</p></div></details></section>
+          </div>
+          <nav class="secondary-nav" aria-label="Additional tools"><button data-area="settings" aria-pressed="false" aria-controls="settings">Settings</button><button data-area="messages" aria-pressed="false" aria-controls="messages">Messages <span class="issue-count">1</span></button><button data-area="ai" aria-pressed="false" aria-controls="ai">AI assistant</button></nav>
+          <div class="feedback" id="feedback" role="status">Sample data · changes stay in this preview</div>
+        </div>
+      </section>
+      <aside class="design-notes" aria-label="Design rationale"><p class="eyebrow" id="note-number">01 / LIBRARY</p><h2 id="note-title">Find. Add. Review.</h2><p id="note-intro">The collection becomes the starting point, with a clear next action on each patch.</p><div id="note-points"></div><div class="try-box"><span>TRY THIS</span><p id="try-this">Search for “laser,” install it, add it to the scene, then review the source.</p></div><p class="scope">All names, connection states, saved slots, and playback here are illustrative. No changes reach the live instrument.</p><a href="./" class="back-link">View the original screenshots ↗</a></aside>
+    </div>
+  </main>
+  <dialog id="action-dialog" aria-labelledby="dialog-title"><form method="dialog"><button class="dialog-close" aria-label="Close dialog">×</button></form><p class="eyebrow">MOCKUP WORKFLOW</p><h2 id="dialog-title"></h2><p id="dialog-description"></p><div id="dialog-content"></div><div class="dialog-actions"><button class="secondary" id="dialog-cancel">Cancel</button><button class="primary" id="dialog-confirm">Continue</button></div></dialog>
+  <script src="panels.js"></script>
+</body>
+</html>
