@@ -25,9 +25,11 @@ test('first edit, scene identity, keyboard dimmer, and drawer focus', async ({ p
   await page.keyboard.press('n');
   await expect(page.locator('#icons')).toBeHidden();
   await expect(page.locator('#icons')).toHaveAttribute('inert', '');
+  await expect(page.locator('#side')).toHaveCSS('top', '0px');
   await page.keyboard.press('n');
   await expect(page.locator('#icons')).toBeVisible();
   await expect(page.locator('#icons')).not.toHaveAttribute('inert');
+  await expect(page.locator('#side')).toHaveCSS('top', '46px');
   await expect(page.locator('#visual-dimmer-toggle')).toHaveCount(0);
   await page.keyboard.press('d');
   await expect(page.locator('#visual-dimmer')).toBeVisible();

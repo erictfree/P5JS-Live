@@ -778,6 +778,9 @@ button.folded-new-patch-button:focus-visible::after {
 #icons[hidden] {
   display: none;
 }
+#app:has(> #icons[hidden]) > #side {
+  top: 0;
+}
 
 #audio-transport {
   display: flex;
