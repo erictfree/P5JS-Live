@@ -17,6 +17,28 @@ audio file, microphone, or silence.
 Put the cursor in a patch or scene and press `Cmd/Ctrl+Enter`. Use
 `Cmd/Ctrl+Shift+Enter` to evaluate the complete buffer.
 
+The **LIVE** button at the bottom names the running scene and opens its source.
+The layer count refers to scene occurrences; **Safe state ready** means a recovery
+checkpoint exists. Hover over **Restore safe** to see which scene and capture time
+it restores. FPS, project-wide patch counts, and detailed messages live in **Tools → Messages**.
+
+Open a folded cell to use its **Run** button. **Live · Edited** means the previous
+version is running while the editor contains unapplied changes. **Applied** appears
+after frame validation; a failed candidate leaves an error beside the cell and
+retains the previous working code. The complete editor has the same current-cell
+controls above its text. When an AI proposal is staged, **Accept & run all** applies
+the complete proposal.
+
+Use **Dim background** (or `d` after releasing editor focus) to improve code
+readability. This dims only the performer view; audience output stays unchanged.
+Closed tools and reference drawers leave keyboard navigation; **Escape** inside a
+drawer closes it and returns focus to its toggle.
+
+In **Tools → Library**, **Browse**, **In project**, and **In scene** count catalog
+patches. **Project patches** includes custom project bindings as well. Install
+source, choose **Add to [scene]…**, then **Review scene & run** to inspect the changed
+array before using **Run**. **Edit source** opens a patch that is already active.
+
 ## Write a patch
 
 A patch can be a function, an object with `draw()`, or a class instance.

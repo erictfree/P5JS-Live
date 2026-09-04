@@ -21,6 +21,7 @@ export function createPanels({
   onAddNetworkStream,
   onRevert,
   onLocateStrategy,
+  onLocateScene,
   onRestoreSafe,
   onCreateParam,
   storage = globalThis.localStorage,
@@ -85,6 +86,7 @@ export function createPanels({
     networkRoomToken: el('network-room-token'),
   };
   let libraryFilter = 'all';
+  let liveSceneName = null;
   let activeToolView = 'audio';
   try {
     activeToolView = storage?.getItem(TOOL_VIEW_KEY) || activeToolView;
@@ -119,6 +121,11 @@ export function createPanels({
   }
 
   function renderStrategies(snapshot) {
+    liveSceneName = snapshot.scene.name;
+    const sceneButton = el('live-scene');
+    sceneButton.disabled = !liveSceneName;
+    el('live-scene-name').textContent = liveSceneName ?? 'No scene';
+    el('live-layer-count').textContent = `${snapshot.scene.order.length} layer${snapshot.scene.order.length === 1 ? '' : 's'}`;
     const expanded = new Set(
       [...nodes.references.querySelectorAll('[data-strategy][open]')].map(
         (row) => row.dataset.strategy,
@@ -345,24 +352,22 @@ export function createPanels({
       );
     } else if (!active && inSceneSource) {
       action = button(
-        'Added — activate scene',
-        `${entry.title} is in the active scene source and waiting for Cmd/Ctrl+Enter`,
-        () => {},
+        'Review scene & run',
+        `Review ${liveSceneName ?? 'active'} scene source before running ${entry.title ?? entry.name}`,
+        () => onLocateScene?.(liveSceneName),
       );
-      action.disabled = true;
     } else if (!active) {
       action = button(
-        'Add to scene',
+        `Add to ${liveSceneName ?? 'scene'}…`,
         `Add installed patch ${entry.title} to the active scene source`,
         () => onAddToScene?.(entry),
       );
     } else {
       action = button(
-        'In active scene',
-        `${entry.title} is active${running ? ' and running' : ' but has not completed a successful render'}`,
-        () => {},
+        'Edit source',
+        `Edit ${entry.title ?? entry.name} source (${running ? 'running' : 'active'})`,
+        () => onLocateStrategy?.(entry.name),
       );
-      action.disabled = true;
     }
     actions.append(action);
     row.append(dot, name, origin, status, actions);
@@ -371,6 +376,13 @@ export function createPanels({
 
   function renderSafeState(snapshot) {
     const { safeState } = snapshot;
+    el('live-safe-status').textContent = safeState.exists ? 'Safe state ready' : 'Preparing safe state';
+    el('panic').disabled = !safeState.exists;
+    const safeTitle = safeState.exists
+      ? `Restore ${safeState.sceneName}, captured ${new Date(safeState.createdAt).toLocaleTimeString()} (0)`
+      : 'Waiting for a working scene before capturing safe state';
+    el('live-safe-status').title = safeTitle;
+    el('panic').title = safeTitle;
     if (!safeState.exists) {
       nodes.safeNote.textContent = 'No safe snapshot yet. Set safe captures the working source, patch versions, scene, parameters and state.';
     } else {
@@ -763,6 +775,7 @@ export function createPanels({
     `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
 
   const unsubscribe = controller.subscribe(renderAll);
+  el('live-scene').addEventListener('click', () => onLocateScene?.(liveSceneName));
   nodes.toolTabs.addEventListener('click', (event) => {
     const tab = event.target.closest('[data-tool-view]');
     if (tab && !tab.disabled) selectToolView(tab.dataset.toolView);

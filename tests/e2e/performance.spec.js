@@ -257,8 +257,8 @@ test.describe('multiple copies of one strategy', () => {
     await expect(page.locator('[data-available="laserFan"]')).toBeVisible();
     await expect(page.locator('[data-library="plasma"]')).toContainText('system');
     await expect(
-      page.getByRole('button', { name: 'plasma is active and running' }),
-    ).toBeDisabled();
+      page.getByRole('button', { name: 'Edit plasma source (running)' }),
+    ).toBeEnabled();
 
     // The first press installs source without changing the active scene.
     await page.getByRole('button', { name: /^Install laserFan system patch source —/ }).click();
@@ -446,7 +446,7 @@ activate(laserScene);`);
 
     const library = page.locator('#strategy-library');
     await expect(library.locator('[data-library]')).toHaveCount(44);
-    await expect(page.getByRole('button', { name: /^All 44$/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: /^Browse 44$/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-library="laserFan"]')).toHaveAttribute('data-origin', 'system');
     await expect(page.locator('[data-library="plasma"]')).toHaveAttribute('data-origin', 'system');
     await expect(page.locator('[data-available="laserFan"]')).toContainText('laserFan');
@@ -500,7 +500,7 @@ activate(laserScene);`);
     await expect(page.locator('#code')).toHaveValue(/const scene = \[[\s\S]*laserFan,/);
     await expect(
       page.getByRole('button', {
-        name: 'laserFan is in the active scene source and waiting for Cmd/Ctrl+Enter',
+        name: 'Review scene scene source before running laserFan',
       }),
     ).toBeVisible();
     await expect(
@@ -520,10 +520,10 @@ activate(laserScene);`);
       .toBe(true);
     await expect(page.locator('[data-library="laserFan"]')).toContainText('Running');
 
-    await page.getByRole('button', { name: /^Active / }).click();
+    await page.getByRole('button', { name: /^In scene / }).click();
     await expect(page.locator('[data-library="laserFan"]')).toBeVisible();
     await expect(page.locator('[data-library="waveScope"]')).toHaveCount(0);
-    await page.getByRole('button', { name: /^All / }).click();
+    await page.getByRole('button', { name: /^Browse / }).click();
     await expect(page.locator('[data-available="waveScope"]')).toBeVisible();
 
     await page.locator('#reference-toggle').click();
@@ -593,7 +593,7 @@ activate(show);`;
     await expect(page.locator('[data-library="frequencyBars"]')).toContainText('Installed');
     await expect(page.locator('[data-library="frequencyBars"]')).toContainText('Open source');
     await expect(page.locator('[data-library="audioMeters"]')).toContainText('Installed');
-    await expect(page.getByRole('button', { name: /^Installed 4$/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^In project 4$/ })).toBeVisible();
     await expect(page.locator('#diagnostics-list')).toContainText('Saved project recovered with errors');
     await expect(page.locator('#code')).toHaveValue(/const frequencyBars = \{ draw\(\) \{ \(\(\(/);
   });
@@ -1361,7 +1361,8 @@ test.describe('the minimal display', () => {
     expect(code.border).toBe('0px');
     expect(code.alpha).toBe(0);
     expect(code.w).toBe(await page.evaluate(() => window.innerWidth));
-    expect(code.h).toBe(await page.evaluate(() => window.innerHeight));
+    // The complete editor reserves space above its text for current-cell feedback.
+    expect(code.h).toBe(await page.evaluate(() => window.innerHeight - document.getElementById('code').getBoundingClientRect().top));
 
     // Whether it is still running is the one thing that is never behind a toggle.
     await expect(page.locator('#runtime-bar')).toBeVisible();
@@ -1538,9 +1539,11 @@ test.describe('the minimal display', () => {
 
       const targets = await page.evaluate(() => {
         const out = [];
+        const editorTop = document.getElementById('code').getBoundingClientRect().top;
+        const statusTop = document.getElementById('runtime-bar').getBoundingClientRect().top;
         [...document.querySelectorAll('#code-mirror > span')].forEach((s, i) => {
           const r = s.getBoundingClientRect();
-          if (r.top > 20 && r.bottom < window.innerHeight - 20 && r.width > 140) {
+          if (r.top > editorTop + 20 && r.bottom < statusTop - 8 && r.width > 140) {
             out.push({ line: i, x: Math.round(r.left + 50), y: Math.round(r.top + r.height / 2) });
           }
         });

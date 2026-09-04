@@ -110,13 +110,17 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
     for (const [name, staged] of transaction.stagedStrategies) {
       staged.stateSnapshot = stateStore.snapshotStrategy(name);
     }
-    queue.push({ transaction, label });
+    // A data-only receipt lets the performer UI distinguish queued, applied and
+    // discarded work without treating successful compilation as a live change.
+    const completion = { status: 'queued', versions: {} };
+    queue.push({ transaction, label, completion });
 
     return {
       ok: true,
       phase: 'queued',
       staged: [...transaction.stagedStrategies.keys()],
       operations: transaction.operations.length,
+      completion,
     };
   }
 
@@ -219,17 +223,18 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
     if (queue.length === 0) return [];
     const staged = [];
 
-    for (const { transaction, label } of queue) {
+    for (const { transaction, label, completion } of queue) {
       const configurationSnapshot = registry.snapshotConfiguration();
       applyBindingUpdates(transaction.bindingUpdates);
       for (const [name, entry] of transaction.stagedStrategies) {
-        registry.stageStrategy(
+        const record = registry.stageStrategy(
           name,
           entry.definition,
           entry.source,
           entry.stateSnapshot,
           configurationSnapshot,
         );
+        completion.versions[name] = record.version;
         const ids = registry.activeInstancesOf(name).map((instance) => instance.id);
         for (const id of ids.length ? ids : [name]) {
           stateStore.ensure(id, registry.boundMethod(name, 'state'));
@@ -245,6 +250,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
       for (const op of transaction.operations.filter((op) => op.type !== 'scene')) {
         applyOperation(op, label);
       }
+      completion.status = 'applied';
     }
 
     queue.length = 0;
@@ -305,12 +311,14 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
     // JavaScript variables. Their stored source is the scene cell, which the editor
     // restores; only an actual captured binding should be changed here.
     if (bindings.has(name)) transaction.bindingUpdates.set(name, entry.definition);
-    queue.push({ transaction, label: `${name} v${version}` });
-    return { ok: true, phase: 'queued', staged: [name] };
+    const completion = { status: 'queued', versions: {} };
+    queue.push({ transaction, label: `${name} v${version}`, completion });
+    return { ok: true, phase: 'queued', staged: [name], completion };
   }
 
   function discardPending() {
     const dropped = queue.length;
+    for (const { completion } of queue) completion.status = 'discarded';
     queue.length = 0;
     return dropped;
   }

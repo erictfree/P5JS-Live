@@ -16,6 +16,7 @@ import { createHostLoop } from './host/hostLoop.js';
 import { createAudioEngine } from './audio/audioEngine.js';
 import { createControlManager } from './control/controlManager.js';
 import { createEditor } from './ui/editor.js';
+import { setDrawerHidden } from './ui/drawers.js';
 import { createPanels } from './ui/panels.js';
 import { createProjection } from './ui/projection.js';
 import { createConfirmDialog } from './ui/confirmDialog.js';
@@ -162,7 +163,7 @@ const host = createHostLoop({
   diagnostics,
   drawing,
   keyboard,
-  onCodeError: (name) => showCodeError(name),
+  onCodeError: (name, error) => showCodeError(name, error),
 });
 const controller = createAppController({
   registry,
@@ -195,6 +196,8 @@ const app = document.getElementById('app');
 const codeLayer = document.getElementById('code-layer');
 const foldButton = document.getElementById('fold-code');
 let stageCanvas = null;
+let startupSourceToConfirm = null;
+let offerFirstEdit = false;
 
 const editor = createEditor(document.getElementById('code'), {
   onEvaluate: (source, label) => {
@@ -214,6 +217,7 @@ const editor = createEditor(document.getElementById('code'), {
   lineNumbers: document.getElementById('line-numbers'),
   foldControls: document.getElementById('fold-controls'),
   foldedView: document.getElementById('folded-blocks'),
+  currentCellBar: document.getElementById('current-cell-bar'),
   onFoldChange: (folded) => {
     foldButton.classList.toggle('is-on', folded);
     const label = folded
@@ -223,8 +227,12 @@ const editor = createEditor(document.getElementById('code'), {
     foldButton.setAttribute('aria-label', label);
   },
 });
-showCodeError = (name) => editor.flashCodeError(name);
+showCodeError = (name, error) => {
+  editor.flashCodeError(name);
+  editor.evaluationError(name, error);
+};
 controller.setSourceProvider(() => editor.value);
+controller.subscribe((snapshot) => editor.updateRuntime(snapshot));
 
 foldButton.addEventListener('click', () => editor.toggleFolded());
 editor.setFolded(true);
@@ -247,6 +255,7 @@ const panels = createPanels({
   onLocateStrategy: (name) => {
     if (editor.revealStrategy(name)) toggleReference(true);
   },
+  onLocateScene: (name) => editor.revealScene(name),
 });
 
 function createLiveParam(spec) {
@@ -526,6 +535,7 @@ window.setup = function setup() {
   audio.init();
 
   const saved = projectStore.load();
+  try { offerFirstEdit = !saved && localStorage.getItem('p5js-live.firstEditDismissed') !== 'true'; } catch { offerFirstEdit = !saved; }
   const source = saved?.source ?? STARTER_SOURCE;
   const upgradedSource = upgradeLegacyPlasma(source);
   const diagnosticSource = upgradeOpaqueDiagnostics(upgradedSource);
@@ -572,6 +582,7 @@ window.setup = function setup() {
     stateStore,
     host,
   });
+  startupSourceToConfirm = startup.ok && !startup.recovered ? orderedSource : null;
   if (startup.recovered) {
     diagnostics.warn(
       'Saved project recovered with errors',
@@ -603,9 +614,14 @@ window.draw = function draw() {
   host.drawScene(drawInputs);
 
   host.commitPendingChanges();
+  if (editor.hasPendingEvaluation()) editor.evaluationFrame(controller.snapshot());
   // The first confirmed starter/saved scene becomes a complete recovery point.
   // Later edits never overwrite it; only the explicit Set safe action does.
-  if (!controller.safeStateStatus().exists) controller.ensureSafeState();
+  if (!controller.safeStateStatus().exists && controller.ensureSafeState().ok && startupSourceToConfirm) {
+    // A failed startup draw must not make the corresponding source look applied.
+    if (!registry.listStrategies().some((record) => record.lastError)) editor.rememberAppliedSource(startupSourceToConfirm);
+    startupSourceToConfirm = null;
+  }
   controller.setAudioSnapshot(snapshot);
 
   // The audience's copy of this frame. No-op unless the projection window is open.
@@ -621,6 +637,22 @@ window.windowResized = function windowResized() {
 // --- transport ------------------------------------------------------------------
 
 const overlay = document.getElementById('start-overlay');
+function openFirstEdit() {
+  if (!editor.revealProperty('plasma', 'speed')) editor.revealStrategy('plasma');
+}
+function finishEntry() {
+  overlay.hidden = true;
+  if (!offerFirstEdit) return;
+  offerFirstEdit = false;
+  document.getElementById('first-edit-hint').hidden = false;
+  openFirstEdit();
+}
+document.getElementById('first-edit-open').addEventListener('click', openFirstEdit);
+document.getElementById('first-edit-dismiss').addEventListener('click', () => {
+  document.getElementById('first-edit-hint').hidden = true;
+  try { localStorage.setItem('p5js-live.firstEditDismissed', 'true'); } catch { /* optional */ }
+  openFirstEdit();
+});
 const welcomeFileButton = document.getElementById('file-label');
 const welcomeFileInput = document.getElementById('audio-file');
 const welcomeLoadState = document.getElementById('start-load-state');
@@ -688,12 +720,12 @@ function renderAudioLoadStatus(status) {
 async function startAudio() {
   try {
     const state = await audio.start();
-    overlay.hidden = true;
+    finishEntry();
     resetWelcomeLoadStatus();
     diagnostics.success(`Audio context ${state}`);
   } catch (error) {
     // An audio failure is a message, not a stopped draw loop.
-    overlay.hidden = true;
+    finishEntry();
     resetWelcomeLoadStatus();
     diagnostics.error('Could not start audio', `${error.message} — running on silence.`);
   }
@@ -724,12 +756,12 @@ async function enterWithSilence() {
   try {
     const state = await audio.unlock();
     audio.useSilence();
-    overlay.hidden = true;
+    finishEntry();
     resetWelcomeLoadStatus();
     diagnostics.success(`Audio context ${state}`, 'Running on silence.');
   } catch (error) {
     audio.useSilence();
-    overlay.hidden = true;
+    finishEntry();
     resetWelcomeLoadStatus();
     diagnostics.error('Could not start audio', `${error.message} — running on silence.`);
   }
@@ -779,7 +811,7 @@ async function startMicrophone(deviceId) {
   const fromWelcome = !overlay.hidden;
   const ok = await audio.useMicrophone(deviceId);
   if (!ok) return false;
-  overlay.hidden = true;
+  finishEntry();
   resetWelcomeLoadStatus();
   // Device labels are empty until permission has been granted once, so the picker is
   // only worth populating after a successful start.
@@ -935,11 +967,9 @@ codeSizeInput.addEventListener('input', () => setCodeFontSize(codeSizeInput.valu
 
 function toggleTools(force) {
   const hidden = force ?? !side.classList.contains('is-hidden');
-  side.classList.toggle('is-hidden', hidden);
-  document.getElementById('tools-toggle').classList.toggle('is-on', !hidden);
+  setDrawerHidden(side, document.getElementById('tools-toggle'), hidden);
   if (!hidden) {
-    referenceSide.classList.add('is-hidden');
-    document.getElementById('reference-toggle').classList.remove('is-on');
+    setDrawerHidden(referenceSide, document.getElementById('reference-toggle'), true);
   }
   // The canvas already fills the window, so nothing needs resizing — the panel is
   // over the top of it, not beside it. That is the point of the overlay.
@@ -954,11 +984,9 @@ document.getElementById('tools-toggle').addEventListener('click', () => toggleTo
 
 function toggleReference(force) {
   const hidden = force ?? !referenceSide.classList.contains('is-hidden');
-  referenceSide.classList.toggle('is-hidden', hidden);
-  document.getElementById('reference-toggle').classList.toggle('is-on', !hidden);
+  setDrawerHidden(referenceSide, document.getElementById('reference-toggle'), hidden);
   if (!hidden) {
-    side.classList.add('is-hidden');
-    document.getElementById('tools-toggle').classList.remove('is-on');
+    setDrawerHidden(side, document.getElementById('tools-toggle'), true);
   }
   return hidden;
 }
@@ -985,8 +1013,19 @@ const visualDimmer = document.getElementById('visual-dimmer');
 function toggleVisualDimmer(force) {
   const show = force ?? visualDimmer.hidden;
   visualDimmer.hidden = !show;
-  visualDimmer.setAttribute('aria-hidden', String(!show));
+  document.getElementById('visual-dimmer-toggle').setAttribute('aria-pressed', String(show));
+  document.getElementById('visual-dimmer-toggle').classList.toggle('is-on', show);
   return show;
+}
+document.getElementById('visual-dimmer-toggle').addEventListener('click', () => toggleVisualDimmer());
+for (const drawer of [side, referenceSide]) {
+  drawer.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (drawer === side) toggleTools(true);
+    else toggleReference(true);
+  });
 }
 
 // --- key command help (?) --------------------------------------------------------

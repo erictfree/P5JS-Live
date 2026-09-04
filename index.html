@@ -161,6 +161,12 @@
            top is transparent and holds the caret, selection, and value. It remains the
            only source of truth — both displays are painted from it and never read. -->
       <div id="code-layer">
+        <div id="current-cell-bar">
+          <span class="current-cell-name">Complete editor</span>
+          <span class="cell-status"></span>
+          <button type="button" title="Run current cell (Cmd/Ctrl+Enter)">Run</button>
+          <span class="cell-feedback" role="status"></span>
+        </div>
         <div id="folded-code">
           <span class="visually-hidden">Folded patch editor</span>
           <div id="folded-blocks"></div>
@@ -181,9 +187,15 @@
       <!-- RUNTIME MONITOR — outside the drawer, because the one thing a
            performer must be able to see at all times is whether it is still running. -->
       <div id="runtime-bar">
-        <span><span class="label">fps</span> <span class="value" id="stat-fps">0</span></span>
-        <span class="value" id="stat-strategies" title="Running patches, active scene instances, and installed patch sources">0 running · 0 active · 0 installed</span>
-        <span class="value" id="stat-status">ready</span>
+        <button id="live-scene" type="button" title="Open the running scene source" disabled><span class="live-label">LIVE</span> <span id="live-scene-name">No scene</span></button>
+        <span id="live-layer-count">0 layers</span>
+        <span id="live-safe-status">Preparing safe state</span>
+      </div>
+
+      <div id="first-edit-hint" hidden>
+        <span>Try your first edit: change <code>speed</code> in Plasma, then select <strong>Run</strong> or press <strong>Cmd/Ctrl+Enter</strong>.</span>
+        <button id="first-edit-open" type="button">Open Plasma</button>
+        <button id="first-edit-dismiss" type="button" aria-label="Dismiss first-edit tip">Dismiss</button>
       </div>
 
       <!-- KEY COMMANDS (?) -->
@@ -228,7 +240,7 @@
 
       <!-- TOOLS DRAWER — everything that is a setting rather than a performance move.
            Hidden by default so the stage gets the whole window. -->
-      <aside id="side" class="right-drawer is-hidden">
+      <aside id="side" class="right-drawer is-hidden" inert aria-hidden="true">
         <div id="stagebar">
           <span class="brand">p5js live</span>
           <label class="stagebar-control">
@@ -510,10 +522,11 @@ const publishMain = room.publish({
               </div>
               <input id="import-patch-file" type="file" accept=".js,.p5patch.js,text/javascript,application/javascript" hidden />
               <div id="library-filters" class="filter-tabs" role="group" aria-label="Filter patch library">
-                <button type="button" data-library-filter="all" aria-pressed="true">All <span id="library-count-all">0</span></button>
-                <button type="button" data-library-filter="installed" aria-pressed="false">Installed <span id="library-count-installed">0</span></button>
-                <button type="button" data-library-filter="active" aria-pressed="false">Active <span id="library-count-active">0</span></button>
+                <button type="button" data-library-filter="all" aria-pressed="true">Browse <span id="library-count-all">0</span></button>
+                <button type="button" data-library-filter="installed" aria-pressed="false">In project <span id="library-count-installed">0</span></button>
+                <button type="button" data-library-filter="active" aria-pressed="false">In scene <span id="library-count-active">0</span></button>
               </div>
+              <p class="hint library-scope">Counts refer to catalog patches. Open Project patches for everything in your project.</p>
               <div id="strategy-library"></div>
               <details class="shader-operator-reference">
                 <summary>Shader operators</summary>
@@ -535,6 +548,11 @@ const publishMain = room.publish({
             data-tool-panel="messages"
             hidden
           >
+            <div class="body runtime-details">
+              <span><span class="label">fps</span> <span id="stat-fps">0</span></span>
+              <span id="stat-strategies">0 running · 0 active · 0 installed</span>
+              <span id="stat-status" role="status">ready</span>
+            </div>
             <div class="body" id="diagnostics-list"></div>
             <section class="tool-section">
               <h2>Evaluation history</h2>
@@ -701,7 +719,7 @@ const publishMain = room.publish({
       <!-- PROJECT PATCH REFERENCE — deliberately separate from settings and the
            source library. This is documentation for the objects currently known to the
            runtime, not another way to compose or mutate the active scene. -->
-      <aside id="reference-side" class="right-drawer is-hidden" aria-label="Project patch reference">
+      <aside id="reference-side" class="right-drawer is-hidden" aria-label="Project patch reference" inert aria-hidden="true">
         <div class="reference-header">
           <span class="brand">PROJECT PATCHES</span>
           <button id="reference-close" type="button" aria-label="Close project patch reference">×</button>
@@ -754,16 +772,17 @@ const publishMain = room.publish({
           <button id="play-toggle" type="button" class="transport-control" title="Play or pause the audio file (space)" aria-label="Play audio" disabled>▶ play</button>
           <button id="loop-performance-toggle" type="button" class="transport-control" title="Loop the audio file (l)" aria-label="Loop audio" aria-pressed="false">↻ loop</button>
         </div>
-        <button id="load-audio" type="button" class="glyph" title="Load an audio file (a)" aria-label="Load an audio file">♪</button>
+        <button id="load-audio" type="button" class="glyph labeled-control" title="Load an audio file (a)" aria-label="Load an audio file">Audio</button>
         <input id="audio-file-2" type="file" accept=".mp3,.wav,.ogg,.m4a,.aac" hidden />
         <button id="use-mic" type="button" class="glyph" title="Switch to microphone or line input (m)" aria-label="Switch to microphone or line input">◉</button>
-        <button id="projection-open" type="button" class="glyph" title="Open the audience projection window (p)" aria-label="Open the audience projection window">▣</button>
+        <button id="projection-open" type="button" class="glyph labeled-control" title="Open the audience projection window (p)" aria-label="Open the audience projection window">Audience</button>
         <button id="fullscreen-toggle" type="button" class="glyph" title="Fullscreen the stage (f)" aria-label="Fullscreen the stage">⤢</button>
-        <button id="panic" type="button" class="glyph danger" title="Restore the complete safe state (0)" aria-label="Restore safe state (0)">✖</button>
+        <button id="panic" type="button" class="glyph danger labeled-control" title="Restore the complete safe state (0)" aria-label="Restore safe state (0)">Restore safe</button>
         <button id="fold-code" type="button" class="glyph" title="Fold code into cells" aria-label="Fold code into cells">▤</button>
         <button id="reference-toggle" type="button" class="glyph" title="Project patch reference (r)" aria-label="Project patch reference">{ }</button>
-        <button id="tools-toggle" type="button" class="glyph" title="Show or hide the performer tools (Cmd/Ctrl+\)" aria-label="Show or hide the performer tools">☰</button>
-        <button id="keys-open" type="button" class="glyph" title="Key commands (?)" aria-label="Key commands">?</button>
+        <button id="visual-dimmer-toggle" type="button" class="glyph labeled-control" title="Dim the performer background only; the audience view stays unchanged (d)" aria-pressed="false">Dim background</button>
+        <button id="tools-toggle" type="button" class="glyph labeled-control" title="Show or hide the performer tools (Cmd/Ctrl+\)" aria-label="Show or hide the performer tools" aria-controls="side" aria-expanded="false">Tools</button>
+        <button id="keys-open" type="button" class="glyph labeled-control" title="Key commands (?)" aria-label="Key commands">Help</button>
       </div>
 
       <!-- After both drawers too, so it steps aside for either one the same way. -->

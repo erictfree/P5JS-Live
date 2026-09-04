@@ -144,12 +144,12 @@ should change without a page reload.
 
 To add a built-in patch:
 
-1. Open tools with `☰` or `Cmd/Ctrl+\`.
+1. Open **Tools** or press `Cmd/Ctrl+\`.
 2. In **Library**, select **Install source**.
-3. Select **Add to scene**.
+3. Select **Add to [scene]…**.
    The patch is appended at the bottom unless your cursor is on a top-level line in
    the active scene array, in which case it is inserted at that line.
-4. Evaluate the opened scene with `Cmd/Ctrl+Enter`.
+4. Evaluate the opened scene with **Run** or `Cmd/Ctrl+Enter`.
 
 The Library uses four distinct states:
 
@@ -202,6 +202,7 @@ projects or exports. A ChatGPT subscription does not include API access.
 | `Cmd/Ctrl+\` | Show or hide tools |
 | `r` | Show or hide the installed-patch reference |
 | `e` | Show or hide code |
+| `d` | Dim or restore the performer background (also available as **Dim background**) |
 | `f` | Enter or leave fullscreen |
 | `p` | Open the audience window |
 | `0` | Restore Safe State |

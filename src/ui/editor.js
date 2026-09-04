@@ -13,6 +13,7 @@ import {
 import { tokenizeLines } from './highlight.js';
 import { tidySource } from './tidy.js';
 import { changedLineNumbers } from './sourceDiff.js';
+import { createCellFeedback } from './cellFeedback.js';
 
 const INDENT = '  ';
 const PAIRS = { '{': '}', '[': ']', '(': ')' };
@@ -99,11 +100,52 @@ export function createEditor(textarea, handlers) {
   // collapsed editor caret as a source offset so a blank line can remain an explicit
   // insertion point in either the complete or structured presentation.
   let lastSourceCaret = null;
+  const feedback = createCellFeedback();
+  const currentCellBar = handlers.currentCellBar ?? null;
+
+  function evaluateSource(source, label) {
+    const result = handlers.onEvaluate(source, label);
+    feedback.start(source, result);
+    refreshFeedback();
+    return result;
+  }
+
+  function refreshFeedback() {
+    if (foldedView) {
+      const currentBlocks = new Map(foldEntries(textarea.value).map((entry) => [entry.foldKey, entry.block]));
+      for (const details of foldedView.querySelectorAll('.folded-block')) {
+        const block = currentBlocks.get(details.dataset.foldKey);
+        if (!block) continue;
+        const status = feedback.status(block.text);
+        const badge = details.querySelector('.cell-status');
+        const message = details.querySelector('.cell-feedback');
+        const run = details.querySelector('.cell-run');
+        if (run) {
+          run.textContent = staged ? 'Accept & run all' : 'Run';
+          run.setAttribute('aria-label', staged ? 'Accept and run the complete AI proposal' : `Run ${details.dataset.blockDescription}`);
+        }
+        if (badge && badge.textContent !== status.label) badge.textContent = status.label;
+        if (message && message.textContent !== status.message) message.textContent = status.message;
+        details.dataset.evaluationState = status.state;
+      }
+    }
+    if (currentCellBar) {
+      const block = blockAt(textarea.value, textarea.selectionStart);
+      const status = block ? feedback.status(block.text) : null;
+      currentCellBar.querySelector('.current-cell-name').textContent = block ? describeBlock(block.text).replace(/^strategy /, 'patch ') : 'Complete editor';
+      currentCellBar.querySelector('.cell-status').textContent = status?.label ?? '';
+      currentCellBar.querySelector('.cell-feedback').textContent = status?.message ?? '';
+      currentCellBar.dataset.evaluationState = status?.state ?? 'ready';
+      currentCellBar.querySelector('button').textContent = staged ? 'Accept & run all' : 'Run';
+    }
+  }
+  currentCellBar?.querySelector('button').addEventListener('click', () => staged ? acceptStagedSource() : evaluateCursorBlock());
 
   function rememberTextareaCaret() {
     lastSourceCaret = textarea.selectionStart === textarea.selectionEnd
       ? textarea.selectionStart
       : null;
+    refreshFeedback();
   }
   /**
    * What each line currently in the mirror is painted as, parallel to its child nodes.
@@ -562,6 +604,28 @@ export function createEditor(textarea, handlers) {
       accessibleName.textContent = preview.description;
       summary.append(closedNumber, openNumber, closedCode, openCode, accessibleName);
 
+      const cellStatus = document.createElement('span');
+      cellStatus.className = 'cell-status';
+      summary.append(cellStatus);
+      const cellActions = document.createElement('div');
+      cellActions.className = 'cell-actions';
+      const runButton = document.createElement('button');
+      runButton.type = 'button';
+      runButton.className = 'cell-run';
+      runButton.textContent = 'Run';
+      runButton.title = 'Run this cell (Cmd/Ctrl+Enter)';
+      runButton.setAttribute('aria-label', `Run ${preview.description}`);
+      runButton.addEventListener('click', () => {
+        const current = blockForFoldKey(textarea.value, foldKey);
+        if (!current) return;
+        const result = staged ? acceptStagedSource() : evaluateSource(current.text, describeBlock(current.text));
+        flash(result.ok, [details]);
+      });
+      const cellMessage = document.createElement('span');
+      cellMessage.className = 'cell-feedback';
+      cellMessage.setAttribute('role', 'status');
+      cellActions.append(runButton, cellMessage);
+
       const rawLines = block.text.split('\n');
       const terminalNewline = rawLines.at(-1) === '';
       if (rawLines.at(-1) === '') rawLines.pop();
@@ -643,6 +707,7 @@ export function createEditor(textarea, handlers) {
         foldedSource = textarea.value;
         syncMirror();
         handlers.onChange?.(textarea.value);
+        refreshFeedback();
         paintBody();
         rememberBodyCaret();
       });
@@ -689,8 +754,8 @@ export function createEditor(textarea, handlers) {
           event.preventDefault();
           const current = blockForFoldKey(textarea.value, foldKey);
           const result = event.shiftKey
-            ? handlers.onEvaluate(textarea.value, 'buffer')
-            : handlers.onEvaluate(current?.text ?? bodyEditor.value, current ? describeBlock(current.text) : preview.description);
+            ? evaluateSource(textarea.value, 'buffer')
+            : evaluateSource(current?.text ?? bodyEditor.value, current ? describeBlock(current.text) : preview.description);
           // In the structured editor the complete mirror is intentionally hidden.
           // Flash the source the performer can actually see, or Cmd/Ctrl+Enter feels
           // as though it did nothing even though the evaluation succeeded.
@@ -749,7 +814,7 @@ export function createEditor(textarea, handlers) {
       expanded.append(bodyNumbers, bodyMirror, bodyEditor);
       paintBody();
 
-      details.append(summary, expanded);
+      details.append(summary, cellActions, expanded);
       return details;
     });
 
@@ -772,6 +837,7 @@ export function createEditor(textarea, handlers) {
       rows.push(empty);
     }
     foldedView.replaceChildren(...rows);
+    refreshFeedback();
   }
 
   function setFolded(next) {
@@ -842,9 +908,14 @@ export function createEditor(textarea, handlers) {
             relativeStart,
             Math.min(inlineEditor.value.length, end - entry.block.start - bodyStart),
           );
-          details.scrollIntoView({ block: 'center', inline: 'nearest' });
           inlineEditor.focus({ preventScroll: true });
           inlineEditor.setSelectionRange(relativeStart, relativeEnd);
+          // Center the requested source line, not a potentially thousand-line cell.
+          const scroller = foldedView.parentElement;
+          const line = inlineEditor.value.slice(0, relativeStart).split('\n').length - 1;
+          const targetY = inlineEditor.getBoundingClientRect().top - scroller.getBoundingClientRect().top +
+            scroller.scrollTop + line * codeLineHeight();
+          scroller.scrollTop = Math.max(0, targetY - scroller.clientHeight * 0.3);
           lastSourceCaret = start === end ? start : null;
           return;
         }
@@ -938,13 +1009,13 @@ export function createEditor(textarea, handlers) {
     const block = blockAt(source, textarea.selectionStart);
     const text = block ? block.text : source;
     const label = block ? describeBlock(block.text) : 'buffer';
-    const result = handlers.onEvaluate(text, label);
+    const result = evaluateSource(text, label);
     flash(result.ok);
     return result;
   }
 
   function evaluateBuffer() {
-    const result = handlers.onEvaluate(textarea.value, 'buffer');
+    const result = evaluateSource(textarea.value, 'buffer');
     flash(result.ok);
     return result;
   }
@@ -1248,6 +1319,7 @@ export function createEditor(textarea, handlers) {
   /** Every path that alters the text goes through here, so the mirror cannot drift. */
   function changed() {
     syncMirror();
+    refreshFeedback();
     if (suppressChangeNotifications === 0) handlers.onChange?.(textarea.value);
   }
 
@@ -1348,7 +1420,7 @@ export function createEditor(textarea, handlers) {
 
   function acceptStagedSource() {
     if (!staged) return { ok: false, phase: 'empty', error: new Error('No AI edit is staged') };
-    const result = handlers.onEvaluate(textarea.value, 'AI proposal');
+    const result = evaluateSource(textarea.value, 'AI proposal');
     flash(result.ok);
     if (!result.ok) return result;
     staged = null;
@@ -1508,6 +1580,11 @@ export function createEditor(textarea, handlers) {
     acceptStagedSource,
     evaluateCursorBlock,
     evaluateBuffer,
+    hasPendingEvaluation: feedback.hasPending,
+    evaluationFrame(snapshot) { feedback.frame(snapshot); refreshFeedback(); },
+    evaluationError(name, error) { feedback.error(name, error); },
+    rememberAppliedSource(source) { feedback.remember(source); refreshFeedback(); },
+    updateRuntime(snapshot) { feedback.updateRuntime(snapshot); refreshFeedback(); },
     tidyCursorBlock,
     refreshLayout() {
       foldControlSignature = '';
@@ -1531,6 +1608,16 @@ export function createEditor(textarea, handlers) {
       return match ? { name: match[1], source: block.text.trimEnd() } : null;
     },
     /** Focus the binding that defines a strategy without changing source. */
+    revealProperty(name, property) {
+      const target = findBlocks(textarea.value).find((block) => isPatchBlock(block, name));
+      if (!target) return false;
+      const escaped = property.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const match = new RegExp(`^[ \\t]*${escaped}\\s*[:=]\\s*([-+]?\\d+(?:\\.\\d+)?)`, 'm').exec(target.text);
+      if (!match) return false;
+      const start = target.start + match.index + match[0].lastIndexOf(match[1]);
+      revealRange(start, start + match[1].length);
+      return true;
+    },
     revealStrategy(name) {
       const sceneName = inlineSceneName(name);
       if (sceneName) return this.revealScene(sceneName);

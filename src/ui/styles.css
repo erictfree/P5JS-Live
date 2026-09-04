@@ -1889,6 +1889,126 @@ button.icon {
   white-space: nowrap;
 }
 
+/* Performer orientation and evaluation feedback stay outside the rendered canvas. */
+#icons {
+  padding: 3px;
+  background: rgba(12, 12, 18, 0.9);
+  border: 1px solid rgba(200, 200, 225, 0.2);
+  border-radius: 5px;
+}
+button.glyph { height: 28px; min-width: 28px; color: #dddde8; }
+button.glyph.labeled-control { font-size: 11px; padding: 0 8px; }
+button.glyph.danger { color: #ffb3bb; }
+.right-drawer { top: 46px; }
+#folded-code { padding-top: 52px; padding-bottom: 62px; }
+#current-cell-bar {
+  position: absolute;
+  top: 47px;
+  left: 54px;
+  right: 18px;
+  z-index: 4;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: fit-content;
+  max-width: calc(100% - 72px);
+  padding: 4px 8px;
+  color: #eeeef6;
+  background: rgba(12, 12, 18, 0.94);
+  font-size: 12px;
+}
+#code-layer.is-folded #current-cell-bar { display: none; }
+#code, #code-mirror, #line-numbers, #fold-controls { top: 84px; }
+#code, #code-mirror, #line-numbers { padding-bottom: 62px; }
+.cell-status {
+  margin-left: 12px;
+  font: 11px/1.4 var(--mono);
+  color: #b7c8eb;
+  white-space: nowrap;
+}
+.cell-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-left: var(--folded-code-column);
+  padding: 3px 8px 5px 0;
+  max-width: min(780px, calc(100% - var(--folded-code-column)));
+}
+.folded-block:not([open]) .cell-actions { display: none; }
+.cell-actions button, #current-cell-bar button { min-height: 28px; padding: 3px 12px; }
+.folded-block[open] > summary {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  width: fit-content;
+  max-width: 100%;
+  background: rgba(12, 12, 18, 0.96);
+}
+.folded-block[open] > .cell-actions {
+  position: sticky;
+  top: calc(6px + var(--code-line-height));
+  z-index: 4;
+  width: fit-content;
+  background: rgba(12, 12, 18, 0.96);
+}
+.cell-feedback {
+  font: 11px/1.5 var(--mono);
+  color: #c8c8d5;
+  padding: 2px 5px;
+  background: rgba(12, 12, 18, 0.9);
+  overflow-wrap: anywhere;
+}
+.cell-feedback:empty { display: none; }
+[data-evaluation-state="error"] .cell-feedback { color: #ffb3bb; }
+[data-evaluation-state="success"] .cell-feedback { color: #8de5b5; }
+[data-evaluation-state="warning"] .cell-feedback { color: #eac58b; }
+[data-evaluation-state="edited"] .cell-status { color: #eac58b; }
+#runtime-bar {
+  max-width: calc(100% - 24px);
+  gap: 14px;
+  min-height: 32px;
+  padding: 3px 10px 3px 4px;
+  border: 1px solid rgba(200, 200, 225, 0.2);
+  border-radius: 5px;
+  background: rgba(12, 12, 18, 0.94);
+  color: #dddde8;
+  font-size: 11px;
+}
+#live-scene { display: flex; align-items: center; gap: 8px; min-height: 28px; border: 0; background: transparent; }
+#live-scene-name { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-label { color: #8de5b5; font-size: 10px; letter-spacing: 0.08em; }
+#live-safe-status { color: #b7c8bb; }
+.runtime-details { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.library-scope { margin: 0; padding: 8px 0; }
+#first-edit-hint {
+  position: absolute;
+  z-index: 5;
+  bottom: 53px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(720px, calc(100% - 36px));
+  padding: 12px;
+  border: 1px solid #7970a6;
+  border-radius: 5px;
+  background: #191624;
+  color: #e8e4f4;
+  font-size: 12px;
+}
+#first-edit-hint[hidden] { display: none; }
+#first-edit-hint button { flex-shrink: 0; min-height: 28px; }
+#editor-hint { bottom: 50px; font-size: 11px; color: #c8c8d5; }
+@media (max-width: 900px) {
+  #icons { left: 10px; right: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  #folded-code { padding-top: 90px; }
+  #current-cell-bar { top: 90px; }
+  #code, #code-mirror, #line-numbers, #fold-controls { top: 128px; }
+  .right-drawer { top: 90px; max-width: calc(100% - 20px); }
+  #first-edit-hint { flex-wrap: wrap; }
+  #current-cell-bar .cell-feedback { max-width: 35vw; }
+}
+
 /* Audio visualizers are patches now, so the reading lives on the stage rather than in
  * a panel that has to be open. What remains here is input configuration and onset. */
 #beat-dot {

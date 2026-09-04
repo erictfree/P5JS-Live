@@ -9,6 +9,21 @@ const RINGS_V1 = `
   activate(show);
 `;
 
+describe('evaluation completion receipts', () => {
+  it('identifies applied versions and discarded work without changing the running code', () => {
+    const h = createTestHost();
+    const first = h.evaluator.evaluate(RINGS_V1);
+    expect(first.completion.status).toBe('queued');
+    h.frame(2);
+    expect(first.completion).toEqual({ status: 'applied', versions: { rings: 1 } });
+    const rejected = h.evaluator.evaluate('const rings = { draw() {} };');
+    h.evaluator.discardPending();
+    h.frame(2);
+    expect(rejected.completion.status).toBe('discarded');
+    expect(h.registry.getStrategy('rings').version).toBe(1);
+  });
+});
+
 describe('a syntax error never replaces a valid active strategy', () => {
   it('rejects before anything is staged', () => {
     const h = createTestHost();

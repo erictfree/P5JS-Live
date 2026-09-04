@@ -333,6 +333,7 @@ export function createAppController({
         source: record.source,
         status: record.status,
         installed: true,
+        pending: Boolean(record.candidate),
         active: copies > 0,
         running,
         lifecycle: running ? 'running' : copies > 0 ? 'active' : 'installed',
