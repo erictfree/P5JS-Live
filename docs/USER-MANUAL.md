@@ -37,7 +37,7 @@ implementation model, see [Architecture](ARCHITECTURE.md).
 | Manual edition | 1.0 |
 | Updated | August 26, 2026 |
 | Audience | Students, educators, creative coders, and live visual performers |
-| Prerequisites | A desktop browser; basic JavaScript is helpful but not required |
+| Prerequisites | Current desktop Google Chrome; basic JavaScript is helpful but not required |
 
 ### How to use this manual
 
@@ -292,7 +292,8 @@ welcome dialog, change one visible value, and evaluate it.
 
 #### Use the hosted instrument
 
-Open [p5js.live](https://p5js.live) in a current desktop browser.
+Open [p5js.live](https://p5js.live) in current desktop Google Chrome. Other browsers
+may render parts of the instrument, but they are not supported performance targets.
 
 #### Run it locally
 
@@ -2184,8 +2185,7 @@ by the evaluator. Safe State is recovery, not isolation from hostile code.
 
 - Web Audio requires an explicit user gesture before sound can start.
 - Audio codec support varies by browser and operating system.
-- Direct Web MIDI requires a browser with Web MIDI support; Chrome and Edge are common
-  choices. Onscreen controls work without MIDI.
+- Direct MIDI uses Chrome's Web MIDI support. Onscreen controls work without hardware.
 - Fullscreen, multiple windows, local file pickers, and autoplay remain subject to
   browser permissions.
 - Browser storage is local to one browser profile and site origin. `localhost`,
@@ -2339,14 +2339,12 @@ If Learn succeeds but values do not change, confirm that the declared control ty
 matches the hardware gesture: continuous for knobs/faders, momentary or toggle for
 pads/switches, and choice for a discrete menu.
 
-#### Audio is silent in Safari
+#### The instrument was opened in another browser
 
-Interact with the page, select the source again if needed, and press Play. Confirm the
-site and tab are not muted. Browser codec and Web MIDI support vary independently.
-
-If visuals move but no sound is audible, check the transport state and system output.
-Audio analysis can sometimes respond to an input that is not being monitored through
-the speakers.
+p5js live targets current desktop Google Chrome. Open the same URL in Chrome before
+diagnosing audio, MIDI, shader, fullscreen, or performance behavior. Browser-local
+projects do not automatically move between browsers; export the project from the old
+browser and import it in Chrome when necessary.
 
 #### A local video does not appear
 

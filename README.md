@@ -70,7 +70,11 @@ p5js live includes:
 ### Requirements
 
 - Node.js 20 or newer
-- A current desktop browser; Chrome is used for automated browser tests
+- Current desktop Google Chrome (the supported performance browser)
+
+The instrument currently vendors p5.js 2.3.2 and the rewritten p5.sound 0.4.1
+runtime. Exact file hashes and license copies are recorded in
+[vendor/README.md](vendor/README.md).
 
 Install Node from [nodejs.org](https://nodejs.org/) if needed. Then confirm it is
 available:

@@ -1,33 +1,174 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createAudioEngine } from '../../src/audio/audioEngine.js';
 
-const originalGetAudioContext = globalThis.getAudioContext;
-const originalUserStartAudio = globalThis.userStartAudio;
-const originalLoadSound = globalThis.loadSound;
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((onResolve, onReject) => {
+    resolve = onResolve;
+    reject = onReject;
+  });
+  return { promise, resolve, reject };
+}
 
-afterEach(() => {
-  if (originalGetAudioContext === undefined) delete globalThis.getAudioContext;
-  else globalThis.getAudioContext = originalGetAudioContext;
-  if (originalUserStartAudio === undefined) delete globalThis.userStartAudio;
-  else globalThis.userStartAudio = originalUserStartAudio;
-  if (originalLoadSound === undefined) delete globalThis.loadSound;
-  else globalThis.loadSound = originalLoadSound;
+function mockSoundFile(duration = 10) {
+  let playing = false;
+  return {
+    speed: 1,
+    paused: false,
+    playing: false,
+    duration: () => duration,
+    isPlaying: () => playing,
+    play: vi.fn(function play() {
+      playing = true;
+      this.playing = true;
+    }),
+    pause: vi.fn(function pause() {
+      playing = false;
+      this.playing = false;
+      this.paused = true;
+    }),
+    stop: vi.fn(function stop() {
+      playing = false;
+      this.playing = false;
+    }),
+    rate: vi.fn(),
+    loop: vi.fn(),
+    onended: vi.fn(),
+    dispose: vi.fn(),
+  };
+}
+
+function response(bytes = new Uint8Array([1, 2, 3, 4])) {
+  return new Response(bytes, {
+    status: 200,
+    headers: { 'content-length': String(bytes.byteLength) },
+  });
+}
+
+function testPlatform(overrides = {}) {
+  const context = overrides.context ?? {
+    state: 'running',
+    currentTime: 0,
+    sampleRate: 48_000,
+    resume: vi.fn(async function resume() {
+      this.state = 'running';
+    }),
+    decodeAudioData: vi.fn(async () => ({ decoded: true })),
+  };
+  const loaded = overrides.loaded ?? mockSoundFile();
+  return {
+    context,
+    loaded,
+    platform: {
+      audioContext: () => context,
+      createSoundFile: vi.fn(() => loaded),
+      fetch: vi.fn(async () => response()),
+      createObjectURL: vi.fn(() => 'blob:test-audio'),
+      revokeObjectURL: vi.fn(),
+      startAudio: vi.fn(async () => {}),
+      createAmplitude: vi.fn(() => ({ setInput: vi.fn(), getLevel: () => 0 })),
+      createFFT: vi.fn(() => ({
+        analyzer: { smoothing: 0 },
+        setInput: vi.fn(),
+        analyze: () => new Float32Array(1024),
+        waveform: () => new Float32Array(1024),
+      })),
+      createAudioIn: vi.fn(),
+      ...overrides.platform,
+    },
+  };
+}
+
+function namedFile(name, contents = 'not real audio') {
+  const file = new Blob([contents]);
+  Object.defineProperty(file, 'name', { value: name });
+  return file;
+}
+
+describe('p5.sound 0.4 audio integration', () => {
+  it('constructs the rewritten FFT with its new one-argument API', () => {
+    const { platform } = testPlatform();
+    const engine = createAudioEngine({ platform });
+
+    const { fft } = engine.init();
+
+    expect(platform.createFFT).toHaveBeenCalledWith(1024);
+    expect(fft.analyzer.smoothing).toBe(0.8);
+  });
+
+  it('preserves the patch-facing 0..255 spectrum and named FFT bands', async () => {
+    const { platform } = testPlatform({
+      platform: {
+        createAmplitude: vi.fn(() => ({ setInput: vi.fn(), getLevel: () => 0.25 })),
+        createFFT: vi.fn(() => ({
+          analyzer: { smoothing: 0 },
+          setInput: vi.fn(),
+          analyze: () => new Float32Array(1024).fill(0.5),
+          waveform: () => new Float32Array([-1, 0, 1]),
+        })),
+      },
+    });
+    const engine = createAudioEngine({ platform });
+    engine.init();
+    await engine.loadUrl('/assets/sounds/intro.mp3');
+
+    const snapshot = engine.readFrame();
+
+    expect(snapshot.spectrum).toHaveLength(1024);
+    expect(snapshot.spectrum[0]).toBeCloseTo(127.5);
+    expect(snapshot.raw).toMatchObject({
+      level: 0.25,
+      bass: 127.5,
+      mid: 127.5,
+      treble: 127.5,
+      sampleRate: 48_000,
+      nyquist: 24_000,
+    });
+    expect(snapshot.raw.centroid).toBeCloseTo(12_000, 0);
+    expect(snapshot.waveform).toEqual([-1, 0, 1]);
+  });
+
+  it('routes p5.sound 0.4 sources through native analyzer inputs', async () => {
+    const sourceOutput = { connect: vi.fn() };
+    const amplitudeInput = {};
+    const fftInput = {};
+    const { platform } = testPlatform({
+      loaded: { ...mockSoundFile(), output: sourceOutput },
+      platform: {
+        createAmplitude: vi.fn(() => ({
+          input: amplitudeInput,
+          setInput: vi.fn(),
+          getLevel: () => 0,
+        })),
+        createFFT: vi.fn(() => ({
+          input: fftInput,
+          analyzer: { smoothing: 0 },
+          setInput: vi.fn(),
+          analyze: () => new Float32Array(1024),
+          waveform: () => new Float32Array(1024),
+        })),
+      },
+    });
+    const engine = createAudioEngine({ platform });
+
+    engine.init();
+    await engine.loadUrl('/audio.wav');
+
+    expect(sourceOutput.connect).toHaveBeenNthCalledWith(1, amplitudeInput);
+    expect(sourceOutput.connect).toHaveBeenNthCalledWith(2, fftInput);
+  });
 });
 
 describe('audio file loading status', () => {
-  it('reports byte progress followed by decoding and completion', async () => {
-    let succeed;
-    let progress;
-    globalThis.loadSound = vi.fn((_url, onSuccess, _onFailure, onProgress) => {
-      succeed = onSuccess;
-      progress = onProgress;
-    });
+  it('reports reading, decoding, and completion', async () => {
+    const { platform, loaded } = testPlatform({ loaded: mockSoundFile(125) });
     const updates = [];
-    const engine = createAudioEngine();
-    const file = new Blob(['not real audio']);
-    Object.defineProperty(file, 'name', { value: 'set.mp3' });
+    const engine = createAudioEngine({ platform });
 
-    const pending = engine.loadFile(file, { onProgress: (status) => updates.push(status) });
+    const pending = engine.loadFile(namedFile('set.mp3'), {
+      onProgress: (status) => updates.push(status),
+    });
     expect(engine.status()).toMatchObject({
       source: 'set.mp3',
       loading: true,
@@ -36,18 +177,6 @@ describe('audio file loading status', () => {
       loaded: false,
     });
 
-    progress(0.42);
-    expect(engine.status()).toMatchObject({ loadPhase: 'loading', loadProgress: 0.42 });
-    progress(0.99);
-    expect(engine.status()).toMatchObject({ loadPhase: 'decoding', loadProgress: 0.99 });
-
-    const loaded = {
-      duration: () => 125,
-      isPlaying: () => false,
-      currentTime: () => 0,
-      setLoop: vi.fn(),
-    };
-    succeed(loaded);
     await expect(pending).resolves.toBe(loaded);
     expect(engine.status()).toMatchObject({
       source: 'set.mp3',
@@ -57,53 +186,35 @@ describe('audio file loading status', () => {
       loaded: true,
       looping: false,
     });
-    expect(loaded.setLoop).toHaveBeenCalledWith(false);
+    expect(loaded.loop).toHaveBeenCalledWith(false);
     expect(updates.map((update) => update.loadPhase)).toEqual([
       'loading',
       'loading',
       'decoding',
       null,
     ]);
+    expect(platform.revokeObjectURL).toHaveBeenCalledWith('blob:test-audio');
   });
 
   it('remembers loop mode before a file exists and applies it when the file loads', async () => {
-    let succeed;
-    globalThis.loadSound = vi.fn((_url, onSuccess) => {
-      succeed = onSuccess;
-    });
-    const engine = createAudioEngine();
-    const file = new Blob(['not real audio']);
-    Object.defineProperty(file, 'name', { value: 'loop.mp3' });
-    const loaded = {
-      duration: () => 10,
-      isPlaying: () => false,
-      currentTime: () => 0,
-      setLoop: vi.fn(),
-    };
+    const { platform, loaded } = testPlatform();
+    const engine = createAudioEngine({ platform });
 
     expect(engine.setLoop(true)).toBe(true);
-    expect(engine.status().looping).toBe(true);
-    const pending = engine.loadFile(file);
-    succeed(loaded);
-    await pending;
+    await engine.loadFile(namedFile('loop.mp3'));
 
-    expect(loaded.setLoop).toHaveBeenCalledWith(true);
+    expect(loaded.loop).toHaveBeenCalledWith(true);
     expect(engine.status().looping).toBe(true);
   });
 
   it('clears loading state and exposes a useful error when decoding fails', async () => {
-    let fail;
-    globalThis.loadSound = vi.fn((_url, _onSuccess, onFailure) => {
-      fail = onFailure;
+    const { platform, context } = testPlatform();
+    context.decodeAudioData = vi.fn(async () => {
+      throw new Error('decode failed');
     });
-    const engine = createAudioEngine();
-    const file = new Blob(['bad audio']);
-    Object.defineProperty(file, 'name', { value: 'broken.mp3' });
+    const engine = createAudioEngine({ platform });
 
-    const pending = engine.loadFile(file);
-    fail(new Error('decode failed'));
-
-    await expect(pending).rejects.toThrow('decode failed');
+    await expect(engine.loadFile(namedFile('broken.mp3'))).rejects.toThrow('decode failed');
     expect(engine.status()).toMatchObject({
       source: 'none',
       loading: false,
@@ -116,33 +227,16 @@ describe('audio file loading status', () => {
 
 describe('built-in audio sources', () => {
   it('loads a looping preview without changing the performer loop preference', async () => {
-    let succeed;
-    globalThis.loadSound = vi.fn((_url, onSuccess) => {
-      succeed = onSuccess;
-    });
-    const engine = createAudioEngine();
-    const loaded = {
-      duration: () => 8,
-      isPlaying: () => false,
-      currentTime: () => 0,
-      setLoop: vi.fn(),
-      stop: vi.fn(),
-      dispose: vi.fn(),
-    };
+    const { platform, loaded } = testPlatform({ loaded: mockSoundFile(8) });
+    const engine = createAudioEngine({ platform });
 
-    const pending = engine.loadUrl('/assets/sounds/intro.mp3', {
+    await expect(engine.loadUrl('/assets/sounds/intro.mp3', {
       label: 'intro loop',
       loop: true,
-    });
-    succeed(loaded);
-    await expect(pending).resolves.toBe(loaded);
+    })).resolves.toBe(loaded);
 
-    expect(globalThis.loadSound).toHaveBeenCalledWith(
-      '/assets/sounds/intro.mp3',
-      expect.any(Function),
-      expect.any(Function),
-    );
-    expect(loaded.setLoop).toHaveBeenCalledWith(true);
+    expect(platform.fetch).toHaveBeenCalledWith('/assets/sounds/intro.mp3');
+    expect(loaded.loop).toHaveBeenCalledWith(true);
     expect(engine.status()).toMatchObject({
       source: 'intro loop',
       loaded: true,
@@ -150,66 +244,47 @@ describe('built-in audio sources', () => {
     });
 
     engine.useSilence();
-    expect(loaded.stop).toHaveBeenCalledOnce();
+    expect(loaded.stop).not.toHaveBeenCalled();
     expect(loaded.dispose).toHaveBeenCalledOnce();
     expect(engine.status()).toMatchObject({ source: 'none', loaded: false, playing: false });
   });
 
-  it('cannot overwrite a later source when its decode finishes late', async () => {
-    let succeed;
-    globalThis.loadSound = vi.fn((_url, onSuccess) => {
-      succeed = onSuccess;
-    });
-    const engine = createAudioEngine();
-    const loaded = {
-      duration: () => 8,
-      isPlaying: () => false,
-      currentTime: () => 0,
-      stop: vi.fn(),
-      dispose: vi.fn(),
-    };
+  it('cannot overwrite a later source when decoding finishes late', async () => {
+    const decoding = deferred();
+    const { platform, context } = testPlatform();
+    context.decodeAudioData = vi.fn(() => decoding.promise);
+    const engine = createAudioEngine({ platform });
 
     const pending = engine.loadUrl('/assets/sounds/intro.mp3');
+    await vi.waitFor(() => expect(context.decodeAudioData).toHaveBeenCalledOnce());
     engine.useSilence();
-    succeed(loaded);
+    decoding.resolve({ decoded: true });
 
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
-    expect(loaded.stop).toHaveBeenCalledOnce();
-    expect(loaded.dispose).toHaveBeenCalledOnce();
+    expect(platform.createSoundFile).not.toHaveBeenCalled();
     expect(engine.status()).toMatchObject({ source: 'none', loaded: false });
   });
 });
 
-describe('Safari-safe audio unlocking', () => {
+describe('Chrome audio unlocking', () => {
   it('uses p5 userStartAudio while handling the trusted user gesture', async () => {
-    const context = {
-      state: 'suspended',
-      resume: vi.fn(async () => {
-        context.state = 'running';
-      }),
-    };
-    globalThis.getAudioContext = () => context;
-    globalThis.userStartAudio = vi.fn(async () => {
+    const { platform, context } = testPlatform();
+    context.state = 'suspended';
+    platform.startAudio = vi.fn(async () => {
       context.state = 'running';
     });
 
-    await expect(createAudioEngine().unlock()).resolves.toBe('running');
-    expect(globalThis.userStartAudio).toHaveBeenCalledOnce();
+    await expect(createAudioEngine({ platform }).unlock()).resolves.toBe('running');
+    expect(platform.startAudio).toHaveBeenCalledOnce();
     expect(context.resume).not.toHaveBeenCalled();
   });
 
   it('falls back to AudioContext.resume when the p5 helper leaves it suspended', async () => {
-    const context = {
-      state: 'suspended',
-      resume: vi.fn(async () => {
-        context.state = 'running';
-      }),
-    };
-    globalThis.getAudioContext = () => context;
-    globalThis.userStartAudio = vi.fn(async () => {});
+    const { platform, context } = testPlatform();
+    context.state = 'suspended';
 
-    await expect(createAudioEngine().unlock()).resolves.toBe('running');
-    expect(globalThis.userStartAudio).toHaveBeenCalledOnce();
+    await expect(createAudioEngine({ platform }).unlock()).resolves.toBe('running');
+    expect(platform.startAudio).toHaveBeenCalledOnce();
     expect(context.resume).toHaveBeenCalledOnce();
   });
 });

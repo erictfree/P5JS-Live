@@ -135,33 +135,17 @@ const drawing = {
     }
     graphics.clear();
     const parentRenderer = pInst._renderer;
-    const parentGlobalRenderer = window._renderer;
-    const parentDrawingContext = window.drawingContext;
-    const parentColorMode = window.colorMode;
     pInst._renderer = graphics._renderer;
-    window._renderer = graphics._renderer;
-    window.drawingContext = graphics.drawingContext;
-    // colorMode() stores its ranges on the p5 object it is invoked on. Merely swapping
-    // the renderer redirects shapes, but leaves global colorMode() attached to the root
-    // sketch; alpha values such as HSB's 0..1 range then reach the group as 0..255.
-    // Bind it to the actual p5.Graphics while this isolated target is active.
-    window.colorMode = graphics.colorMode.bind(graphics);
     return {
       id,
       graphics,
       pInst,
       parentRenderer,
-      parentGlobalRenderer,
-      parentDrawingContext,
-      parentColorMode,
     };
   },
   groupCanvas: (scope) => scope.graphics,
   endGroup(scope) {
     scope.pInst._renderer = scope.parentRenderer;
-    window._renderer = scope.parentGlobalRenderer;
-    window.drawingContext = scope.parentDrawingContext;
-    window.colorMode = scope.parentColorMode;
     push();
     this.resetDefaults();
     noTint();
@@ -519,6 +503,20 @@ window.setup = function setup() {
   const stage = document.getElementById('stage');
   stageCanvas = createCanvas(stage.clientWidth, stage.clientHeight);
   stageCanvas.parent(stage);
+
+  // p5 2 appends createGraphics() canvases beside the visible sketch canvas.
+  // They are render targets, not additional stage elements, so keep them usable
+  // by WebGL/image() while detaching them from the document. p5 2 exposes its
+  // global helpers as read-only properties, hence the DOM observer instead of a
+  // createGraphics wrapper.
+  const visibleCanvas = stageCanvas.elt;
+  new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node instanceof HTMLCanvasElement && node !== visibleCanvas) node.remove();
+      }
+    }
+  }).observe(stage, { childList: true });
   // One device pixel per canvas pixel. The reference budget is 60 FPS at 1280x720,
   // and a retina backing store quadruples the fill cost.
   pixelDensity(1);
@@ -705,9 +703,8 @@ async function chooseFile(input) {
   const file = input.files?.[0];
   if (!file) return;
   try {
-    // Safari must be unlocked by the file input's trusted change event. Waiting for
-    // loadSound's asynchronous decode before doing this can leave a playing analyzer
-    // graph whose master output is still inaudible.
+    // Chrome must be unlocked by the file input's trusted change event. Waiting for
+    // asynchronous decoding before doing this can leave the audio graph suspended.
     await audio.unlock();
   } catch (error) {
     diagnostics.error('Could not start audio', `${error.message} — running on silence.`);

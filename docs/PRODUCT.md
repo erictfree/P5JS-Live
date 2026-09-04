@@ -67,6 +67,7 @@ can be drawn, composited, fed back, or used as a shader texture.
 - Beta small-room WebRTC publisher and receiver objects with room discovery
 - Folded and complete editors, projected code, named performances, and project files
 - Local operation with vendored p5.js and p5.sound
+- Current desktop Google Chrome as the supported performance browser
 
 ## Limits
 

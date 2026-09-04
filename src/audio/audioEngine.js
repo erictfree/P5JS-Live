@@ -13,14 +13,73 @@ import { createFeatureExtractor } from './features.js';
 
 /** @typedef {'none'|'file'|'mic'} SourceKind */
 
-export function createAudioEngine({ diagnostics } = {}) {
+const FFT_SIZE = 1024;
+const SPECTRUM_SCALE = 255;
+
+function abortError() {
+  const error = new Error('Audio source was replaced');
+  error.name = 'AbortError';
+  return error;
+}
+
+function finiteUnit(value) {
+  return Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+}
+
+/** Preserve the legacy 0..255 FFT contract exposed to patches. */
+function scaledSpectrum(values) {
+  return Array.from(values ?? [], (value) => finiteUnit(value) * SPECTRUM_SCALE);
+}
+
+function averageBand(spectrum, sampleRate, lowHz, highHz) {
+  if (!spectrum.length || !Number.isFinite(sampleRate)) return 0;
+  const nyquist = sampleRate / 2;
+  const first = Math.max(0, Math.floor((lowHz / nyquist) * spectrum.length));
+  const last = Math.min(
+    spectrum.length - 1,
+    Math.ceil((Math.min(highHz, nyquist) / nyquist) * spectrum.length),
+  );
+  if (last < first) return 0;
+  let total = 0;
+  for (let index = first; index <= last; index += 1) total += spectrum[index];
+  return total / (last - first + 1);
+}
+
+function spectralCentroid(spectrum, sampleRate) {
+  if (!spectrum.length || !Number.isFinite(sampleRate)) return 0;
+  const binWidth = (sampleRate / 2) / spectrum.length;
+  let weighted = 0;
+  let total = 0;
+  for (let index = 0; index < spectrum.length; index += 1) {
+    const magnitude = spectrum[index];
+    total += magnitude;
+    weighted += magnitude * (index + 0.5) * binWidth;
+  }
+  return total > 0 ? weighted / total : 0;
+}
+
+export function createAudioEngine({ diagnostics, platform = {} } = {}) {
   const features = createFeatureExtractor();
+  const runtime = {
+    // p5.sound 0.4 installs these helpers on p5.prototype. Unlike the legacy
+    // bundle, p5 2 global mode does not also publish them as window globals.
+    audioContext: platform.audioContext ?? (() => p5.prototype.getAudioContext()),
+    createAmplitude: platform.createAmplitude ?? (() => new p5.Amplitude()),
+    createFFT: platform.createFFT ?? ((size) => new p5.FFT(size)),
+    createSoundFile: platform.createSoundFile ?? ((buffer) => new p5.SoundFile(buffer)),
+    createAudioIn: platform.createAudioIn ?? (() => new p5.AudioIn()),
+    fetch: platform.fetch ?? ((url) => fetch(url)),
+    createObjectURL: platform.createObjectURL ?? ((file) => URL.createObjectURL(file)),
+    revokeObjectURL: platform.revokeObjectURL ?? ((url) => URL.revokeObjectURL(url)),
+    startAudio: platform.startAudio ?? (() => p5.prototype.userStartAudio()),
+  };
 
   let amplitude = null;
   let fft = null;
   let soundFile = null;
   let mic = null;
-  let objectUrl = null;
+  let playbackStartedAt = null;
+  let playbackOffset = 0;
 
   /** @type {SourceKind} */
   let sourceKind = 'none';
@@ -32,10 +91,25 @@ export function createAudioEngine({ diagnostics } = {}) {
   let looping = false;
   let sourceRequest = 0;
 
+  function disposeNode(node) {
+    if (!node) return;
+    if (typeof node.dispose === 'function') {
+      node.dispose();
+      return;
+    }
+    // p5.sound 0.4 sources do not yet expose dispose() on their wrapper, but
+    // their Tone node and native routing gains do. Release all three when an
+    // input is replaced so repeated file/mic changes do not accumulate graphs.
+    node.node?.dispose?.();
+    node.input?.disconnect?.();
+    node.output?.disconnect?.();
+  }
+
   /** Called once from the host's setup(). */
   function init() {
-    amplitude = new p5.Amplitude();
-    fft = new p5.FFT(0.8, 1024);
+    amplitude = runtime.createAmplitude();
+    fft = runtime.createFFT(FFT_SIZE);
+    if (fft.analyzer) fft.analyzer.smoothing = 0.8;
     return { amplitude, fft };
   }
 
@@ -49,21 +123,97 @@ export function createAudioEngine({ diagnostics } = {}) {
    */
   function route(node) {
     if (!amplitude || !fft) return;
+    // p5.sound 0.4's analyzer setInput() currently connects a native AudioNode
+    // directly to a Tone.js object, which Chrome rejects. Every p5 sound source
+    // and analyzer also exposes native output/input GainNodes, so use those as
+    // the stable interop boundary. Keep setInput for injected/legacy adapters.
+    if (node?.output?.connect && amplitude.input && fft.input) {
+      node.output.connect(amplitude.input);
+      node.output.connect(fft.input);
+      return;
+    }
     amplitude.setInput(node);
     fft.setInput(node);
   }
 
   function discardSoundFile() {
     if (!soundFile) return;
-    soundFile.stop();
-    soundFile.dispose?.();
+    if (soundFile.isPlaying?.()) soundFile.stop();
+    disposeNode(soundFile);
     soundFile = null;
+    playbackStartedAt = null;
+    playbackOffset = 0;
   }
 
-  function discardObjectUrl() {
-    if (!objectUrl) return;
-    URL.revokeObjectURL(objectUrl);
-    objectUrl = null;
+  function audioClock() {
+    return runtime.audioContext().currentTime;
+  }
+
+  function currentPosition() {
+    if (!soundFile) return 0;
+    const duration = soundFile.duration?.() ?? 0;
+    const elapsed = playbackStartedAt === null ? 0 : Math.max(0, audioClock() - playbackStartedAt);
+    const position = playbackOffset + elapsed;
+    if (looping && duration > 0) return position % duration;
+    return duration > 0 ? Math.min(position, duration) : position;
+  }
+
+  function applyLoop(file, value) {
+    file.loop(Boolean(value));
+  }
+
+  function markPlaying() {
+    playbackStartedAt = audioClock();
+  }
+
+  function playFile() {
+    if (!soundFile || soundFile.isPlaying()) return;
+    if (soundFile.paused) {
+      // p5.sound 0.4 pauses by setting playbackRate to zero. Restoring the rate
+      // resumes the same source; its public play() intentionally does not restart it.
+      soundFile.rate(soundFile.speed || 1);
+      soundFile.paused = false;
+      soundFile.playing = true;
+    } else {
+      soundFile.play();
+    }
+    markPlaying();
+  }
+
+  async function readResponse(response, reportProgress) {
+    if (!response.ok) throw new Error(`Audio request failed (${response.status})`);
+    const total = Number(response.headers.get('content-length'));
+    if (!response.body || !Number.isFinite(total) || total <= 0) {
+      return response.arrayBuffer();
+    }
+
+    const reader = response.body.getReader();
+    const chunks = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.byteLength;
+      reportProgress(Math.min(0.98, received / total));
+    }
+    const bytes = new Uint8Array(received);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return bytes.buffer;
+  }
+
+  async function decodeSound(url, request, reportProgress) {
+    const response = await runtime.fetch(url);
+    const bytes = await readResponse(response, reportProgress);
+    if (request !== sourceRequest) throw abortError();
+    reportProgress(0.99);
+    const decoded = await runtime.audioContext().decodeAudioData(bytes);
+    if (request !== sourceRequest) throw abortError();
+    return runtime.createSoundFile(decoded);
   }
 
   // --- file input -----------------------------------------------------------------
@@ -71,78 +221,18 @@ export function createAudioEngine({ diagnostics } = {}) {
   /**
    * Load a browser-readable audio file. This is a user action, not an evaluation, so
    * it is allowed to replace the source.
-   * p5 reports byte progress while the browser reads the file. Decoding happens
+   * The streaming fetch reports byte progress while the browser reads the file. Decoding happens
    * afterward and has no measurable progress, so it is exposed as its own phase.
    * @param {File} file
    * @param {{ onProgress?: (status: ReturnType<typeof status>) => void }} [options]
    */
-  function loadFile(file, { onProgress } = {}) {
-    return new Promise((resolve, reject) => {
-      const request = ++sourceRequest;
-      const report = () => onProgress?.(status());
-      stopMic();
-      discardSoundFile();
-      discardObjectUrl();
-      objectUrl = URL.createObjectURL(file);
-      sourceKind = 'none';
-      sourceLabel = file.name;
-      sourceError = null;
-      loadPhase = 'loading';
-      loadProgress = null;
-      report();
-
-      loadSound(
-        objectUrl,
-        (loaded) => {
-          if (request !== sourceRequest) {
-            loaded.stop?.();
-            loaded.dispose?.();
-            const error = new Error('Audio source was replaced');
-            error.name = 'AbortError';
-            reject(error);
-            return;
-          }
-          soundFile = loaded;
-          soundFile.setLoop?.(looping);
-          sourceKind = 'file';
-          sourceLabel = file.name;
-          sourceError = null;
-          loadPhase = null;
-          loadProgress = null;
-          route(loaded);
-          features.reset();
-          diagnostics?.info(`Loaded ${file.name}`, `${loaded.duration().toFixed(1)}s`);
-          report();
-          resolve(loaded);
-        },
-        (error) => {
-          if (request !== sourceRequest) {
-            reject(error);
-            return;
-          }
-          sourceKind = 'none';
-          sourceLabel = 'none';
-          sourceError = `Could not decode ${file.name}`;
-          loadPhase = null;
-          loadProgress = null;
-          // A failed input is a diagnostic, not a stopped draw loop.
-          diagnostics?.error(
-            sourceError,
-            'Try a .mp3, .wav, .ogg, .m4a, or .aac file. The sketch keeps running on silence.',
-          );
-          report();
-          reject(error);
-        },
-        (progress) => {
-          if (request !== sourceRequest || !Number.isFinite(progress)) return;
-          loadProgress = Math.min(1, Math.max(0, progress));
-          // This p5.sound build deliberately caps byte progress at 0.99 while
-          // decodeAudioData is running, so 99% is the handoff to decoding.
-          loadPhase = loadProgress >= 0.99 ? 'decoding' : 'loading';
-          report();
-        },
-      );
-    });
+  async function loadFile(file, { onProgress } = {}) {
+    const url = runtime.createObjectURL(file);
+    try {
+      return await loadSource(url, file.name, { onProgress, performerLoop: true });
+    } finally {
+      runtime.revokeObjectURL(url);
+    }
   }
 
   /**
@@ -155,53 +245,71 @@ export function createAudioEngine({ diagnostics } = {}) {
    * @param {{ label?: string, loop?: boolean }} [options]
    */
   function loadUrl(url, { label = url, loop = false } = {}) {
-    return new Promise((resolve, reject) => {
-      const request = ++sourceRequest;
-      stopMic();
-      discardSoundFile();
-      discardObjectUrl();
-      sourceKind = 'none';
+    return loadSource(url, label, { loop, performerLoop: false });
+  }
+
+  async function loadSource(url, label, { onProgress, loop = looping, performerLoop = false } = {}) {
+    const request = ++sourceRequest;
+    const report = () => onProgress?.(status());
+    stopMic();
+    discardSoundFile();
+    sourceKind = 'none';
+    sourceLabel = label;
+    sourceError = null;
+    loadPhase = 'loading';
+    loadProgress = null;
+    report();
+
+    const updateProgress = (progress) => {
+      if (request !== sourceRequest || !Number.isFinite(progress)) return;
+      loadProgress = finiteUnit(progress);
+      loadPhase = loadProgress >= 0.99 ? 'decoding' : 'loading';
+      report();
+    };
+
+    try {
+      const loaded = await decodeSound(url, request, updateProgress);
+      if (request !== sourceRequest) {
+        disposeNode(loaded);
+        throw abortError();
+      }
+      soundFile = loaded;
+      applyLoop(soundFile, loop);
+      soundFile.onended?.(() => {
+        if (soundFile !== loaded || loop) return;
+        playbackOffset = 0;
+        playbackStartedAt = null;
+        loaded.playing = false;
+      });
+      sourceKind = 'file';
       sourceLabel = label;
       sourceError = null;
-      loadPhase = 'loading';
+      loadPhase = null;
       loadProgress = null;
-
-      loadSound(
-        url,
-        (loaded) => {
-          if (request !== sourceRequest) {
-            loaded.stop?.();
-            loaded.dispose?.();
-            const error = new Error('Audio source was replaced');
-            error.name = 'AbortError';
-            reject(error);
-            return;
-          }
-          soundFile = loaded;
-          soundFile.setLoop?.(Boolean(loop));
-          sourceKind = 'file';
-          sourceLabel = label;
-          sourceError = null;
-          loadPhase = null;
-          loadProgress = null;
-          route(loaded);
-          features.reset();
-          resolve(loaded);
-        },
-        (error) => {
-          if (request !== sourceRequest) {
-            reject(error);
-            return;
-          }
-          sourceKind = 'none';
-          sourceLabel = 'none';
-          sourceError = `Could not load ${label}`;
-          loadPhase = null;
-          loadProgress = null;
-          reject(error);
-        },
+      playbackOffset = 0;
+      playbackStartedAt = null;
+      route(loaded);
+      features.reset();
+      if (performerLoop) {
+        diagnostics?.info(`Loaded ${label}`, `${loaded.duration().toFixed(1)}s`);
+      }
+      report();
+      return loaded;
+    } catch (error) {
+      if (request !== sourceRequest || error?.name === 'AbortError') throw error;
+      sourceKind = 'none';
+      sourceLabel = 'none';
+      sourceError = performerLoop ? `Could not decode ${label}` : `Could not load ${label}`;
+      loadPhase = null;
+      loadProgress = null;
+      diagnostics?.error(
+        sourceError,
+        `${error?.name ?? 'Error'}: ${error?.message ?? 'Audio decoding failed'}. `
+          + 'Try a Chrome-supported .mp3, .wav, .ogg, .m4a, or .aac file. The sketch keeps running on silence.',
       );
-    });
+      report();
+      throw error;
+    }
   }
 
   // --- microphone / line input ----------------------------------------------------
@@ -216,58 +324,37 @@ export function createAudioEngine({ diagnostics } = {}) {
     if (soundFile?.isPlaying()) soundFile.pause();
     await unlock();
 
-    // Ask for permission before touching p5.AudioIn, so a denial produces one clear
-    // message instead of a half-initialized input that silently reads zero.
+    stopMic();
+    mic = runtime.createAudioIn();
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
-      });
-      // p5.AudioIn opens its own stream; this one existed only to prompt and to prove
-      // the device works.
-      for (const track of stream.getTracks()) track.stop();
+      await mic.node.open(deviceId);
+      sourceKind = 'mic';
+      sourceLabel = deviceId ? 'line/mic input' : 'microphone';
+      sourceError = null;
+      route(mic);
+      features.reset();
+      diagnostics?.success('Live input running', 'Analyzing the microphone or line input.');
+      return true;
     } catch (error) {
-      sourceError = 'Microphone permission denied';
+      disposeNode(mic);
+      mic = null;
+      sourceKind = 'none';
+      sourceLabel = 'none';
+      sourceError = error?.name === 'NotAllowedError'
+        ? 'Microphone permission denied'
+        : 'Microphone failed to start';
       diagnostics?.error(
         sourceError,
-        `${error.name}: the sketch keeps running on silence. Check your browser's site permissions, then try again.`,
+        `${error.name}: the sketch keeps running on silence. Check Chrome's site permissions, then try again.`,
       );
       return false;
     }
-
-    stopMic();
-
-    mic = new p5.AudioIn((error) => {
-      sourceError = 'Microphone failed to start';
-      diagnostics?.error(sourceError, String(error));
-    });
-    if (deviceId) {
-      const inputs = await mic.getSources();
-      const index = inputs.findIndex((d) => d.deviceId === deviceId);
-      if (index >= 0) mic.setSource(index);
-    }
-    mic.start(
-      () => {
-        sourceKind = 'mic';
-        sourceLabel = deviceId ? 'line/mic input' : 'microphone';
-        sourceError = null;
-        route(mic);
-        features.reset();
-        diagnostics?.success('Live input running', 'Analyzing the microphone or line input.');
-      },
-      (error) => {
-        sourceKind = 'none';
-        sourceLabel = 'none';
-        sourceError = 'Microphone failed to start';
-        diagnostics?.error(sourceError, String(error));
-      },
-    );
-    return true;
   }
 
   function stopMic() {
     if (!mic) return;
     mic.stop();
-    mic.dispose?.();
+    disposeNode(mic);
     mic = null;
   }
 
@@ -276,7 +363,6 @@ export function createAudioEngine({ diagnostics } = {}) {
     ++sourceRequest;
     stopMic();
     discardSoundFile();
-    discardObjectUrl();
     sourceKind = 'none';
     sourceLabel = 'none';
     sourceError = null;
@@ -304,14 +390,12 @@ export function createAudioEngine({ diagnostics } = {}) {
   /**
    * Unlock p5.sound while execution still belongs to a trusted click/change/drop.
    *
-   * Safari is stricter than Chromium here: resuming only after an asynchronously
-   * decoded file has loaded can be too late because the original user activation has
-   * ended. p5's helper also performs the tiny platform-specific start sequence its
-   * sound graph expects; the direct resume remains as a defensive fallback.
+   * Chrome requires this to run from a trusted user gesture. p5's helper resumes its
+   * Tone.js graph; the direct context resume is a defensive fallback.
    */
   async function unlock() {
-    const context = getAudioContext();
-    if (typeof userStartAudio === 'function') await userStartAudio();
+    const context = runtime.audioContext();
+    await runtime.startAudio();
     if (context.state !== 'running') await context.resume();
     if (context.state !== 'running') {
       throw new Error(`Audio context stayed ${context.state}`);
@@ -322,28 +406,31 @@ export function createAudioEngine({ diagnostics } = {}) {
   /** The explicit user gesture browsers require before audio may start. */
   async function start() {
     const state = await unlock();
-    if (sourceKind === 'file' && soundFile && !soundFile.isPlaying()) soundFile.play();
+    if (sourceKind === 'file' && soundFile && !soundFile.isPlaying()) playFile();
     return state;
   }
 
   function pause() {
-    if (soundFile?.isPlaying()) soundFile.pause();
+    if (!soundFile?.isPlaying()) return;
+    playbackOffset = currentPosition();
+    playbackStartedAt = null;
+    soundFile.pause();
   }
 
   async function toggle() {
     if (sourceKind !== 'file' || !soundFile) return false;
     if (soundFile.isPlaying()) {
-      soundFile.pause();
+      pause();
       return false;
     }
     await unlock();
-    soundFile.play();
+    playFile();
     return true;
   }
 
   function setLoop(value) {
     looping = Boolean(value);
-    soundFile?.setLoop(looping);
+    if (soundFile) applyLoop(soundFile, looping);
     return looping;
   }
 
@@ -360,19 +447,20 @@ export function createAudioEngine({ diagnostics } = {}) {
 
     // No source, a suspended context, or a failed input all produce a stable
     // silence snapshot. The draw loop never learns that anything went wrong.
-    if (!fft || !amplitude || sourceKind === 'none' || getAudioContext().state !== 'running') {
+    if (!fft || !amplitude || sourceKind === 'none' || runtime.audioContext().state !== 'running') {
       return features.silence();
     }
 
-    const spectrum = fft.analyze();
+    const context = runtime.audioContext();
+    const spectrum = scaledSpectrum(fft.analyze());
     return features.compute({
       dt,
       level: amplitude.getLevel(),
-      bass: fft.getEnergy('bass'),
-      mid: fft.getEnergy('mid'),
-      treble: fft.getEnergy('treble'),
-      centroid: fft.getCentroid(),
-      nyquist: getAudioContext().sampleRate / 2,
+      bass: averageBand(spectrum, context.sampleRate, 20, 140),
+      mid: averageBand(spectrum, context.sampleRate, 400, 2600),
+      treble: averageBand(spectrum, context.sampleRate, 5200, 14000),
+      centroid: spectralCentroid(spectrum, context.sampleRate),
+      nyquist: context.sampleRate / 2,
       waveform: fft.waveform(),
       spectrum,
     });
@@ -390,9 +478,9 @@ export function createAudioEngine({ diagnostics } = {}) {
       loaded: sourceKind !== 'none',
       playing: sourceKind === 'mic' ? mic !== null : (soundFile?.isPlaying() ?? false),
       looping,
-      position: soundFile?.currentTime() ?? 0,
+      position: currentPosition(),
       duration: soundFile?.duration() ?? 0,
-      contextState: typeof getAudioContext === 'function' ? getAudioContext().state : 'unknown',
+      contextState: runtime.audioContext()?.state ?? 'unknown',
     };
   }
 

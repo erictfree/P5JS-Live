@@ -1104,9 +1104,37 @@ test.describe('the minimal display', () => {
     const welcome = page.getByRole('dialog', { name: 'p5js live' });
     const initialHeight = await welcome.evaluate((element) => element.getBoundingClientRect().height);
     await page.evaluate(() => {
-      window.loadSound = (_url, onSuccess, onFailure, onProgress) => {
-        window.__testAudioLoad = { onSuccess, onFailure, onProgress };
+      const pendingReads = [];
+      const queuedReads = [];
+      const deliver = (result) => {
+        const resolve = pendingReads.shift();
+        if (resolve) resolve(result);
+        else queuedReads.push(result);
       };
+      window.__testAudioLoad = {
+        chunk(size) {
+          deliver({ done: false, value: new Uint8Array(size) });
+        },
+        finish() {
+          deliver({ done: true });
+        },
+      };
+      window.fetch = async () => ({
+        ok: true,
+        status: 200,
+        headers: { get: (name) => name === 'content-length' ? '100' : null },
+        body: {
+          getReader: () => ({
+            read: () => {
+              if (queuedReads.length) return Promise.resolve(queuedReads.shift());
+              return new Promise((resolve) => pendingReads.push(resolve));
+            },
+          }),
+        },
+      });
+      getAudioContext().decodeAudioData = () => new Promise((_resolve, reject) => {
+        window.__testAudioLoad.rejectDecode = reject;
+      });
     });
 
     await page.locator('#audio-file').setInputFiles({
@@ -1120,15 +1148,18 @@ test.describe('the minimal display', () => {
     const loadingHeight = await welcome.evaluate((element) => element.getBoundingClientRect().height);
     expect(Math.abs(loadingHeight - initialHeight)).toBeLessThanOrEqual(1);
 
-    await page.evaluate(() => window.__testAudioLoad.onProgress(0.42));
+    await page.evaluate(() => window.__testAudioLoad.chunk(42));
     await expect(page.locator('#start-load-label')).toHaveText('Loading long-set.mp3 — 42%');
     await expect(page.locator('#start-load-progress')).toHaveJSProperty('value', 0.42);
 
-    await page.evaluate(() => window.__testAudioLoad.onProgress(0.99));
+    await page.evaluate(() => {
+      window.__testAudioLoad.chunk(58);
+      window.__testAudioLoad.finish();
+    });
     await expect(page.locator('#start-load-label')).toHaveText('Decoding long-set.mp3…');
     await expect(page.locator('#start-load-progress')).not.toHaveAttribute('value');
 
-    await page.evaluate(() => window.__testAudioLoad.onFailure(new Error('test decode failure')));
+    await page.evaluate(() => window.__testAudioLoad.rejectDecode(new Error('test decode failure')));
     await expect(loadState).toBeHidden();
     await expect(page.getByRole('dialog', { name: 'p5js live' })).toBeVisible();
     await expect(page.locator('#start-note')).toContainText('Could not decode long-set.mp3');
@@ -2562,9 +2593,10 @@ test.describe('offline application bundle', () => {
       return route.abort();
     });
 
-    await boot(page);
+    await boot(page, { tools: false, folded: true });
     // p5, p5.sound, the modules, and the starter all came from the vendored build.
     expect(external).toEqual([]);
-    expect(await page.evaluate(() => window.p5.VERSION)).toBe('1.11.3');
+    await expect(page.locator('script[data-library="p5"]')).toHaveAttribute('data-version', '2.3.2');
+    await expect(page.locator('script[data-library="p5.sound"]')).toHaveAttribute('data-version', '0.4.1');
   });
 });
