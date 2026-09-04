@@ -10,7 +10,7 @@ async function boot(page) {
   await page.locator('#first-edit-dismiss').click();
 }
 
-test('first edit, scene identity, visible dimmer, and drawer focus', async ({ page }) => {
+test('first edit, scene identity, keyboard dimmer, and drawer focus', async ({ page }) => {
   await boot(page);
   await expect(page.locator('#live-scene-name')).toHaveText('scene');
   await expect(page.locator('#live-layer-count')).toHaveText('2 layers');
@@ -22,9 +22,11 @@ test('first edit, scene identity, visible dimmer, and drawer focus', async ({ pa
   await page.locator('#tools-tab-library').press('Escape');
   await expect(page.locator('#side')).toHaveAttribute('inert', '');
   await expect(page.locator('#tools-toggle')).toBeFocused();
-  await page.locator('#visual-dimmer-toggle').click();
+  await expect(page.locator('#visual-dimmer-toggle')).toHaveCount(0);
+  await page.keyboard.press('d');
   await expect(page.locator('#visual-dimmer')).toBeVisible();
-  await expect(page.locator('#visual-dimmer-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('d');
+  await expect(page.locator('#visual-dimmer')).toBeHidden();
   await page.locator('#live-scene').click();
   await expect(page.locator('[data-block-description="scene scene"]')).toHaveAttribute('open', '');
   await page.reload();

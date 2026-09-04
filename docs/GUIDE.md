@@ -29,7 +29,7 @@ retains the previous working code. The complete editor has the same current-cell
 controls above its text. When an AI proposal is staged, **Accept & run all** applies
 the complete proposal.
 
-Use **Dim background** (or `d` after releasing editor focus) to improve code
+Press `d` after releasing editor focus to dim the background and improve code
 readability. This dims only the performer view; audience output stays unchanged.
 Closed tools and reference drawers leave keyboard navigation; **Escape** inside a
 drawer closes it and returns focus to its toggle.

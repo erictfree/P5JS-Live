@@ -1885,11 +1885,11 @@ circle(20, 20, 10);
         textShadow: cs.textShadow,
       };
     });
-    expect(style.background).toBe('rgb(24, 29, 34)');
+    expect(style.background).toBe('rgb(43, 44, 42)');
     expect(style.backdrop).toContain('blur');
     expect(style.backdrop).toContain('brightness');
-    expect(style.text).toBe('rgb(232, 238, 241)');
-    expect(style.mutedText).toBe('rgb(168, 182, 193)');
+    expect(style.text).toBe('rgb(230, 230, 226)');
+    expect(style.mutedText).toBe('rgb(185, 186, 182)');
     expect(style.textShadow).toBe('none');
 
     // The slider actually changes it, live.

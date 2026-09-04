@@ -201,7 +201,7 @@ projects or exports. A ChatGPT subscription does not include API access.
 | `Cmd/Ctrl+\` | Show or hide tools |
 | `r` | Show or hide the installed-patch reference |
 | `e` | Show or hide code |
-| `d` | Dim or restore the performer background (also available as **Dim background**) |
+| `d` | Dim or restore the performer background |
 | `f` | Enter or leave fullscreen |
 | `p` | Open the audience window |
 | `0` | Restore Safe State |

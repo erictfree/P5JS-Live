@@ -52,3 +52,14 @@ browser regression verifies that the query survives installation and scene revie
 - Visually inspected the real Library and Audio panels in the in-app browser,
   including saved opacity and the corrected empty signal meter.
 - HTML nesting/unique IDs, JavaScript syntax, and `git diff --check`: passed.
+
+## Instrument styling follow-up
+
+Based on the supplied Ableton Live reference, Tools uses flatter charcoal surfaces,
+square controls, tighter library rows, monospaced patch names/readouts, and section
+colors: orange Library, cyan Controls, green Audio, violet Performances. The dimmer
+is keyboard-only (`d` outside the editor), with the command retained in Help.
+
+Nine relevant browser cases passed across the initial run and one targeted rerun;
+the latter resolved a timeout during heavy concurrent rendering. Library and Audio
+were visually reviewed. Production build and whitespace checks passed.

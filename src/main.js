@@ -1042,11 +1042,8 @@ const visualDimmer = document.getElementById('visual-dimmer');
 function toggleVisualDimmer(force) {
   const show = force ?? visualDimmer.hidden;
   visualDimmer.hidden = !show;
-  document.getElementById('visual-dimmer-toggle').setAttribute('aria-pressed', String(show));
-  document.getElementById('visual-dimmer-toggle').classList.toggle('is-on', show);
   return show;
 }
-document.getElementById('visual-dimmer-toggle').addEventListener('click', () => toggleVisualDimmer());
 for (const drawer of [side, referenceSide]) {
   drawer.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
