@@ -1824,6 +1824,7 @@ circle(20, 20, 10);
     await expect(page.locator('#keys-overlay')).toContainText('fold all objects');
     await expect(page.locator('#keys-overlay')).toContainText('unfold all while keeping every fold control available');
     await expect(page.locator('#keys-overlay')).toContainText('show or hide this key-command sheet while editing');
+    await expect(page.locator('#keys-overlay')).toContainText('dim / restore the visuals behind the code');
     await page.keyboard.press('Escape');
     await expect(page.locator('#keys-overlay')).toBeHidden();
 
@@ -1832,6 +1833,25 @@ circle(20, 20, 10);
     await expect(page.locator('#keys-overlay')).toBeVisible();
     await page.locator('#code').press('Control+Alt+/');
     await expect(page.locator('#keys-overlay')).toBeHidden();
+  });
+
+  test('"d" dims only the performer visuals behind the code', async ({ page }) => {
+    await boot(page, { tools: false });
+    const dimmer = page.locator('#visual-dimmer');
+
+    await expect(dimmer).toBeHidden();
+    await page.locator('#code').focus();
+    await page.locator('#code').press('Escape');
+    await page.keyboard.press('d');
+
+    await expect(dimmer).toBeVisible();
+    await expect(page.locator('#code-layer')).toBeVisible();
+    await expect(dimmer).toHaveCSS('pointer-events', 'none');
+    expect(await page.evaluate(() => window.p5jsLive.registry.activeOrder()))
+      .toEqual(['asciiNoise', 'plasma']);
+
+    await page.keyboard.press('d');
+    await expect(dimmer).toBeHidden();
   });
 
   test('the canvas fills the window and the panel floats over it', async ({ page }) => {

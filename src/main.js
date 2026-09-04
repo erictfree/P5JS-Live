@@ -980,6 +980,15 @@ function toggleCode(force) {
   return hidden;
 }
 
+/** Temporarily lower the canvas brightness without touching the running scene. */
+const visualDimmer = document.getElementById('visual-dimmer');
+function toggleVisualDimmer(force) {
+  const show = force ?? visualDimmer.hidden;
+  visualDimmer.hidden = !show;
+  visualDimmer.setAttribute('aria-hidden', String(!show));
+  return show;
+}
+
 // --- key command help (?) --------------------------------------------------------
 
 const keysOverlay = document.getElementById('keys-overlay');
@@ -1598,6 +1607,7 @@ const COMMANDS = {
   s: () => setSafeScene(),
   r: () => toggleReference(), // project patches and their public interfaces
   e: () => toggleCode(), // the code itself — see the composition with nothing on it
+  d: () => toggleVisualDimmer(), // performer-only contrast for unusually bright scenes
   f: () => toggleFullscreen(),
   p: () => toggleProjection(),
   l: () => toggleLoop(),

@@ -111,6 +111,21 @@ input:focus-visible {
   display: block;
 }
 
+/* A performer-only veil for the moments when a bright composition makes the code
+ * hard to read. This is DOM chrome, not a patch: it stays out of the canvas and the
+ * audience projection. Its DOM position and z-index put it above #stage and below
+ * #code-layer. */
+#visual-dimmer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.52);
+}
+#visual-dimmer[hidden] {
+  display: none;
+}
+
 /* --- the code layer ------------------------------------------------------------
  *
  * The editor is not in a panel and not in a column: it is the whole window, edge to
