@@ -44,6 +44,7 @@ async function openTools(page) {
 async function openLibrary(page) {
   await selectTool(page, 'Library');
   await expect(page.locator('#library-panel')).toBeVisible();
+  await page.locator('#library-panel .tool-disclosure').evaluate((details) => { details.open = true; });
   const groups = page.locator('[data-library-group]');
   const count = await groups.count();
   for (let index = 0; index < count; index++) {
@@ -56,6 +57,7 @@ async function selectTool(page, name) {
   const tab = page.getByRole('tab', { name: new RegExp(`^${name}`) });
   if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
   await expect(tab).toHaveAttribute('aria-selected', 'true');
+  if (name === 'Performances') await page.locator('.project-file').evaluate((details) => { details.open = true; });
 }
 
 async function openReference(page) {
@@ -138,7 +140,7 @@ test.describe('projection view', () => {
     context,
   }) => {
     await boot(page);
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Settings');
     await page.locator('#code-size').fill('20');
     const [projector] = await Promise.all([
       context.waitForEvent('page'),
@@ -191,6 +193,7 @@ test.describe('projection view', () => {
 
   test('trace layout shows layer order and audio mappings', async ({ page, context }) => {
     await boot(page);
+    await selectTool(page, 'Settings');
     const [projector] = await Promise.all([
       context.waitForEvent('page'),
       page.getByRole('button', { name: 'Open the audience projection window' }).click(),
@@ -267,7 +270,7 @@ test.describe('multiple copies of one strategy', () => {
     // Installed is deliberately not Active or Running.
     await expect(page.locator('[data-available="laserFan"]')).toHaveCount(0);
     await expect(page.locator('[data-library="laserFan"]')).toBeVisible();
-    await expect(page.locator('[data-library="laserFan"]')).toContainText('Installed');
+    await expect(page.locator('[data-library="laserFan"]')).toContainText('In project');
     await expect(
       page.getByRole('button', { name: 'Add installed patch laserFan to the active scene source' }),
     ).toBeVisible();
@@ -395,7 +398,7 @@ activate(laserScene);`);
       .toEqual(['asciiNoise', 'plasma']);
   });
 
-  test('Add to scene opens only the scene cell without unfolding the project', async ({ page }) => {
+  test('reviewing an added patch opens only the scene cell without unfolding the project', async ({ page }) => {
     await boot(page, { tools: true, folded: true });
     await page.getByRole('button', { name: /^Install checkerZoom system patch source —/ }).click();
 
@@ -405,6 +408,7 @@ activate(laserScene);`);
 
     await expect(page.locator('#code-layer')).toHaveClass(/is-folded/);
     await expect(page.locator('.folded-block[open]')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Review scene scene source before running checkerZoom' }).click();
     const scene = page.locator('.folded-block[open]', { hasText: 'scene scene' });
     await expect(scene).toBeVisible();
     await expect(scene.locator('.folded-source-editor')).toBeFocused();
@@ -478,7 +482,7 @@ activate(laserScene);`);
       .toBe(true);
     await expect(page.locator('[data-available="laserFan"]')).toHaveCount(0);
     await expect(page.locator('[data-library="laserFan"]')).toBeVisible();
-    await expect(page.locator('[data-library="laserFan"]')).toContainText('Installed');
+    await expect(page.locator('[data-library="laserFan"]')).toContainText('In project');
     await expect(
       page.getByRole('button', { name: 'Add installed patch laserFan to the active scene source' }),
     ).toBeVisible();
@@ -509,7 +513,7 @@ activate(laserScene);`);
     expect(
       await page.evaluate(() => window.p5jsLive.registry.activeInstancesOf('laserFan').length),
     ).toBe(0);
-    await expect(page.locator('#diagnostics-list')).toContainText('not active yet');
+    await expect(page.locator('#diagnostics-list')).toContainText('Use Review scene & run');
     await page.locator('#code').press('Control+Enter');
     await expect
       .poll(() =>
@@ -518,7 +522,7 @@ activate(laserScene);`);
         ),
       )
       .toBe(true);
-    await expect(page.locator('[data-library="laserFan"]')).toContainText('Running');
+    await expect(page.locator('[data-library="laserFan"]')).toHaveAttribute('data-lifecycle', 'running');
 
     await page.getByRole('button', { name: /^In scene / }).click();
     await expect(page.locator('[data-library="laserFan"]')).toBeVisible();
@@ -590,9 +594,9 @@ activate(show);`;
       .poll(() => page.evaluate(() => window.p5jsLive.controller.snapshot().installedPatches))
       .toEqual(['frequencyBars', 'audioMeters', 'asciiNoise', 'plasma']);
     expect(pageErrors).toEqual([]);
-    await expect(page.locator('[data-library="frequencyBars"]')).toContainText('Installed');
+    await expect(page.locator('[data-library="frequencyBars"]')).toContainText('In project');
     await expect(page.locator('[data-library="frequencyBars"]')).toContainText('Open source');
-    await expect(page.locator('[data-library="audioMeters"]')).toContainText('Installed');
+    await expect(page.locator('[data-library="audioMeters"]')).toContainText('In project');
     await expect(page.getByRole('button', { name: /^In project 4$/ })).toBeVisible();
     await expect(page.locator('#diagnostics-list')).toContainText('Saved project recovered with errors');
     await expect(page.locator('#code')).toHaveValue(/const frequencyBars = \{ draw\(\) \{ \(\(\(/);
@@ -618,7 +622,7 @@ activate(show);`;
         return { running: strategy?.running, error: strategy?.lastError?.message ?? null };
       }))
       .toEqual({ running: true, error: null });
-    await expect(page.locator('[data-library="shaderFlow"]')).toContainText('Running');
+    await expect(page.locator('[data-library="shaderFlow"]')).toHaveAttribute('data-lifecycle', 'running');
   });
 
   test('compiles and renders the Glass Origin procedural WebGL shader', async ({ page }) => {
@@ -644,7 +648,7 @@ activate(show);`;
         });
       })
       .toEqual({ running: true, error: null });
-    await expect(page.locator('[data-library="glassOrigin"]')).toContainText('Running');
+    await expect(page.locator('[data-library="glassOrigin"]')).toHaveAttribute('data-lifecycle', 'running');
     expect(pageErrors).toEqual([]);
   });
 
@@ -671,7 +675,7 @@ activate(show);`;
         });
       })
       .toEqual({ running: true, error: null });
-    await expect(page.locator('[data-library="patternCRT"]')).toContainText('Running');
+    await expect(page.locator('[data-library="patternCRT"]')).toHaveAttribute('data-lifecycle', 'running');
     expect(pageErrors).toEqual([]);
   });
 
@@ -698,7 +702,7 @@ activate(show);`;
         });
       })
       .toEqual({ running: true, error: null });
-    await expect(page.locator('[data-library="transparentCubeField"]')).toContainText('Running');
+    await expect(page.locator('[data-library="transparentCubeField"]')).toHaveAttribute('data-lifecycle', 'running');
     expect(pageErrors).toEqual([]);
   });
 
@@ -725,7 +729,7 @@ activate(show);`;
         });
       })
       .toEqual({ running: true, error: null });
-    await expect(page.locator('[data-library="mengerLightTunnel"]')).toContainText('Running');
+    await expect(page.locator('[data-library="mengerLightTunnel"]')).toHaveAttribute('data-lifecycle', 'running');
     await expect.poll(() => page.evaluate(() => {
       const canvas = document.querySelector('#stage canvas');
       const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
@@ -768,10 +772,10 @@ activate(show);`;
         { name: 'bassZoom', running: true, error: null },
         { name: 'prismMirror', running: true, error: null },
       ]);
-    await expect(page.locator('[data-library="waveTerrain"]')).toContainText('Running');
-    await expect(page.locator('[data-library="slowRotate"]')).toContainText('Running');
-    await expect(page.locator('[data-library="bassZoom"]')).toContainText('Running');
-    await expect(page.locator('[data-library="prismMirror"]')).toContainText('Running');
+    await expect(page.locator('[data-library="waveTerrain"]')).toHaveAttribute('data-lifecycle', 'running');
+    await expect(page.locator('[data-library="slowRotate"]')).toHaveAttribute('data-lifecycle', 'running');
+    await expect(page.locator('[data-library="bassZoom"]')).toHaveAttribute('data-lifecycle', 'running');
+    await expect(page.locator('[data-library="prismMirror"]')).toHaveAttribute('data-lifecycle', 'running');
   });
 
   test('installs and advances the Game of Life class patch', async ({ page }) => {
@@ -807,7 +811,7 @@ activate(show);`;
     });
     expect(population.cells).toBeGreaterThan(0);
     expect(population.living).toBeGreaterThan(0);
-    await expect(page.locator('[data-library="gameOfLife"]')).toContainText('Running');
+    await expect(page.locator('[data-library="gameOfLife"]')).toHaveAttribute('data-lifecycle', 'running');
   });
 
   test('starts with and renders the random ASCII object patch', async ({ page }) => {
@@ -828,7 +832,7 @@ activate(show);`;
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.stateStore.get('asciiNoise')?.cells.length ?? 0))
       .toBeGreaterThan(0);
-    await expect(page.locator('[data-library="asciiNoise"]')).toContainText('Running');
+    await expect(page.locator('[data-library="asciiNoise"]')).toHaveAttribute('data-lifecycle', 'running');
 
     const before = await page.evaluate(() => window.p5jsLive.evaluator.binding('asciiNoise').shuffleVersion);
     const result = await page.evaluate(() => window.p5jsLive.evaluator.evaluate('asciiNoise.shuffle();'));
@@ -1414,7 +1418,7 @@ test.describe('the minimal display', () => {
 
   test('code size changes every editor presentation and persists locally', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Settings');
     await page.locator('#code-size').fill('22');
 
     await expect(page.locator('#code-size-value')).toHaveText('22px');
@@ -1434,7 +1438,7 @@ test.describe('the minimal display', () => {
 
   test('large folded code uses the viewport and keeps syntax aligned while scrolling', async ({ page }) => {
     await boot(page, { folded: true });
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Settings');
     await page.locator('#code-size').fill('24');
     const plasma = page.locator('.folded-block', { hasText: 'patch plasma' });
     await plasma.locator('summary').click();
@@ -1881,15 +1885,15 @@ circle(20, 20, 10);
         textShadow: cs.textShadow,
       };
     });
-    expect(style.background).toMatch(/rgba?\(.*0\.55\)/);
+    expect(style.background).toBe('rgb(24, 29, 34)');
     expect(style.backdrop).toContain('blur');
     expect(style.backdrop).toContain('brightness');
-    expect(style.text).toBe('rgb(246, 245, 250)');
-    expect(style.mutedText).toBe('rgb(199, 199, 210)');
-    expect(style.textShadow).toContain('2px');
+    expect(style.text).toBe('rgb(232, 238, 241)');
+    expect(style.mutedText).toBe('rgb(168, 182, 193)');
+    expect(style.textShadow).toBe('none');
 
     // The slider actually changes it, live.
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Settings');
     await page.locator('#tools-opacity').fill('0.25');
     await expect
       .poll(() => page.evaluate(() => getComputedStyle(document.getElementById('side')).backgroundColor))
@@ -1915,27 +1919,27 @@ circle(20, 20, 10);
       .toEqual(['asciiNoise', 'plasma']);
   });
 
-  test('the drawer keeps Controllers available without duplicating the scene', async ({ page }) => {
+  test('the drawer keeps Controls available without duplicating the scene', async ({ page }) => {
     await boot(page, { tools: false });
     await page.locator('#tools-toggle').click();
 
-    await expect(page.getByRole('tab', { name: 'Audio' })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.locator('#audio-panel')).toBeVisible();
-    await expect(page.locator('#library-panel')).toBeHidden();
+    await expect(page.getByRole('tab', { name: 'Library' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#audio-panel')).toBeHidden();
+    await expect(page.locator('#library-panel')).toBeVisible();
     await expect(page.locator('#messages-panel')).toBeHidden();
     await expect(page.locator('#project-panel')).toBeHidden();
     await expect(page.locator('#network-panel')).toBeHidden();
     expect(await page.locator('#tool-tabs [data-tool-view]').evaluateAll((tabs) =>
       tabs.map((tab) => tab.dataset.toolView),
-    )).toEqual(['audio', 'library', 'messages', 'project', 'ai', 'controls']);
-    await expect(page.getByRole('tab', { name: 'Controllers' })).toBeEnabled();
+    )).toEqual(['library', 'controls', 'audio', 'project']);
+    await expect(page.getByRole('tab', { name: 'Controls' })).toBeEnabled();
     await expect(page.locator('#scene-panel')).toHaveCount(0);
     await expect(page.locator('#code')).toHaveValue(/const scene = \[/);
     await expect(page.locator('#parameters-panel')).toBeHidden();
     await expect(page.locator('#library-tab-count')).toHaveText('2');
     await expect(page.locator('#stagebar')).not.toContainText('set safe');
 
-    await page.getByRole('tab', { name: 'Project' }).click();
+    await page.getByRole('tab', { name: 'Performances' }).click();
     await expect(page.locator('#project-panel')).toBeVisible();
     await expect(page.locator('#project-panel')).toContainText('Recovery point');
   });
@@ -1961,7 +1965,7 @@ circle(20, 20, 10);
     });
     await boot(page, { tools: false });
     await page.locator('#tools-toggle').click();
-    await selectTool(page, 'Controllers');
+    await selectTool(page, 'Controls');
 
     await expect(page.locator('#controls-panel')).toBeVisible();
     await expect(page.locator('#param-list')).toContainText('No live controls yet');
@@ -1978,6 +1982,7 @@ circle(20, 20, 10);
     )).toBe(0.6);
     await expect(page.locator('#code')).toHaveValue(/^\/\/ %% controls\ncontrol\("ringSpeed", 0.6, \{ type: "continuous", min: 0, max: 3, step: 0.01 \}\);/);
 
+    await page.locator('.controller-setup > summary').click();
     await page.locator('#connect-midi').click();
     await expect(page.locator('#midi-status')).toHaveText('1 input');
     await page.getByRole('button', { name: 'Assign a MIDI control to ringSpeed' }).click();
@@ -2159,7 +2164,7 @@ test.describe('named Performance recall', () => {
 
   test('starts a new default performance from the button or modifier shortcut without deleting named performances', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Performances');
 
     await page.locator('#performance-name').fill('Keep this one');
     await page.getByRole('button', { name: 'Save current' }).click();
@@ -2204,7 +2209,7 @@ test.describe('named Performance recall', () => {
 
   test('saves and recalls source, scene, parameters, audio analysis and view settings', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Performances');
 
     await page.locator('#smoothing').evaluate((input) => {
       input.value = '0.35';
@@ -2214,7 +2219,9 @@ test.describe('named Performance recall', () => {
       input.checked = false;
       input.dispatchEvent(new Event('change', { bubbles: true }));
     });
+    await selectTool(page, 'Settings');
     await page.locator('#code-size').fill('18');
+    await selectTool(page, 'Performances');
     await page.locator('#performance-name').fill('Opening look');
     await page.getByRole('button', { name: 'Save current' }).click();
     await expect(page.locator('.performance-row')).toContainText('Opening look');
@@ -2241,7 +2248,9 @@ test.describe('named Performance recall', () => {
       input.checked = true;
       input.dispatchEvent(new Event('change', { bubbles: true }));
     });
+    await selectTool(page, 'Settings');
     await page.locator('#code-size').fill('12');
+    await selectTool(page, 'Performances');
 
     await page.locator('.performance-row').getByRole('button', { name: 'Recall' }).click();
     await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeSceneName())).toBe('scene');
@@ -2266,13 +2275,13 @@ test.describe('named Performance recall', () => {
       window.p5jsLive.editor.setFolded(false);
     });
     await openTools(page);
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Performances');
     await expect(page.locator('.performance-row')).toContainText('Opening look');
   });
 
   test('a broken saved performance leaves the previous render and source running', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Performances');
     await page.locator('#performance-name').fill('Broken slot');
     await page.getByRole('button', { name: 'Save current' }).click();
 
@@ -2335,7 +2344,7 @@ test.describe('anchored performance controls', () => {
 test.describe('project portability', () => {
   test('exports a readable project file', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Performances');
 
     await page.evaluate(() => window.p5jsLive.performanceStore.save({
       name: 'Portable custom patch',
@@ -2414,7 +2423,7 @@ test.describe('project portability', () => {
 
   test('reset goes back to the starter without reloading the page', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Performances');
 
     // Make a mess: a new strategy, extra copies, a wrecked scene, accumulated state.
     await page.evaluate(() =>
@@ -2516,7 +2525,7 @@ test.describe('patch sharing and live commands', () => {
 
   test('keeps performance slots stable and reports the quick-save slot', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Performances');
     await page.locator('#performance-name').fill('First');
     await page.getByRole('button', { name: 'Save current' }).click();
 
@@ -2534,7 +2543,7 @@ test.describe('patch sharing and live commands', () => {
     const pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
     await boot(page, { folded: true });
-    await selectTool(page, 'Project');
+    await selectTool(page, 'Performances');
     await page.locator('#performance-name').fill('Starter');
     await page.getByRole('button', { name: 'Save current' }).click();
 

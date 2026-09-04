@@ -25,6 +25,7 @@ export function createAIAssistant({
   settings,
   library = [],
   onConfigure,
+  onOpen,
   client = requestSourceEdit,
 }) {
   const byId = (id) => document.getElementById(id);
@@ -129,7 +130,7 @@ export function createAIAssistant({
     nodes.window.hidden = false;
     refreshComposerState();
     if (!settings.load().key) onConfigure?.();
-    else nodes.composer.focus();
+    else { onOpen?.(); nodes.composer.focus(); }
   }
 
   function close() {

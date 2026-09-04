@@ -62,7 +62,6 @@ test('library addition reviews source before activation', async ({ page }) => {
   await boot(page);
   await page.locator('#tools-toggle').click();
   await page.locator('#tools-tab-library').click();
-  await page.locator('[data-library-group="visual"] summary').click();
   const row = page.locator('[data-library="waveScope"]');
   await expect(row.locator('button')).toHaveText('Install source');
   await row.locator('button').click();

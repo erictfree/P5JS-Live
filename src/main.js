@@ -253,9 +253,13 @@ const panels = createPanels({
   onRestoreSafe: restoreSafeState,
   onCreateParam: createLiveParam,
   onLocateStrategy: (name) => {
+    if (matchMedia('(max-width: 600px)').matches) toggleTools(true);
     if (editor.revealStrategy(name)) toggleReference(true);
   },
-  onLocateScene: (name) => editor.revealScene(name),
+  onLocateScene: (name) => {
+    if (matchMedia('(max-width: 600px)').matches) toggleTools(true);
+    editor.revealScene(name);
+  },
 });
 
 function createLiveParam(spec) {
@@ -308,7 +312,11 @@ const aiAssistant = createAIAssistant({
   onConfigure: () => {
     toggleTools(false);
     panels.selectToolView('ai');
+    document.getElementById('ai-connection').open = true;
+    document.getElementById('panels').scrollTop = 0;
+    document.getElementById('ai-api-key').focus({ preventScroll: true });
   },
+  onOpen: () => { if (matchMedia('(max-width: 600px)').matches) toggleTools(true); },
 });
 
 // --- portable patch sharing ----------------------------------------------------
@@ -774,6 +782,7 @@ welcomeFileButton.addEventListener('click', () => welcomeFileInput.click());
 document.getElementById('load-audio').addEventListener('click', () => {
   document.getElementById('audio-file-2').click();
 });
+document.getElementById('tools-load-audio').addEventListener('click', () => document.getElementById('audio-file-2').click());
 document.getElementById('start-audio').addEventListener('click', enterWithSilence);
 requestAnimationFrame(() => welcomeFileButton.focus({ preventScroll: true }));
 async function toggleAudio() {
@@ -785,6 +794,7 @@ async function toggleAudio() {
 }
 
 document.getElementById('play-toggle').addEventListener('click', toggleAudio);
+document.getElementById('tools-play-toggle').addEventListener('click', toggleAudio);
 
 function setLoop(value) {
   const looping = audio.setLoop(value);
@@ -825,9 +835,10 @@ async function startMicrophone(deviceId) {
 }
 
 document.getElementById('use-mic').addEventListener('click', () => startMicrophone());
+document.getElementById('tools-use-mic').addEventListener('click', () => startMicrophone());
 document.getElementById('start-mic').addEventListener('click', () => startMicrophone());
 deviceSelect.addEventListener('change', (event) => {
-  if (event.target.value) startMicrophone(event.target.value);
+  startMicrophone(event.target.value);
 });
 
 // --- analysis controls -----------------------------------------------------------
@@ -899,7 +910,7 @@ const LEGACY_OPACITY_KEYS = [
  * not travel in an export.
  */
 function setToolsOpacity(alpha) {
-  const value = Math.min(1, Math.max(0.15, Number(alpha) || 0.55));
+  const value = Math.min(1, Math.max(0.15, Number(alpha) || 1));
   document.documentElement.style.setProperty('--tools-alpha', value.toFixed(2));
   const output = document.getElementById('tools-opacity-value');
   if (output) output.textContent = `${Math.round(value * 100)}%`;
@@ -970,17 +981,35 @@ function toggleTools(force) {
   setDrawerHidden(side, document.getElementById('tools-toggle'), hidden);
   if (!hidden) {
     setDrawerHidden(referenceSide, document.getElementById('reference-toggle'), true);
+    if (matchMedia('(max-width: 600px)').matches) side.querySelector('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
   }
   // The canvas already fills the window, so nothing needs resizing — the panel is
   // over the top of it, not beside it. That is the point of the overlay.
   return hidden;
 }
-// Closed on arrival. Everything in the drawer is a setting; nothing in it is a move
-// you make mid-set, and the ones that were — play, panic, projection — are glyphs and
-// key commands now. So the default state of the window is the visuals and the code.
+// Start with the stage and source visible. Tools preserves its last selected
+// workspace and stays available from the toolbar and keyboard shortcut.
 toggleTools(true);
 
 document.getElementById('tools-toggle').addEventListener('click', () => toggleTools());
+document.getElementById('tools-close').addEventListener('click', () => toggleTools(true));
+const toolsWidthButton = document.getElementById('tools-width');
+function setToolsCompact(compact) {
+  document.documentElement.style.setProperty('--tools-width', compact ? '360px' : '480px');
+  toolsWidthButton.setAttribute('aria-pressed', String(compact));
+  toolsWidthButton.setAttribute('aria-label', compact ? 'Use wide Tools panel' : 'Use compact Tools panel');
+  try { localStorage.setItem('p5js-live.toolsCompact', String(compact)); } catch { /* optional */ }
+}
+try { setToolsCompact(localStorage.getItem('p5js-live.toolsCompact') === 'true'); } catch { /* default wide */ }
+toolsWidthButton.addEventListener('click', () => setToolsCompact(toolsWidthButton.getAttribute('aria-pressed') !== 'true'));
+side.addEventListener('keydown', (event) => {
+  if (event.key !== 'Tab' || !matchMedia('(max-width: 600px)').matches) return;
+  const focusable = [...side.querySelectorAll('button, input, select, textarea, summary, a[href]')]
+    .filter((node) => !node.disabled && node.tabIndex >= 0 && node.getClientRects().length);
+  const first = focusable[0], last = focusable.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+});
 
 function toggleReference(force) {
   const hidden = force ?? !referenceSide.classList.contains('is-hidden');
@@ -1417,7 +1446,7 @@ function addPatchToScene(entry) {
   }
   diagnostics.info(
     `${entry.title ?? entry.name} added to ${sceneName} source`,
-    'It is not active yet. Press Cmd/Ctrl+Enter in the selected scene cell to evaluate it.',
+    'Use Review scene & run to open the changed source, then Run or Cmd/Ctrl+Enter to evaluate it.',
   );
   return result;
 }

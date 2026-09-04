@@ -114,7 +114,7 @@ The source picker waits for an audio file, microphone, or silence before startin
 audio. The file picker accepts MP3, WAV, OGG, M4A, and AAC files; codec support
 depends on the browser.
 
-The **Controllers** panel can create visible `control()` declarations and map live
+The **Controls** panel can create visible `control()` declarations and map live
 controls to MIDI knobs, faders, switches, or drum pads with MIDI Learn. Continuous,
 momentary, toggle, and choice behaviors are supported. Direct MIDI is available
 when the browser implements Web MIDI; unsupported browsers leave the rest of the
@@ -149,13 +149,12 @@ To add a built-in patch:
 3. Select **Add to [scene]…**.
    The patch is appended at the bottom unless your cursor is on a top-level line in
    the active scene array, in which case it is inserted at that line.
-4. Evaluate the opened scene with **Run** or `Cmd/Ctrl+Enter`.
+4. Choose **Review scene & run**, then evaluate the opened scene with **Run** or
+   `Cmd/Ctrl+Enter`.
 
-The Library uses four distinct states:
-
-```text
-Available → Installed → Active → Running
-```
+The Library shows **Available**, **In project**, **Not run**, and **In scene**.
+The Project patches reference retains the detailed Installed → Active → Running
+runtime lifecycle.
 
 Installing adds editable source. Adding to scene edits the scene array. The scene
 becomes active only after evaluation.
@@ -164,7 +163,7 @@ To write a patch, hover in the far-left gutter beside a folded cell and select t
 subtle `+`. Enter a JavaScript name. p5js live inserts an object patch and places the
 cursor in `draw()`.
 
-To share only that patch, leave the cursor inside its cell and use **Library → Share
+To share only that patch, leave the cursor inside its cell and use **Library → Patch sharing & starter scene → Share
 current patch**. Export creates a human-readable `.p5patch.js` file; **copy link**
 encodes the same source in the URL fragment. Opening a link or importing a file adds
 the patch under **Shared patches** as Available—it does not install, activate, or run

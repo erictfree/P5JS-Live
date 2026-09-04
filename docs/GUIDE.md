@@ -34,6 +34,21 @@ readability. This dims only the performer view; audience output stays unchanged.
 Closed tools and reference drawers leave keyboard navigation; **Escape** inside a
 drawer closes it and returns focus to its toggle.
 
+Tools puts **Library**, **Controls**, **Audio**, and **Performances** in the main
+navigation. **Settings**, **Messages**, and **AI assistant** are below the scrolling
+panel. Settings contains code size, panel opacity, FPS warnings, and audience layout.
+New installations start with an opaque Tools panel; saved opacity preferences remain.
+Use the width button beside **Close** to switch between wide and compact panels.
+On narrow screens Tools fills the window; opening patch or scene source returns to
+the editor. Each section keeps its scroll position while you switch.
+
+Library search matches patch names, descriptions, and authors. Combine it with the
+category picker and scope filters. A **Not run** badge and pending-addition summary
+show scene source changes that still need review. Sharing and starter-scene actions
+are in the expandable section below the collection. **Audio** includes file loading,
+live input, playback, loop, and signal readings from the actual audio source.
+**Performances → Project files** holds import, export, and a separate reset action.
+
 In **Tools → Library**, **Browse**, **In project**, and **In scene** count catalog
 patches. **Project patches** includes custom project bindings as well. Install
 source, choose **Add to [scene]…**, then **Review scene & run** to inspect the changed
@@ -123,15 +138,15 @@ p5js live passes one object to each patch. Destructure only what you need.
 ## Live controls and MIDI controllers
 
 `control()` publishes a named value that patches read from `draw({ controls })`. The
-**Controllers** panel is always available, even when the project has no parameters.
-Choose **+ Live parameter**, select **Continuous**, **Button**, or **Choice**, and
+**Controls** panel is always available, even when the project has no parameters.
+Choose **＋ Live control**, select **Continuous**, **Button**, or **Choice**, and
 p5js live writes the ordinary `control()` declaration into a `// %% controls` cell for
 you. Buttons may be momentary (on while held) or toggle (each press switches state).
 
 To assign hardware in a browser with Web MIDI support:
 
 1. Plug in and power on the MIDI controller.
-2. Open **Controllers** and choose **Connect MIDI**.
+2. Open **Controls → MIDI devices** and choose **Connect MIDI**.
 3. Choose **Learn MIDI** beside a live control.
 4. Move a knob or fader, strike a pad, or press a switch.
 
@@ -197,11 +212,8 @@ An inline p5 transform affects later p5 drawing during that frame. Use a
 
 ## Install and create patches
 
-The Library reports four states:
-
-```text
-Available → Installed → Active → Running
-```
+The Library shows **Available**, **In project**, **Not run**, and **In scene**.
+Project patches retains the detailed runtime lifecycle: Installed → Active → Running.
 
 - **Install source** adds editable source to the project.
 - **Add to scene** edits the scene array. Put the cursor on a top-level array line to

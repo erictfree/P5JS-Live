@@ -238,70 +238,19 @@
         </div>
       </div>
 
-      <!-- TOOLS DRAWER — everything that is a setting rather than a performance move.
-           Hidden by default so the stage gets the whole window. -->
-      <aside id="side" class="right-drawer is-hidden" inert aria-hidden="true">
+      <!-- Performer tools float over the stage and stay out of audience output. -->
+      <aside id="side" class="right-drawer is-hidden" aria-label="Performer tools" inert aria-hidden="true">
         <div id="stagebar">
-          <span class="brand">p5js live</span>
-          <label class="stagebar-control">
-            <span>audience</span>
-            <select id="projection-layout" title="What the audience sees" aria-label="Projection layout">
-              <option value="canvas">canvas</option>
-              <option value="code">canvas + code</option>
-              <option value="trace">canvas + trace</option>
-            </select>
-          </label>
+          <strong class="brand">Tools</strong>
+          <span id="tools-scene-name" class="tools-scene-name">No scene</span>
+          <button id="tools-width" type="button" aria-label="Use compact Tools panel" aria-pressed="false" title="Change Tools width">↔</button>
+          <button id="tools-close" type="button" aria-label="Close Tools" title="Close Tools (Esc)">×</button>
         </div>
-
         <div id="tool-tabs" class="tool-tabs" role="tablist" aria-label="Performer tools">
-          <button
-            id="tools-tab-audio"
-            type="button"
-            role="tab"
-            aria-selected="true"
-            aria-controls="audio-panel"
-            data-tool-view="audio"
-          >Audio</button>
-          <button
-            id="tools-tab-library"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            aria-controls="library-panel"
-            data-tool-view="library"
-          >Library <span id="library-tab-count" class="tab-count">0</span></button>
-          <button
-            id="tools-tab-messages"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            aria-controls="messages-panel"
-            data-tool-view="messages"
-          >Messages <span id="messages-tab-count" class="tab-count" hidden>0</span></button>
-          <button
-            id="tools-tab-project"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            aria-controls="project-panel"
-            data-tool-view="project"
-          >Project</button>
-          <button
-            id="tools-tab-ai"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            aria-controls="ai-panel"
-            data-tool-view="ai"
-          >AI <span class="beta-badge">beta</span></button>
-          <button
-            id="tools-tab-controls"
-            type="button"
-            role="tab"
-            aria-selected="false"
-            aria-controls="controls-panel"
-            data-tool-view="controls"
-          >Controllers</button>
+          <button id="tools-tab-library" type="button" role="tab" aria-selected="true" aria-controls="library-panel" data-tool-view="library">Library</button>
+          <button id="tools-tab-controls" type="button" role="tab" aria-selected="false" aria-controls="controls-panel" data-tool-view="controls">Controls</button>
+          <button id="tools-tab-audio" type="button" role="tab" aria-selected="false" aria-controls="audio-panel" data-tool-view="audio">Audio</button>
+          <button id="tools-tab-project" type="button" role="tab" aria-selected="false" aria-controls="project-panel" data-tool-view="project">Performances</button>
         </div>
 
         <div id="panels">
@@ -313,20 +262,6 @@
             data-tool-panel="controls"
             hidden
           >
-            <div class="body controller-setup">
-              <p class="hint">
-                Live controls belong to the code. MIDI Learn connects a hardware knob, fader, or pad without putting device details in a patch.
-              </p>
-              <div class="row controller-status-row">
-                <span class="name">MIDI</span>
-                <span class="version" id="midi-status">not connected</span>
-                <span class="actions">
-                  <button id="connect-midi" type="button">Connect MIDI</button>
-                </span>
-              </div>
-              <div id="midi-devices" class="hint">No MIDI inputs connected.</div>
-            </div>
-
             <section class="tool-section" id="parameters-panel">
               <header class="tool-section-heading">
                 <h2>Live controls <span class="summary-count" id="parameter-summary-count">0</span></h2>
@@ -384,6 +319,22 @@
                 <div id="param-list"></div>
               </div>
             </section>
+            <details class="tool-disclosure controller-setup">
+              <summary>MIDI devices</summary>
+              <div class="body">
+              <p class="hint">
+                Live controls belong to the code. MIDI Learn connects a hardware knob, fader, or pad without putting device details in a patch.
+              </p>
+              <div class="row controller-status-row">
+                <span class="name">MIDI</span>
+                <span class="version" id="midi-status">not connected</span>
+                <span class="actions">
+                  <button id="connect-midi" type="button">Connect MIDI</button>
+                </span>
+              </div>
+              <div id="midi-devices" class="hint">No MIDI inputs connected.</div>
+              </div>
+            </details>
           </section>
 
           <section
@@ -392,9 +343,15 @@
             role="tabpanel"
             aria-labelledby="tools-tab-audio"
             data-tool-panel="audio"
+            hidden
           >
             <div class="body">
-              <div class="row">
+              <div class="tool-view-heading"><h2>Audio source</h2><p>Choose what the visuals listen to.</p></div>
+              <div class="audio-source-actions" role="group" aria-label="Choose audio source">
+                <button id="tools-load-audio" type="button">Load audio file</button>
+                <button id="tools-use-mic" type="button">Mic / line input</button>
+              </div>
+              <div class="row audio-source-row">
                 <span class="name" id="audio-source">no source</span>
                 <span class="version" id="audio-position">suspended</span>
                 <span id="beat-dot" title="Onset detected"></span>
@@ -407,12 +364,18 @@
                 <progress id="audio-load-progress" max="1"></progress>
               </div>
               <div id="audio-error" class="row-error" hidden></div>
-              <label class="row">
-                <span class="name">input device</span>
+              <div class="audio-transport-row"><button id="tools-play-toggle" type="button" aria-label="Play audio file" disabled>▶ Play</button><progress id="audio-playback-progress" max="1" value="0" aria-label="Audio playback progress"></progress></div>
+              <label class="row" id="audio-input-row" hidden>
+                <span class="name">Input device</span>
                 <select id="input-device" aria-label="Audio input device">
                   <option value="">(file or default)</option>
                 </select>
               </label>
+              <section class="audio-signal" aria-label="Audio signal">
+                <div class="signal-heading"><h3>Signal</h3><span id="audio-signal-state">No source</span></div>
+                <meter id="audio-level" min="0" max="1" value="0" aria-label="Audio level"></meter>
+                <div class="audio-bands"><span>Low <output id="audio-bass">0.00</output></span><span>Mid <output id="audio-mid">0.00</output></span><span>High <output id="audio-treble">0.00</output></span></div>
+              </section>
               <details class="compact-settings">
                 <summary>Analysis settings</summary>
                 <label class="row param">
@@ -495,9 +458,21 @@ const publishMain = room.publish({
             role="tabpanel"
             aria-labelledby="tools-tab-library"
             data-tool-panel="library"
-            hidden
           >
             <div class="body">
+              <div class="tool-view-heading"><h2>Patch library</h2><p>Find the next layer for your scene.</p><span id="library-tab-count" hidden>0</span></div>
+              <label class="library-search-label">Search patches<input id="library-search" type="search" placeholder="Search names or effects…" autocomplete="off" /></label>
+              <div id="library-filters" class="filter-tabs" role="group" aria-label="Filter patch library">
+                <button type="button" data-library-filter="all" aria-pressed="true">Browse <span id="library-count-all">0</span></button>
+                <button type="button" data-library-filter="installed" aria-pressed="false">In project <span id="library-count-installed">0</span></button>
+                <button type="button" data-library-filter="active" aria-pressed="false">In scene <span id="library-count-active">0</span></button>
+              </div>
+              <div class="library-browse-row"><label>Show <select id="library-category" aria-label="Patch category"><option value="all">All categories</option><option value="utility">Utilities</option><option value="visual">Drawing</option><option value="shader">Effects / shaders</option><option value="community">Community</option><option value="shared">Shared</option></select></label><span id="library-result-count" role="status"></span></div>
+              <div id="strategy-library"></div>
+              <div id="library-pending" class="library-pending" hidden><strong id="library-pending-label"></strong><p>Review the scene source before running.</p><button id="library-review-scene" type="button">Review scene &amp; run</button></div>
+              <p class="hint library-scope">Counts refer to catalog patches; configured copies appear in Project patches.</p>
+              <details class="tool-disclosure">
+                <summary>Patch sharing &amp; starter scene</summary>
               <div class="hint">
                 Install adds source. Add to scene edits the scene array in the code; press <strong>Cmd/Ctrl+Enter</strong> there to activate it.
               </div>
@@ -521,13 +496,7 @@ const publishMain = room.publish({
                 </span>
               </div>
               <input id="import-patch-file" type="file" accept=".js,.p5patch.js,text/javascript,application/javascript" hidden />
-              <div id="library-filters" class="filter-tabs" role="group" aria-label="Filter patch library">
-                <button type="button" data-library-filter="all" aria-pressed="true">Browse <span id="library-count-all">0</span></button>
-                <button type="button" data-library-filter="installed" aria-pressed="false">In project <span id="library-count-installed">0</span></button>
-                <button type="button" data-library-filter="active" aria-pressed="false">In scene <span id="library-count-active">0</span></button>
-              </div>
-              <p class="hint library-scope">Counts refer to catalog patches. Open Project patches for everything in your project.</p>
-              <div id="strategy-library"></div>
+              </details>
               <details class="shader-operator-reference">
                 <summary>Shader operators</summary>
                 <div class="shader-operator-body">
@@ -580,7 +549,7 @@ const publishMain = room.publish({
               </header>
               <div class="body">
                 <p class="hint performance-hint">
-                  Stable numbered recall slots for the complete working window. New saves go to the bottom. Project export includes them; audio files remain separate.
+                  Save a complete working window to a numbered recall slot. Audio files stay separate.
                 </p>
                 <form id="save-performance-form" class="performance-save-row">
                   <input
@@ -609,8 +578,8 @@ const publishMain = room.publish({
                 </div>
               </div>
             </section>
-            <section class="tool-section">
-              <h2>Project file</h2>
+            <details class="tool-disclosure project-file">
+              <summary>Project files</summary>
             <div class="body">
               <div class="row">
                 <span class="name">project file</span>
@@ -621,32 +590,42 @@ const publishMain = room.publish({
                   <button id="import-project" type="button" title="Import a project file and merge its named performances" aria-label="Import a project file and merge its named performances">
                     import
                   </button>
-                  <button
+
+                </span>
+              </div>
+              <input id="import-file" type="file" accept="application/json,.json" hidden />
+              <div class="project-reset">
+                <button
                     id="reset-project"
                     type="button"
                     class="danger"
                     title="Discard everything and go back to the starter project"
                     aria-label="Discard everything and go back to the starter project"
                   >
-                    reset
-                  </button>
-                </span>
+                    Reset project…
+                </button>
               </div>
-              <input id="import-file" type="file" accept="application/json,.json" hidden />
+            </div>
+            </details>
+          </section>
+
+          <section class="tool-view" id="settings-panel" role="tabpanel" aria-labelledby="tools-tab-settings" data-tool-panel="settings" hidden>
+            <div class="body">
+            <div class="tool-view-heading"><h2>Interface settings</h2><p>Make your working view comfortable.</p></div>
               <label class="row">
                 <span class="name">warn below FPS</span>
                 <input id="fps-threshold" type="number" min="1" max="120" step="1" value="30" />
               </label>
               <label class="row param" id="tools-opacity-wrap" title="How much of the visuals shows through these tools">
                 <span class="name">drawer opacity</span>
-                <span class="version" id="tools-opacity-value">55%</span>
+                <span class="version" id="tools-opacity-value">100%</span>
                 <input
                   id="tools-opacity"
                   type="range"
                   min="0.15"
                   max="1"
                   step="0.05"
-                  value="0.55"
+                  value="1"
                   aria-label="Tools panel opacity"
                 />
               </label>
@@ -663,8 +642,20 @@ const publishMain = room.publish({
                   aria-label="Code font size"
                 />
               </label>
+              <section class="tool-section audience-settings">
+                <h2>Audience view</h2>
+                <div class="body">
+                  <label class="stagebar-control">
+                    <span>audience</span>
+                    <select id="projection-layout" title="What the audience sees" aria-label="Projection layout">
+                      <option value="canvas">canvas</option>
+                      <option value="code">canvas + code</option>
+                      <option value="trace">canvas + trace</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
             </div>
-            </section>
           </section>
 
           <section
@@ -676,9 +667,13 @@ const publishMain = room.publish({
             hidden
           >
             <div class="body ai-settings">
+              <div class="tool-view-heading"><h2>AI assistant</h2><p>Describe a change, then review the source.</p></div>
+              <button id="ai-open" class="ai-open-button" type="button">Open AI editor</button>
               <p class="hint">
                 AI edits the current source and stages the result. Nothing runs until you accept it.
               </p>
+              <details id="ai-connection" class="tool-disclosure">
+                <summary>Connection settings</summary>
               <label class="row">
                 <span class="name">model</span>
                 <select id="ai-model" aria-label="OpenAI model"></select>
@@ -706,13 +701,18 @@ const publishMain = room.publish({
                 <button id="ai-forget-key" type="button">Forget key</button>
               </div>
               <div id="ai-key-status" class="hint" role="status"></div>
-              <button id="ai-open" class="ai-open-button" type="button">Open AI editor</button>
               <p class="hint">
                 Requires a separately billed OpenAI API key. A ChatGPT subscription is not an API login.
                 <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">Manage API keys</a>.
               </p>
+              </details>
             </div>
           </section>
+        </div>
+        <div id="tool-secondary-tabs" class="tool-tabs secondary-tool-tabs" role="tablist" aria-label="Additional tools">
+          <button id="tools-tab-settings" type="button" role="tab" aria-selected="false" aria-controls="settings-panel" data-tool-view="settings">Settings</button>
+          <button id="tools-tab-messages" type="button" role="tab" aria-selected="false" aria-controls="messages-panel" data-tool-view="messages">Messages <span id="messages-tab-count" class="tab-count" hidden>0</span></button>
+          <button id="tools-tab-ai" type="button" role="tab" aria-selected="false" aria-controls="ai-panel" data-tool-view="ai">AI assistant</button>
         </div>
       </aside>
 

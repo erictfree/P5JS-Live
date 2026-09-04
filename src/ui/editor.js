@@ -1280,20 +1280,20 @@ export function createEditor(textarea, handlers) {
     const expected = all
       ? text
       : `${original.slice(0, originalFrom)}${text}${original.slice(originalTo)}`;
-    if (restore) textarea.focus();
+    if (restore) textarea.focus({ preventScroll: true });
 
     const { scrollTop } = textarea;
     if (all) textarea.select();
 
     let inserted = false;
     try {
-      inserted = document.execCommand('insertText', false, text);
+      // A folded/hidden editor cannot take focus. Never let native insertion target
+      // another input, such as Library search or an open folded-cell editor.
+      if (document.activeElement === textarea) inserted = document.execCommand('insertText', false, text);
     } catch {
       /* falls through to the assignment below */
     }
-    // A hidden textarea cannot always take focus from an inline folded-cell input.
-    // Chromium can then return true after inserting into that input instead. Trust
-    // the native path only when the authoritative source has the expected value.
+    // Trust the native path only when the authoritative source has the expected value.
     const usedNativeInsertion = inserted && textarea.value === expected;
     if (!usedNativeInsertion) {
       textarea.value = expected;
@@ -1311,7 +1311,7 @@ export function createEditor(textarea, handlers) {
       textarea.setSelectionRange(0, 0);
       textarea.scrollTop = scrollTop;
     }
-    if (restore?.focus) restore.focus();
+    if (restore?.focus) restore.focus({ preventScroll: true });
     if (!notify) suppressChangeNotifications--;
     return usedNativeInsertion;
   }

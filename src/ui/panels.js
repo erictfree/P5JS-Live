@@ -28,7 +28,7 @@ export function createPanels({
 }) {
   const el = (id) => document.getElementById(id);
   const nodes = {
-    toolTabs: el('tool-tabs'),
+    toolTabs: el('side'),
     toolPanels: [...document.querySelectorAll('[data-tool-panel]')],
     references: el('strategy-reference-list'),
     library: el('strategy-library'),
@@ -87,7 +87,11 @@ export function createPanels({
   };
   let libraryFilter = 'all';
   let liveSceneName = null;
-  let activeToolView = 'audio';
+  let activeToolView = 'library';
+  const toolScrollPositions = new Map();
+  let librarySignature = null;
+  let librarySources = [];
+  let paramSignature = null;
   try {
     activeToolView = storage?.getItem(TOOL_VIEW_KEY) || activeToolView;
   } catch {
@@ -95,14 +99,16 @@ export function createPanels({
   }
   let diagnosticsInitialized = false;
   let latestDiagnosticKey = null;
-  const libraryOpenGroups = new Set();
+  const libraryOpenGroups = new Set(LIBRARY_GROUPS.map((group) => group.key));
 
   function selectToolView(view, { focus = false } = {}) {
-    const requested = nodes.toolTabs.querySelector(`[data-tool-view="${view}"]`);
+    focus ||= nodes.toolPanels.some((panel) => !panel.hidden && panel.contains(document.activeElement));
+    const requested = [...nodes.toolTabs.querySelectorAll('[data-tool-view]')].find((tab) => tab.dataset.toolView === view);
     const selected = requested && !requested.disabled
       ? requested
-      : nodes.toolTabs.querySelector('[data-tool-view="audio"]:not(:disabled)');
+      : nodes.toolTabs.querySelector('[data-tool-view="library"]:not(:disabled)');
     if (!selected) return;
+    toolScrollPositions.set(activeToolView, el('panels').scrollTop);
     activeToolView = selected.dataset.toolView;
     for (const tab of nodes.toolTabs.querySelectorAll('[data-tool-view]')) {
       const active = tab === selected;
@@ -112,16 +118,21 @@ export function createPanels({
     for (const panel of nodes.toolPanels) {
       panel.hidden = panel.dataset.toolPanel !== activeToolView;
     }
+    for (const list of nodes.toolTabs.querySelectorAll('[role="tablist"]')) {
+      if (!list.querySelector('[aria-selected="true"]')) list.querySelector('[role="tab"]').tabIndex = 0;
+    }
+    el('panels').scrollTop = toolScrollPositions.get(activeToolView) ?? 0;
     try {
       storage?.setItem(TOOL_VIEW_KEY, activeToolView);
     } catch {
       /* private-mode storage is optional */
     }
-    if (focus) selected.focus();
+    if (focus) selected.focus({ preventScroll: true });
   }
 
   function renderStrategies(snapshot) {
     liveSceneName = snapshot.scene.name;
+    el('tools-scene-name').textContent = liveSceneName ?? 'No scene';
     const sceneButton = el('live-scene');
     sceneButton.disabled = !liveSceneName;
     el('live-scene-name').textContent = liveSceneName ?? 'No scene';
@@ -144,6 +155,22 @@ export function createPanels({
   }
 
   function renderLibrary(snapshot) {
+    // Shared patches can replace source without changing their displayed metadata.
+    // Keep their action closures fresh without serializing every source on each tick.
+    if (library.length !== librarySources.length || library.some((entry, index) => entry.source !== librarySources[index])) {
+      librarySignature = null;
+      librarySources = library.map((entry) => entry.source);
+    }
+    const signature = JSON.stringify([
+      library.map(({ name, title, blurb, author, origin, category }) => [name, title, blurb, author, origin, category]),
+      snapshot.strategies.map(({ name, active, running }) => [name, active, running]),
+      snapshot.installedPatches, snapshot.scene.sourceOrder, snapshot.scene.name,
+      libraryFilter, el('library-search').value, el('library-category').value,
+    ]);
+    if (signature === librarySignature) return;
+    librarySignature = signature;
+    const focusedPatch = nodes.library.contains(document.activeElement)
+      ? document.activeElement.closest('[data-library]')?.dataset.library : null;
     const known = new Map(snapshot.strategies.map((strategy) => [strategy.name, strategy]));
     const installed = new Set(snapshot.installedPatches);
     const inSceneSource = new Set(snapshot.scene.sourceOrder);
@@ -157,14 +184,24 @@ export function createPanels({
     for (const button of nodes.libraryFilters.querySelectorAll('button[data-library-filter]')) {
       button.setAttribute('aria-pressed', String(button.dataset.libraryFilter === libraryFilter));
     }
+    const query = el('library-search').value.trim().toLowerCase();
+    const category = el('library-category').value;
     const visible = library.filter((entry) => {
+      if (query && !`${entry.name} ${entry.title ?? ''} ${entry.blurb ?? ''} ${entry.author ?? ''}`.toLowerCase().includes(query)) return false;
+      if (category !== 'all' && (category === 'shared' ? entry.origin !== 'shared' : entry.category !== category || entry.origin === 'shared')) return false;
       const strategy = known.get(entry.name);
       if (libraryFilter === 'installed') return installed.has(entry.name);
       if (libraryFilter === 'active') return Boolean(strategy?.active);
       return true;
     });
+    el('library-result-count').textContent = `${visible.length} result${visible.length === 1 ? '' : 's'}`;
+    const pending = library.filter((entry) => installed.has(entry.name) && inSceneSource.has(entry.name) && !known.get(entry.name)?.active);
+    el('library-pending').hidden = pending.length === 0;
+    el('library-pending-label').textContent = `${pending.length} addition${pending.length === 1 ? '' : 's'} not yet running`;
     if (visible.length === 0) {
-      nodes.library.replaceChildren(hint(`No ${libraryFilter} patches.`));
+      nodes.library.replaceChildren(hint('No matching patches. Try another search or category.'), button('Clear filters', 'Clear library search and filters', () => {
+        libraryFilter = 'all'; el('library-search').value = ''; el('library-category').value = 'all'; renderLibrary(controller.snapshot()); el('library-search').focus();
+      }));
       return;
     }
 
@@ -178,6 +215,7 @@ export function createPanels({
       return [librarySection(group, entries, known, installed, inSceneSource)];
     });
     nodes.library.replaceChildren(...sections);
+    if (focusedPatch) [...nodes.library.querySelectorAll('[data-library]')].find((row) => row.dataset.library === focusedPatch)?.querySelector('button')?.focus({ preventScroll: true });
   }
 
   function strategyRow(strategy, open) {
@@ -280,7 +318,7 @@ export function createPanels({
     const section = document.createElement('details');
     section.className = 'library-group';
     section.dataset.libraryGroup = group.key;
-    section.open = libraryFilter !== 'all' || libraryOpenGroups.has(group.key);
+    section.open = Boolean(el('library-search').value.trim()) || el('library-category').value !== 'all' || libraryFilter !== 'all' || libraryOpenGroups.has(group.key);
 
     const heading = document.createElement('summary');
     heading.className = 'library-group-heading';
@@ -299,6 +337,7 @@ export function createPanels({
       )),
     );
     section.addEventListener('toggle', () => {
+      if (!section.isConnected || el('library-search').value.trim() || el('library-category').value !== 'all' || libraryFilter !== 'all') return;
       if (section.open) libraryOpenGroups.add(group.key);
       else libraryOpenGroups.delete(group.key);
     });
@@ -311,7 +350,7 @@ export function createPanels({
     const running = Boolean(strategy?.running);
     const lifecycle = running ? 'running' : active ? 'active' : installed ? 'installed' : 'available';
     const row = document.createElement('div');
-    row.className = `row strategy is-${lifecycle}`;
+    row.className = `row strategy library-card is-${lifecycle}`;
     row.dataset.library = entry.name;
     row.dataset.origin = entry.origin;
     row.dataset.category = entry.category;
@@ -333,7 +372,7 @@ export function createPanels({
 
     const status = document.createElement('span');
     status.className = `patch-status ${lifecycle}`;
-    status.textContent = titleCase(lifecycle);
+    status.textContent = !active && inSceneSource && installed ? 'Not run' : active ? 'In scene' : installed ? 'In project' : 'Available';
     status.title = lifecycleHelp(lifecycle);
 
     const actions = document.createElement('span');
@@ -369,8 +408,16 @@ export function createPanels({
         () => onLocateStrategy?.(entry.name),
       );
     }
+    if (!installed || (strategy && !active && !inSceneSource)) {
+      action.addEventListener('click', () => {
+        [...nodes.library.querySelectorAll('[data-library]')].find((item) => item.dataset.library === entry.name)?.querySelector('button')?.focus({ preventScroll: true });
+      });
+    }
     actions.append(action);
-    row.append(dot, name, origin, status, actions);
+    const description = document.createElement('p');
+    description.className = 'library-description';
+    description.textContent = entry.blurb ?? '';
+    row.append(dot, name, status, description, origin, actions);
     return row;
   }
 
@@ -400,11 +447,23 @@ export function createPanels({
 
   function renderParams(snapshot) {
     nodes.paramsSummaryCount.textContent = String(snapshot.params.length);
+    const { midi, learning, mappings } = snapshot.externalControl;
+    const signature = JSON.stringify([snapshot.params.map(({ value, ...entry }) => entry), midi.status, midi.supported, midi.devices, learning, mappings]);
+    if (signature === paramSignature) {
+      snapshot.params.forEach((entry, index) => nodes.params.children[index]?.updateValue?.(entry.value));
+      return;
+    }
+    paramSignature = signature;
+    const focused = nodes.params.contains(document.activeElement) ? {
+      name: document.activeElement.closest('[data-param]')?.dataset.param,
+      role: document.activeElement.dataset.paramRole,
+    } : null;
     nodes.params.replaceChildren(
       ...(snapshot.params.length
         ? snapshot.params.map((entry) => paramRow(entry, snapshot.externalControl))
         : [paramEmpty()]),
     );
+    if (focused) [...nodes.params.children].find((row) => row.dataset.param === focused.name)?.querySelector(`[data-param-role="${focused.role}"]`)?.focus({ preventScroll: true });
   }
 
   function paramEmpty() {
@@ -419,6 +478,7 @@ export function createPanels({
   function paramRow(entry, externalControl) {
     const row = document.createElement('div');
     row.className = 'row param param-control-row';
+    row.dataset.param = entry.name;
     const name = document.createElement('span');
     name.className = 'name';
     name.textContent = entry.name;
@@ -450,6 +510,7 @@ export function createPanels({
     } else {
       input = document.createElement('input');
       input.type = 'range';
+      input.setAttribute('aria-label', entry.name);
       input.min = entry.min ?? 0;
       input.max = entry.max ?? 1;
       input.step = entry.step ?? 0.01;
@@ -460,6 +521,8 @@ export function createPanels({
         value.textContent = format(next);
       });
     }
+    input.dataset.paramRole = 'value';
+    row.dataset.paramType = type;
 
     const mapping = externalControl.mappings.find((candidate) => candidate.param === entry.name);
     const learning = externalControl.learning === entry.name;
@@ -476,11 +539,30 @@ export function createPanels({
       },
     );
     learn.classList.toggle('is-on', learning);
+    learn.dataset.paramRole = 'learn';
     if (!externalControl.midi.supported || !['continuous', 'button', 'choice'].includes(type)) {
       learn.disabled = true;
     }
 
     row.append(name, value, input, learn);
+    if (type === 'continuous') {
+      const limits = document.createElement('div');
+      limits.className = 'param-limits';
+      const min = document.createElement('span'); min.textContent = String(entry.min ?? 0);
+      const max = document.createElement('span'); max.textContent = String(entry.max ?? 1);
+      limits.append(min, max); row.append(limits);
+    }
+    row.updateValue = (next) => {
+      entry.value = next;
+      value.textContent = type === 'button' ? (next ? 'On' : 'Off') : format(next);
+      if (type === 'button') {
+        input.textContent = next ? 'On' : 'Off';
+        input.setAttribute('aria-label', `${next ? 'Turn off' : 'Turn on'} ${entry.name}`);
+        input.setAttribute('aria-pressed', String(Boolean(next)));
+        input.classList.toggle('is-on', Boolean(next));
+      } else input.value = next;
+    };
+    row.updateValue(entry.value);
     if (mapping) {
       const assignment = document.createElement('div');
       assignment.className = 'mapping';
@@ -519,6 +601,7 @@ export function createPanels({
     nodes.newParamForm.hidden = !show;
     nodes.newParamError.hidden = true;
     if (show) nodes.newParamName.focus();
+    else nodes.newParam.focus();
   }
 
   function showParamType(type = nodes.newParamType.value) {
@@ -563,13 +646,16 @@ export function createPanels({
   }
 
   function renderDiagnostics(snapshot) {
+    const issues = snapshot.diagnostics.filter((entry) => ['error', 'warn'].includes(entry.level));
+    const activity = snapshot.diagnostics.filter((entry) => !['error', 'warn'].includes(entry.level));
     nodes.diagnostics.replaceChildren(
       ...(snapshot.diagnostics.length
-        ? snapshot.diagnostics.map(diagnosticRow)
+        ? [...issues, ...activity].map(diagnosticRow)
         : [hint('Nothing to report.')]),
     );
-    nodes.messagesTabCount.textContent = String(snapshot.diagnostics.length);
-    nodes.messagesTabCount.hidden = snapshot.diagnostics.length === 0;
+    nodes.messagesTabCount.textContent = String(issues.length);
+    nodes.messagesTabCount.hidden = issues.length === 0;
+    nodes.messagesTabCount.title = `${issues.length} warnings or errors in recent messages`;
     const latest = snapshot.diagnostics[0];
     if (latest) {
       nodes.status.textContent = latest.message;
@@ -679,6 +765,18 @@ export function createPanels({
 
     const status = live.audioStatus;
     const canPlay = status.kind === 'file' && status.loaded && !status.loading;
+    const toolsPlay = el('tools-play-toggle');
+    toolsPlay.disabled = !canPlay;
+    toolsPlay.textContent = status.playing && status.kind === 'file' ? '❚❚ Pause' : '▶ Play';
+    toolsPlay.setAttribute('aria-label', status.playing && status.kind === 'file' ? 'Pause audio file' : 'Play audio file');
+    toolsPlay.setAttribute('aria-pressed', String(status.playing && status.kind === 'file'));
+    el('audio-input-row').hidden = status.kind !== 'mic';
+    el('audio-playback-progress').value = status.duration > 0 ? status.position / status.duration : 0;
+    el('audio-signal-state').textContent = status.loading ? 'Loading' : status.kind === 'none' ? 'No source' : status.contextState !== 'running' ? 'Suspended' : status.playing ? (status.kind === 'mic' ? 'Live input' : 'Playing') : 'Paused';
+    el('audio-level').value = live.audio?.level ?? 0;
+    for (const band of ['bass', 'mid', 'treble']) el(`audio-${band}`).value = Number(live.audio?.[band] ?? 0).toFixed(2);
+    el('tools-load-audio').setAttribute('aria-pressed', String(status.kind === 'file'));
+    el('tools-use-mic').setAttribute('aria-pressed', String(status.kind === 'mic'));
     nodes.playToggle.disabled = !canPlay;
     nodes.playToggle.textContent = status.playing && status.kind === 'file' ? '❚❚ pause' : '▶ play';
     nodes.playToggle.setAttribute(
@@ -781,9 +879,11 @@ export function createPanels({
     if (tab && !tab.disabled) selectToolView(tab.dataset.toolView);
   });
   nodes.toolTabs.addEventListener('keydown', (event) => {
+    const currentTab = event.target.closest('[data-tool-view]');
+    if (!currentTab) return;
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-    const tabs = [...nodes.toolTabs.querySelectorAll('[data-tool-view]:not(:disabled)')];
-    const current = tabs.findIndex((tab) => tab.dataset.toolView === activeToolView);
+    const tabs = [...currentTab.closest('[role="tablist"]').querySelectorAll('[data-tool-view]:not(:disabled)')];
+    const current = tabs.indexOf(currentTab);
     const next = event.key === 'Home'
       ? 0
       : event.key === 'End'
@@ -792,6 +892,9 @@ export function createPanels({
     event.preventDefault();
     selectToolView(tabs[next].dataset.toolView, { focus: true });
   });
+  el('library-search').addEventListener('input', () => renderLibrary(controller.snapshot()));
+  el('library-category').addEventListener('change', () => renderLibrary(controller.snapshot()));
+  el('library-review-scene').addEventListener('click', () => onLocateScene?.(liveSceneName));
   nodes.libraryFilters.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-library-filter]');
     if (!button) return;

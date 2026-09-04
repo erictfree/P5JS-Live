@@ -28,7 +28,7 @@ async function openAndConfigure(page) {
     bubbles: true,
   })));
   await expect(page.locator('#ai-assistant')).toBeVisible();
-  await expect(page.getByRole('tab', { name: /^AI beta/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: /^AI assistant/ })).toHaveAttribute('aria-selected', 'true');
   await page.locator('#ai-api-key').fill('sk-test-only');
   await page.locator('#ai-save-key').click();
   await expect(page.locator('#ai-key-status')).toContainText('session');
