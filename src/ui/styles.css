@@ -775,9 +775,8 @@ button.folded-new-patch-button:focus-visible::after {
   align-items: center;
   transition: opacity 160ms ease;
 }
-#icons.is-hidden {
-  opacity: 0;
-  pointer-events: none;
+#icons[hidden] {
+  display: none;
 }
 
 #audio-transport {

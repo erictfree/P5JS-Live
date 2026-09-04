@@ -31,6 +31,8 @@ the complete proposal.
 
 Press `d` after releasing editor focus to dim the background and improve code
 readability. This dims only the performer view; audience output stays unchanged.
+Press `n` to hide or restore the top navigation bar. These single-key commands work
+after releasing editor focus with **Escape**.
 Closed tools and reference drawers leave keyboard navigation; **Escape** inside a
 drawer closes it and returns focus to its toggle.
 

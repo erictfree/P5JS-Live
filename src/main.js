@@ -1037,6 +1037,15 @@ function toggleCode(force) {
   return hidden;
 }
 
+function toggleNavigation() {
+  const navigation = document.getElementById('icons');
+  const hidden = !navigation.hidden;
+  if (hidden && navigation.contains(document.activeElement)) document.activeElement.blur();
+  navigation.hidden = hidden;
+  navigation.inert = hidden;
+  navigation.setAttribute('aria-hidden', String(hidden));
+}
+
 /** Temporarily lower the canvas brightness without touching the running scene. */
 const visualDimmer = document.getElementById('visual-dimmer');
 function toggleVisualDimmer(force) {
@@ -1673,6 +1682,7 @@ const COMMANDS = {
   r: () => toggleReference(), // project patches and their public interfaces
   e: () => toggleCode(), // the code itself — see the composition with nothing on it
   d: () => toggleVisualDimmer(), // performer-only contrast for unusually bright scenes
+  n: () => toggleNavigation(), // top navigation; available again with the same key
   f: () => toggleFullscreen(),
   p: () => toggleProjection(),
   l: () => toggleLoop(),
@@ -1745,6 +1755,7 @@ window.addEventListener('keydown', (event) => {
   const command = COMMANDS[event.key];
   if (!command) return;
   event.preventDefault();
+  if (event.key === 'n' && event.repeat) return;
   command();
 });
 window.addEventListener('keyup', (event) => {
