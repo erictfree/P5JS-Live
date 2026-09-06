@@ -25,7 +25,7 @@ describe('ShaderChain', () => {
     ]);
   });
 
-  it('compiles transforms before sampling and colours after sampling in one pass', () => {
+  it('fuses point operations while keeping each operation scoped', () => {
     const chain = new ShaderChain()
       .rotate(0.2, 0.1)
       .pixelate(24, 16)
@@ -35,13 +35,9 @@ describe('ShaderChain', () => {
 
     expect(compiled.fragmentSource).toContain('uniform float u_0_angle;');
     expect(compiled.fragmentSource).toContain('uniform float u_1_pixelX;');
-    expect(compiled.fragmentSource).toContain('vec4 colour = texture2D(uScene, fract(uv));');
-    expect(compiled.fragmentSource.indexOf('vec2 centered = uv')).toBeLessThan(
-      compiled.fragmentSource.indexOf('vec4 colour = texture2D'),
-    );
-    expect(compiled.fragmentSource.indexOf('vec3 hsv2')).toBeGreaterThan(
-      compiled.fragmentSource.indexOf('vec4 colour = texture2D'),
-    );
+    expect(compiled.passes).toHaveLength(1);
+    expect(compiled.fragmentSource).toContain('vec4 colour = stage2(uv);');
+    expect(compiled.fragmentSource).toContain('return stage1(fract(uv)) * coverage;');
     expect(compiled.uniforms).toHaveLength(6);
   });
 
@@ -66,7 +62,9 @@ describe('ShaderChain', () => {
     expect(compiled.fragmentSource).toContain('uniform sampler2D uFeedback;');
     expect(compiled.fragmentSource).toContain('uniform float uMix;');
     expect(compiled.fragmentSource).toContain('valueNoise(');
-    expect(compiled.fragmentSource).toContain('blurColour2');
+    expect(compiled.passes).toHaveLength(4);
+    expect(compiled.passes[1].fragmentSource).toContain('blurColour2');
+    expect(compiled.usesFeedback).toBe(true);
     expect(compiled.fragmentSource).toContain('feedbackColour5');
     expect(compiled.fragmentSource).toContain('colour.a *= lumaAlpha6');
     expect(compiled.fragmentSource).toContain(

@@ -248,6 +248,7 @@
           <button id="tools-close" type="button" aria-label="Close Tools" title="Close Tools (Esc)">×</button>
         </div>
         <div id="tool-tabs" class="tool-tabs" role="tablist" aria-label="Performer tools">
+          <button id="tools-tab-scene" type="button" role="tab" aria-selected="false" aria-controls="scene-panel" data-tool-view="scene">Scene</button>
           <button id="tools-tab-library" type="button" role="tab" aria-selected="true" aria-controls="library-panel" data-tool-view="library">Library</button>
           <button id="tools-tab-controls" type="button" role="tab" aria-selected="false" aria-controls="controls-panel" data-tool-view="controls">Controls</button>
           <button id="tools-tab-audio" type="button" role="tab" aria-selected="false" aria-controls="audio-panel" data-tool-view="audio">Audio</button>
@@ -255,6 +256,22 @@
         </div>
 
         <div id="panels">
+          <section class="tool-view" id="scene-panel" role="tabpanel" aria-labelledby="tools-tab-scene" data-tool-panel="scene" hidden>
+            <div class="body">
+              <div class="scene-heading"><div><span class="scene-eyebrow">Composition</span><h2 id="scene-inspector-name">No scene</h2></div><button id="scene-edit-source" type="button">Edit scene</button></div>
+              <p class="hint">Sources and effects run from top to bottom. Each group processes its own image.</p>
+              <div id="scene-inspector-status" class="scene-inspector-status" role="status"></div>
+              <div id="scene-pending" class="library-pending" hidden><strong>Scene edits are waiting to run</strong><p>The tree below shows the live composition.</p><button id="scene-review-source" type="button">Review scene &amp; run</button></div>
+              <ol id="scene-tree" class="scene-tree" aria-label="Live scene composition"></ol>
+              <details class="tool-disclosure scene-recipe"><summary>Chain effects onto a sketch</summary><p>Wrap an installed sketch in <code>layer()</code>. Edit its scene cell, then Run.</p><pre><code>const scene = [
+  layer(waveScope)
+    .fx(new ShaderChain().kaleid(6))
+    .opacity(({ audio }) =&gt;
+      0.4 + audio.bass * 0.6),
+];
+activate(scene);</code></pre><p><code>.rotate()</code>, <code>.scale()</code>, and <code>.translate()</code> transform the rendered layer. <code>.mute()</code> pauses its drawing while retaining state.</p></details>
+            </div>
+          </section>
           <section
             class="tool-view"
             id="controls-panel"
@@ -504,7 +521,7 @@ const publishMain = room.publish({
                   <p><code>new ShaderChain()</code> turns the image already drawn by earlier patches into one post-processing patch.</p>
                   <div><strong>Transform</strong> <code>rotate</code> <code>scale</code> <code>pixelate</code> <code>repeat</code> <code>repeatX</code> <code>repeatY</code> <code>kaleid</code> <code>scroll</code> <code>scrollX</code> <code>scrollY</code></div>
                   <div><strong>Color</strong> <code>posterize</code> <code>shift</code> <code>invert</code> <code>contrast</code> <code>brightness</code> <code>luma</code> <code>thresh</code> <code>color</code> <code>saturate</code> <code>hue</code> <code>colorama</code> <code>sum</code> <code>rgba</code></div>
-                  <p>Every argument may be a number or <code>({ audio, time }) =&gt; value</code>. Blend and modulate operators will arrive with multi-source routing.</p>
+                  <p>Every argument may be a number or <code>({ audio, time }) =&gt; value</code>. Operators run in written order; <code>.mix()</code>, <code>.blend()</code>, and <code>.bypass()</code> control the whole chain. Use <code>layer(sketch).fx(chain)</code> to process one sketch in isolation.</p>
                 </div>
               </details>
             </div>

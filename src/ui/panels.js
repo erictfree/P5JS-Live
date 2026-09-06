@@ -22,6 +22,7 @@ export function createPanels({
   onRevert,
   onLocateStrategy,
   onLocateScene,
+  onMoveSceneEntry,
   onRestoreSafe,
   onCreateParam,
   storage = globalThis.localStorage,
@@ -92,6 +93,7 @@ export function createPanels({
   let librarySignature = null;
   let librarySources = [];
   let paramSignature = null;
+  let sceneSignature = null;
   try {
     activeToolView = storage?.getItem(TOOL_VIEW_KEY) || activeToolView;
   } catch {
@@ -216,6 +218,82 @@ export function createPanels({
     });
     nodes.library.replaceChildren(...sections);
     if (focusedPatch) [...nodes.library.querySelectorAll('[data-library]')].find((row) => row.dataset.library === focusedPatch)?.querySelector('button')?.focus({ preventScroll: true });
+  }
+
+  function renderScene(snapshot) {
+    const scene = snapshot.scene;
+    const signature = JSON.stringify([scene.name, scene.tree, scene.dirty, scene.canReorder]);
+    if (sceneSignature === signature) return;
+    sceneSignature = signature;
+    const tree = el('scene-tree');
+    const focused = tree.contains(document.activeElement) ? document.activeElement.dataset.focusKey : null;
+    el('scene-inspector-name').textContent = scene.name ?? 'No scene';
+    el('scene-edit-source').disabled = !scene.name;
+    el('scene-pending').hidden = !scene.dirty || !scene.name;
+    el('scene-inspector-status').textContent = scene.name
+      ? `Live · ${scene.order.length} patches · ${scene.tree.length} top-level entries`
+      : 'Add patches to a scene array, then activate it.';
+
+    const rows = (nodes, depth = 0) => nodes.map((node, index) => {
+      const li = document.createElement('li');
+      li.dataset.sceneNode = node.id;
+      li.className = `scene-node scene-node-${node.kind}${node.muted || node.bypassed ? ' is-muted' : ''}`;
+      const row = document.createElement('div');
+      row.className = 'scene-node-row';
+      const select = button(node.label, `Edit source for ${node.label}`, () => {
+        if (node.sourceName === scene.name) onLocateScene?.(scene.name);
+        else onLocateStrategy?.(node.sourceName);
+      });
+      select.className = 'scene-node-name';
+      select.dataset.focusKey = `${node.id}:source`;
+      const kind = document.createElement('span');
+      kind.className = 'scene-node-kind';
+      const catalog = library.find(({ name }) => name === node.label);
+      kind.textContent = node.muted ? 'Muted' : node.bypassed ? 'Bypassed'
+        : node.status === 'failed' ? 'Error'
+        : node.kind === 'group' ? 'Isolated'
+        : node.kind === 'effect' || catalog?.category === 'shader' ? 'Effect' : 'Patch';
+      row.append(select, kind);
+      if (depth === 0) {
+        const moves = document.createElement('span');
+        moves.className = 'scene-node-moves';
+        for (const [direction, glyph, label] of [[-1, '↑', 'up'], [1, '↓', 'down']]) {
+          const move = button(glyph, `Move ${node.label} ${label}`, () => onMoveSceneEntry?.(scene.name, index, direction));
+          move.disabled = !scene.canReorder || index + direction < 0 || index + direction >= nodes.length;
+          move.dataset.focusKey = `${node.id}:${label}`;
+          moves.append(move);
+        }
+        row.append(moves);
+      }
+      li.append(row);
+      if (node.kind === 'group') {
+        const children = document.createElement('ol');
+        children.className = 'scene-tree';
+        children.setAttribute('aria-label', `${node.label} contents`);
+        children.append(...rows(node.children, depth + 1));
+        li.append(children);
+      } else if (node.operations?.length) {
+        const operations = document.createElement('div');
+        operations.className = 'scene-operations';
+        for (const op of node.operations) {
+          const text = `${op.name}(${op.args.join(', ')})`;
+          const chip = button(text, `Edit ${op.name} in ${node.label}`, () => onLocateStrategy?.(node.sourceName));
+          chip.dataset.focusKey = `${node.id}:op:${operations.children.length}`;
+          operations.append(chip);
+        }
+        const cost = document.createElement('span');
+        cost.className = 'scene-pass-count';
+        cost.textContent = `${node.passes} shader pass${node.passes === 1 ? '' : 'es'}`;
+        li.append(operations, cost);
+      }
+      return li;
+    });
+    tree.replaceChildren(...rows(scene.tree));
+    if (focused) {
+      const target = [...tree.querySelectorAll('[data-focus-key]')].find((node) => node.dataset.focusKey === focused);
+      if (target && !target.disabled) target.focus({ preventScroll: true });
+      else if (scene.dirty) el('scene-review-source').focus({ preventScroll: true });
+    }
   }
 
   function strategyRow(strategy, open) {
@@ -826,6 +904,7 @@ export function createPanels({
 
   function renderAll(snapshot = controller.snapshot()) {
     renderStrategies(snapshot);
+    renderScene(snapshot);
     renderLibrary(snapshot);
     renderSafeState(snapshot);
     renderExternalControl(snapshot);
@@ -895,6 +974,8 @@ export function createPanels({
   el('library-search').addEventListener('input', () => renderLibrary(controller.snapshot()));
   el('library-category').addEventListener('change', () => renderLibrary(controller.snapshot()));
   el('library-review-scene').addEventListener('click', () => onLocateScene?.(liveSceneName));
+  el('scene-edit-source').addEventListener('click', () => onLocateScene?.(liveSceneName));
+  el('scene-review-source').addEventListener('click', () => onLocateScene?.(liveSceneName));
   nodes.libraryFilters.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-library-filter]');
     if (!button) return;

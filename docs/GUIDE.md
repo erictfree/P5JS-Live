@@ -36,7 +36,7 @@ after releasing editor focus with **Escape**.
 Closed tools and reference drawers leave keyboard navigation; **Escape** inside a
 drawer closes it and returns focus to its toggle.
 
-Tools puts **Library**, **Controls**, **Audio**, and **Performances** in the main
+Tools puts **Scene**, **Library**, **Controls**, **Audio**, and **Performances** in the main
 navigation. **Settings**, **Messages**, and **AI assistant** are below the scrolling
 panel. Settings contains code size, panel opacity, FPS warnings, and audience layout.
 New installations start with an opaque Tools panel; saved opacity preferences remain.
@@ -209,7 +209,8 @@ const scene = [
 ];
 ```
 
-An inline p5 transform affects later p5 drawing during that frame. Use a
+An inline p5 transform affects later drawing within that same patch invocation.
+Each patch has its own drawing state; transforms do not carry into sibling patches. Use a
 `ShaderChain` when you need to sample and transform pixels already drawn.
 
 ## Install and create patches
@@ -265,6 +266,12 @@ Use level or frequency bands for continuous motion and `audio.beat` for events. 
 a few features first; audio ranges differ across tracks and input devices.
 
 ## Post-process with ShaderChain
+
+**Tools → Scene** shows the live composition, nested groups, shader operators, and
+pass counts. Select a source or operator to open its code. The arrows edit the
+top-level scene order; **Review scene & run** opens the source for explicit evaluation.
+Until you Run, the tree continues to show the live composition. For fluent sketch
+composition, see [Layer composition](COMPOSITION.md).
 
 `ShaderChain` captures the pixels drawn by earlier patches and applies its operators
 in order.

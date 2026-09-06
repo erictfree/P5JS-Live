@@ -46,6 +46,8 @@ p5js live includes:
 - normalized level, bass, mid, treble, beat, spectrum, and waveform data;
 - function, object, class, factory, closure, and inline patches;
 - recursive scenes with isolated effect groups and independent state per occurrence;
+- fluent sketch layers through `layer(sketch).fx(...).opacity(...)` and a Scene
+  inspector that links groups and effects to source, with reviewable reordering;
 - a source-based patch library and community patch catalog;
 - GPU post-processing through standard `ShaderChain` effects, wet/dry mix, blend
   modes, feedback, and custom WebGL patches;
@@ -55,6 +57,9 @@ p5js live includes:
 - beta peer-to-peer canvas sharing through `StreamRoom` objects.
 
 ## Documentation
+
+- [Layer composition](docs/COMPOSITION.md) — chain sketch effects and inspect their
+  scope, order, live values, and shader pass counts.
 
 - [User manual](docs/USER-MANUAL.md) — a progressive guide from the first edit to
   audio arrays, objects, higher-order functions, MIDI, nested groups, shaders, and

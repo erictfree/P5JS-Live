@@ -15,6 +15,7 @@
 
 import { ShaderChain } from '../shaders/shaderChain.js';
 import { StreamRoom } from '../network/streamRoom.js';
+import { layer, isLayer } from './layer.js';
 
 export const LIVE_API_NAMES = [
   'activate',
@@ -23,6 +24,7 @@ export const LIVE_API_NAMES = [
   // Compatibility only for saved projects created before the student-facing rename.
   'param',
   'ShaderChain',
+  'layer',
   'StreamRoom',
 ];
 
@@ -102,6 +104,7 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
   function normalizeSceneEntry(sceneName, path, entry, localNameOf = nameOf, sceneSource = source) {
     if (Array.isArray(entry)) {
       return {
+        ...(isLayer(entry) ? { layer: true, muted: entry.muted, sourceName: localNameOf(entry) } : {}),
         group: entry.map((child, index) =>
           normalizeSceneEntry(sceneName, [...path, index], child, localNameOf, sceneSource)),
       };
@@ -122,7 +125,8 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
     operations.push({
       type: 'scene',
       name,
-      entries: entries.map((entry, index) =>
+      source: sceneSource,
+      entries: (isLayer(entries) ? [entries] : entries).map((entry, index) =>
         normalizeSceneEntry(name, [index], entry, localNameOf, sceneSource)),
     });
     return name;
@@ -146,6 +150,7 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
 
   const api = {
     ShaderChain,
+    layer,
     StreamRoom,
 
     activate(scene) {

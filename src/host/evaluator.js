@@ -12,6 +12,7 @@
 // strategies become scenes. All registry changes still land only at a frame boundary.
 
 import { createTransaction, LIVE_API_NAMES } from './liveApi.js';
+import { isLayer } from './layer.js';
 import { strategyOf } from './stateStore.js';
 import { findCells, findStatements } from '../language/sourceBlocks.js';
 
@@ -164,7 +165,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
       );
       const isExistingScene = registry.listScenes().some((scene) => scene.name === declaration.name);
       if (
-        isStrategyArray(value) ||
+        (isStrategyArray(value) && !isLayer(value)) ||
         (Array.isArray(value) && (isActivationTarget || isExistingScene))
       ) {
         transaction.defineScene(declaration.name, value, localNameOf, declaration.source);
@@ -273,7 +274,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
   function applyOperation(op, label) {
     switch (op.type) {
       case 'scene':
-        registry.defineScene(op.name, op.entries);
+        registry.defineScene(op.name, op.entries, op.source);
         for (const instance of registry.activeInstances()) {
           stateStore.ensure(instance.id, registry.boundMethod(instance.strategy, 'state'));
         }

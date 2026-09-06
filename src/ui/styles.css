@@ -2598,6 +2598,33 @@ button.glyph.danger { color: #ffb3bb; }
 }
 
 /* Instrument chrome: track colors identify sections; green means live signal. */
+#side #tool-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+#side:has(#tools-width[aria-pressed='true']) #tool-tabs button { font-size: 10px; padding-inline: 2px; }
+#side [data-tool-view='scene'] { --section-color: #e0a2bd; }
+#side .scene-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#side .scene-heading h2 { margin: 4px 0 0; font: 600 18px var(--mono); overflow-wrap: anywhere; }
+#side .scene-eyebrow { text-transform: uppercase; letter-spacing: .09em; font: 10px var(--mono); color: #e0a2bd; }
+#side .scene-inspector-status { margin: 18px 0 12px; font: 11px var(--mono); color: #65dcac; }
+#side .scene-tree { list-style: none; margin: 0; padding: 0; }
+#side .scene-node { border: 1px solid #51534b; border-left: 3px solid #66c9cc; background: #292b27; margin: 5px 0; min-width: 0; }
+#side .scene-node-group { border-left-color: #e0a2bd; }
+#side .scene-node-effect { border-left-color: #b2a0de; }
+#side .scene-node .scene-tree { padding: 0 8px 2px; }
+#side .scene-node-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; min-width: 0; }
+#side .scene-node-name { flex: 1; min-width: 0; min-height: 28px; text-align: left; overflow-wrap: anywhere; font: 12px var(--mono); background: transparent; border-color: transparent; padding: 3px 2px; }
+#side .scene-node-name:hover { text-decoration: underline; }
+#side .scene-node-kind { color: #c4c6bd; font: 10px var(--mono); flex-shrink: 0; }
+#side .scene-node-moves { display: flex; gap: 3px; }
+#side .scene-node-moves button { min-width: 26px; min-height: 26px; padding: 2px; }
+#side .scene-node-moves button:disabled { opacity: .35; }
+#side .scene-node.is-muted { border-left-color: #92968a; }
+#side .scene-node.is-muted > .scene-node-row .scene-node-kind { color: #ffb45e; }
+#side .scene-operations { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 10px 8px; }
+#side .scene-operations button { font: 10px var(--mono); color: #d2c3ed; border-color: #65606c; white-space: normal; overflow-wrap: anywhere; text-align: left; max-width: 100%; }
+#side .scene-pass-count { display: block; padding: 0 10px 10px; color: #b5b8ae; font: 10px var(--mono); }
+#side .scene-recipe { margin-top: 20px; }
+#side .scene-recipe pre { overflow-x: auto; padding: 12px; background: #222320; font: 11px/1.6 var(--mono); }
+@media (max-width: 600px) { #side #tool-tabs button { padding-inline: 3px; font-size: 10px; } }
 #side [data-tool-view='library'] { --section-color: #ffb45e; }
 #side [data-tool-view='controls'] { --section-color: #66c9cc; }
 #side [data-tool-view='audio'] { --section-color: #65dcac; }

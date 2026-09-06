@@ -1604,10 +1604,15 @@ same level, bands, beat decision, waveform, and spectrum.
 
 #### GPU pipeline composition
 
-Drawing patches contribute pixels. `ShaderChain` compiles ordered operations into one
-fragment-shader program and treats the pixels produced so far as a texture. Each
+Drawing patches contribute pixels. `ShaderChain` compiles ordered operations into
+shader passes and treats the pixels produced so far as a texture. Each
 operator transforms coordinates, samples pixels, or changes color; operator order is
 function composition over an image.
+
+Compatible operators share a pass; neighborhood filters materialize their input when
+needed. Every operation receives its predecessor's result. The optional
+[layer() builder](COMPOSITION.md) adds fluent composition around ordinary sketches,
+and **Tools → Scene** shows the running groups, effects, and shader pass counts.
 
 Nested arrays introduce texture scope. An effect inside a group samples that group's
 current pixels, while an outer effect samples the already-composited parent image.

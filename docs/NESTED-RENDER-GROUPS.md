@@ -173,5 +173,5 @@ It makes closures, factories, first-class functions, higher-order functions, rec
 data, `map`, spread, state identity, evaluation timing and visual scope observable
 through immediate graphics.
 
-No `layer()` wrapper is necessary. Nested arrays provide the intended syntactic sugar
-while remaining ordinary JavaScript values.
+Nested arrays remain the core composition syntax. The optional [layer() builder](COMPOSITION.md)
+adds fluent effects and mute while retaining arrays and the same per-patch lifecycle.

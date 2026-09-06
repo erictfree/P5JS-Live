@@ -413,8 +413,16 @@ const clubLens = new ShaderChain()
 ```
 
 Every argument may be a number or a function receiving the live context. Functions
-are evaluated each frame. One generated fragment shader applies the operators in
-as one GPU pass. Coordinate mappings run before pixel and color stages.
+are evaluated each frame. Operators process the preceding result in written order.
+Compatible operations share a shader pass; neighborhood filters materialize their
+input when necessary. Wet/dry mix and blend apply once, against the original input.
+For example, `.hue(0.3).blur(3)` blurs the hue-adjusted image. Alpha and coordinate
+orientation are preserved across pass boundaries.
+
+`layer(sketch)` is an optional fluent builder around an isolated group. It supports
+`.fx(...effects)`, `.rotate(angle, speed)`, `.scale(amount)`, `.translate(x, y)`,
+`.opacity(amount)`, and `.mute(enabled)`. See [Layer composition](COMPOSITION.md)
+for argument units, examples, state behavior, and source editing.
 
 Every effect chain also supports:
 

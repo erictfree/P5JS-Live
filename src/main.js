@@ -254,11 +254,18 @@ const panels = createPanels({
   onCreateParam: createLiveParam,
   onLocateStrategy: (name) => {
     if (matchMedia('(max-width: 600px)').matches) toggleTools(true);
-    if (editor.revealStrategy(name)) toggleReference(true);
+    if (editor.revealBinding(name)) toggleReference(true);
   },
   onLocateScene: (name) => {
     if (matchMedia('(max-width: 600px)').matches) toggleTools(true);
     editor.revealScene(name);
+  },
+  onMoveSceneEntry: (name, index, direction) => {
+    // Recheck at dispatch: a source edit may have invalidated a displayed row.
+    if (!controller.snapshot().scene.canReorder) return;
+    if (editor.moveSceneEntry(name, index, direction)) {
+      diagnostics.info('Scene order edited', 'Review the scene and Run to apply it. The live composition is unchanged.');
+    }
   },
 });
 

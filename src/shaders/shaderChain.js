@@ -15,12 +15,23 @@ const VERTEX_SOURCE = `
   void main() {
     vTexCoord = aTexCoord;
     vec4 position = vec4(aPosition, 1.0);
-    position.xy = position.xy * 2.0 - 1.0;
+    // p5 canvas textures use a top-left origin; clip space has Y pointing up.
+    position.xy = vec2(position.x * 2.0 - 1.0, 1.0 - position.y * 2.0);
     gl_Position = position;
   }
 `;
 
 const GLSL_HELPERS = `
+  // p5 uploads and composites premultiplied textures. Operators use straight
+  // RGBA, with one conversion at each pass boundary.
+  vec4 straightAlpha(vec4 colour) {
+    return vec4(colour.a > 0.00001 ? colour.rgb / colour.a : vec3(0.0), colour.a);
+  }
+
+  vec4 premultipliedAlpha(vec4 colour) {
+    return vec4(colour.rgb * colour.a, colour.a);
+  }
+
   float luminance(vec3 colour) {
     return dot(colour, vec3(0.2125, 0.7154, 0.0721));
   }
@@ -217,16 +228,16 @@ const SPECS = Object.freeze({
     args: [['radius', 'float', 2]],
     glsl: ([radius], index) => `
       vec2 blurStep${index} = vec2(max(${radius}, 0.0)) / uResolution;
-      vec4 blurColour${index} = texture2D(uScene, fract(uv)) * 0.20;
-      blurColour${index} += texture2D(uScene, fract(uv + vec2( blurStep${index}.x, 0.0))) * 0.12;
-      blurColour${index} += texture2D(uScene, fract(uv + vec2(-blurStep${index}.x, 0.0))) * 0.12;
-      blurColour${index} += texture2D(uScene, fract(uv + vec2(0.0,  blurStep${index}.y))) * 0.12;
-      blurColour${index} += texture2D(uScene, fract(uv + vec2(0.0, -blurStep${index}.y))) * 0.12;
-      blurColour${index} += texture2D(uScene, fract(uv + blurStep${index})) * 0.08;
-      blurColour${index} += texture2D(uScene, fract(uv - blurStep${index})) * 0.08;
-      blurColour${index} += texture2D(uScene, fract(uv + vec2(blurStep${index}.x, -blurStep${index}.y))) * 0.08;
-      blurColour${index} += texture2D(uScene, fract(uv + vec2(-blurStep${index}.x, blurStep${index}.y))) * 0.08;
-      colour = blurColour${index};
+      vec4 blurColour${index} = premultipliedAlpha(texture2D(uScene, fract(uv))) * 0.20;
+      blurColour${index} += premultipliedAlpha(texture2D(uScene, fract(uv + vec2( blurStep${index}.x, 0.0)))) * 0.12;
+      blurColour${index} += premultipliedAlpha(texture2D(uScene, fract(uv + vec2(-blurStep${index}.x, 0.0)))) * 0.12;
+      blurColour${index} += premultipliedAlpha(texture2D(uScene, fract(uv + vec2(0.0,  blurStep${index}.y)))) * 0.12;
+      blurColour${index} += premultipliedAlpha(texture2D(uScene, fract(uv + vec2(0.0, -blurStep${index}.y)))) * 0.12;
+      blurColour${index} += premultipliedAlpha(texture2D(uScene, fract(uv + blurStep${index}))) * 0.08;
+      blurColour${index} += premultipliedAlpha(texture2D(uScene, fract(uv - blurStep${index}))) * 0.08;
+      blurColour${index} += premultipliedAlpha(texture2D(uScene, fract(uv + vec2(blurStep${index}.x, -blurStep${index}.y)))) * 0.08;
+      blurColour${index} += premultipliedAlpha(texture2D(uScene, fract(uv + vec2(-blurStep${index}.x, blurStep${index}.y)))) * 0.08;
+      colour = straightAlpha(blurColour${index});
     `,
   },
   sharpen: {
@@ -264,15 +275,18 @@ const SPECS = Object.freeze({
     glsl: ([amount, radius, threshold], index) => `
       vec2 bloomStep${index} = vec2(max(${radius}, 0.0)) / uResolution;
       vec3 bloomColour${index} = vec3(0.0);
-      vec3 bloomA${index} = texture2D(uScene, fract(uv + vec2(bloomStep${index}.x, 0.0))).rgb;
-      vec3 bloomB${index} = texture2D(uScene, fract(uv - vec2(bloomStep${index}.x, 0.0))).rgb;
-      vec3 bloomC${index} = texture2D(uScene, fract(uv + vec2(0.0, bloomStep${index}.y))).rgb;
-      vec3 bloomD${index} = texture2D(uScene, fract(uv - vec2(0.0, bloomStep${index}.y))).rgb;
+      vec3 bloomA${index} = premultipliedAlpha(texture2D(uScene, fract(uv + vec2(bloomStep${index}.x, 0.0)))).rgb;
+      vec3 bloomB${index} = premultipliedAlpha(texture2D(uScene, fract(uv - vec2(bloomStep${index}.x, 0.0)))).rgb;
+      vec3 bloomC${index} = premultipliedAlpha(texture2D(uScene, fract(uv + vec2(0.0, bloomStep${index}.y)))).rgb;
+      vec3 bloomD${index} = premultipliedAlpha(texture2D(uScene, fract(uv - vec2(0.0, bloomStep${index}.y)))).rgb;
       bloomColour${index} += bloomA${index} * smoothstep(${threshold}, 1.0, luminance(bloomA${index}));
       bloomColour${index} += bloomB${index} * smoothstep(${threshold}, 1.0, luminance(bloomB${index}));
       bloomColour${index} += bloomC${index} * smoothstep(${threshold}, 1.0, luminance(bloomC${index}));
       bloomColour${index} += bloomD${index} * smoothstep(${threshold}, 1.0, luminance(bloomD${index}));
-      colour.rgb += bloomColour${index} * 0.25 * ${amount};
+      vec3 glow${index} = bloomColour${index} * 0.25 * max(${amount}, 0.0);
+      float glowAlpha${index} = clamp(max(glow${index}.r, max(glow${index}.g, glow${index}.b)), 0.0, 1.0);
+      float combinedAlpha${index} = max(colour.a, glowAlpha${index});
+      colour = straightAlpha(vec4(colour.rgb * colour.a + glow${index}, combinedAlpha${index}));
     `,
   },
   vignette: {
@@ -300,7 +314,7 @@ const SPECS = Object.freeze({
     args: [['amount', 'float', 0.55], ['decay', 'float', 0.96], ['zoom', 'float', 1.005]],
     glsl: ([amount, decay, zoom], index) => `
       vec2 feedbackUv${index} = (uv - 0.5) / max(abs(${zoom}), 0.0001) + 0.5;
-      vec4 feedbackColour${index} = texture2D(uFeedback, fract(feedbackUv${index}));
+      vec4 feedbackColour${index} = straightAlpha(texture2D(uFeedback, fract(feedbackUv${index})));
       feedbackColour${index}.rgb *= ${decay};
       colour = mix(colour, max(colour, feedbackColour${index}), clamp(${amount}, 0.0, 1.0));
     `,
@@ -356,7 +370,7 @@ const SPECS = Object.freeze({
         ${threshold} + (abs(${tolerance}) + 0.0000001),
         luminance(colour.rgb)
       );
-      colour = vec4(colour.rgb * luma${index}, luma${index});
+      colour.a *= luma${index};
     `,
   },
   thresh: {
@@ -438,6 +452,7 @@ export const SHADER_BLEND_MODES = Object.freeze([
 ]);
 
 function blendSource(mode) {
+  if (mode === 'alpha') return 'vec4 blended = effectColour;';
   const rgb = {
     alpha: 'effectColour.rgb',
     add: 'original.rgb + effectColour.rgb',
@@ -462,13 +477,34 @@ function operation(name, supplied) {
   };
 }
 
-/** Compile a method list into one fragment shader and a uniform evaluation plan. */
-export function compileShaderOperations(operations, { blendMode = 'alpha' } = {}) {
-  const uniforms = [];
-  const coord = [];
-  const color = [];
+// Materialize the input to neighborhood filters. Otherwise a second blur would
+// expand the first blur nine times in GLSL (and grow exponentially from there).
+const NEIGHBORHOOD_OPERATORS = new Set(['blur', 'sharpen', 'edgeDetect', 'bloom', 'rgbSplit']);
 
-  operations.forEach((entry, operationIndex) => {
+/** Compile left-to-right image operations into bounded, reusable shader passes. */
+export function compileShaderOperations(operations, { blendMode = 'alpha' } = {}) {
+  blendSource(blendMode); // Validate even an empty chain.
+  const groups = [[]];
+  operations.forEach((entry, index) => {
+    if (NEIGHBORHOOD_OPERATORS.has(entry.name) && groups.at(-1).length) groups.push([]);
+    groups.at(-1).push({ entry, index });
+  });
+  const passes = groups.map((group, index) => compilePass(group, {
+    blendMode, final: index === groups.length - 1,
+  }));
+  return {
+    passes,
+    fragmentSource: passes.at(-1).fragmentSource,
+    uniforms: passes.flatMap((pass) => pass.uniforms),
+    usesFeedback: operations.some(({ name }) => name === 'feedback'),
+  };
+}
+
+function compilePass(operations, { blendMode, final }) {
+  const uniforms = [];
+  const stages = ['vec4 stage0(vec2 uv) { return straightAlpha(texture2D(uScene, fract(uv))); }'];
+
+  operations.forEach(({ entry, index: operationIndex }, stageIndex) => {
     const spec = SPECS[entry.name];
     if (!spec) throw new TypeError(`Unknown shader operator "${entry.name}"`);
     const names = spec.args.map(([argName, type, fallback], argIndex) => {
@@ -482,7 +518,17 @@ export function compileShaderOperations(operations, { blendMode = 'alpha' } = {}
       });
       return name;
     });
-    (spec.kind === 'coord' ? coord : color).push(spec.glsl(names, operationIndex));
+    const previous = `stage${stageIndex}`;
+    // Each operation samples the result of its predecessor, including transformed
+    // coordinates and neighborhood samples. Function scope also permits repeats.
+    const code = spec.glsl(names, operationIndex)
+      .replace(/texture2D\(uScene,\s*/g, `${previous}(`)
+      .replace(/\bvTexCoord\b/g, 'uv');
+    stages.push(`vec4 stage${stageIndex + 1}(vec2 uv) {
+      float coverage = 1.0;
+      ${spec.kind === 'coord' ? code : `vec4 colour = ${previous}(uv);\n${code}`}
+      return ${spec.kind === 'coord' ? `${previous}(fract(uv)) * coverage` : 'clamp(colour, 0.0, 1.0)'};
+    }`);
   });
 
   const declarations = uniforms.map(({ type, name }) => `uniform ${type} ${name};`).join('\n');
@@ -491,6 +537,7 @@ export function compileShaderOperations(operations, { blendMode = 'alpha' } = {}
 
     varying vec2 vTexCoord;
     uniform sampler2D uScene;
+    uniform sampler2D uOriginal;
     uniform sampler2D uFeedback;
     uniform vec2 uResolution;
     uniform float uTime;
@@ -499,18 +546,15 @@ export function compileShaderOperations(operations, { blendMode = 'alpha' } = {}
     ${declarations}
 
     ${GLSL_HELPERS}
+    ${stages.join('\n')}
 
     void main() {
-      vec2 uv = vTexCoord;
-      float coverage = 1.0;
-      ${coord.join('\n')}
-      vec4 colour = texture2D(uScene, fract(uv));
-      ${color.join('\n')}
-      colour *= coverage;
-      vec4 original = texture2D(uScene, vTexCoord);
-      vec4 effectColour = clamp(colour, 0.0, 1.0);
+      vec4 effectColour = clamp(stage${operations.length}(vTexCoord), 0.0, 1.0);
+      ${final ? `vec4 original = straightAlpha(texture2D(uOriginal, vTexCoord));
       ${blendSource(blendMode)}
-      gl_FragColor = clamp(mix(original, blended, clamp(uMix, 0.0, 1.0)), 0.0, 1.0);
+      gl_FragColor = clamp(mix(original, blended, clamp(uMix, 0.0, 1.0)), 0.0, 1.0);`
+      : 'gl_FragColor = effectColour;'}
+      gl_FragColor.rgb *= gl_FragColor.a;
     }
   `;
 
@@ -548,6 +592,7 @@ export class ShaderChain {
   #compiled = null;
   #signature = '';
   #feedback = null;
+  #scratch = null;
   #mixValue = 1;
   #blendMode = 'alpha';
   #bypassed = false;
@@ -559,6 +604,9 @@ export class ShaderChain {
   get operations() {
     return this.#operations.map(({ name, args }) => ({ name, args: [...args] }));
   }
+
+  get bypassed() { return this.#bypassed; }
+  get passCount() { return 1 + this.#operations.filter(({ name }, index) => index > 0 && NEIGHBORHOOD_OPERATORS.has(name)).length; }
 
   clone() {
     return new ShaderChain(this.#operations)
@@ -659,54 +707,78 @@ export class ShaderChain {
       this.#output = createGraphics(width, height, WEBGL);
       this.#output.pixelDensity(1);
       this.#output.noStroke();
-      this.#feedback = createGraphics(width, height);
-      this.#feedback.pixelDensity(1);
-      this.#feedback.clear();
     } else if (this.#output.width !== width || this.#output.height !== height) {
       this.#output.resizeCanvas(width, height);
-      this.#feedback.resizeCanvas(width, height);
-      this.#feedback.clear();
+      this.#scratch?.resizeCanvas(width, height);
+      this.#feedback?.resizeCanvas(width, height);
+      this.#feedback?.clear();
     }
 
     const signature = `${this.#blendMode}:${this.#operations.map(({ name }) => name).join('|')}`;
     if (this.#program && signature === this.#signature) return;
     this.#compiled = compileShaderOperations(this.#operations, { blendMode: this.#blendMode });
-    this.#program = this.#output.createShader(VERTEX_SOURCE, this.#compiled.fragmentSource);
+    if (this.#compiled.passes.length > 1 && !this.#scratch) {
+      this.#scratch = createGraphics(width, height, WEBGL);
+      this.#scratch.pixelDensity(1);
+      this.#scratch.noStroke();
+    } else if (this.#compiled.passes.length === 1 && this.#scratch) {
+      this.#scratch.remove();
+      this.#scratch = null;
+    }
+    if (this.#compiled.usesFeedback && !this.#feedback) {
+      this.#feedback = createGraphics(width, height);
+      this.#feedback.pixelDensity(1);
+      this.#feedback.clear();
+    } else if (!this.#compiled.usesFeedback && this.#feedback) {
+      this.#feedback.remove();
+      this.#feedback = null;
+    }
+    this.#program = this.#compiled.passes.map((pass, index) =>
+      (index % 2 ? this.#scratch : this.#output).createShader(VERTEX_SOURCE, pass.fragmentSource));
     this.#signature = signature;
   }
 
   draw(context) {
     if (this.#bypassed) return;
     this.#ensureShader();
-    this.#output.clear();
-    this.#output.shader(this.#program);
-    this.#program.setUniform('uScene', context.canvas);
-    this.#program.setUniform('uFeedback', this.#feedback);
-    this.#program.setUniform('uResolution', [width, height]);
-    this.#program.setUniform('uTime', context.time);
-    this.#program.setUniform('uAudio', [
-      context.audio.bass,
-      context.audio.mid,
-      context.audio.treble,
-    ]);
-    this.#program.setUniform('uMix', resolveShaderUniform({
+    // Resolve every live value before drawing; a bad late uniform cannot leave a
+    // partially processed scene on stage.
+    const mixValue = resolveShaderUniform({
       type: 'float', value: this.#mixValue, operator: 'mix', argument: 'amount',
-    }, context));
-    for (const uniform of this.#compiled.uniforms) {
-      this.#program.setUniform(uniform.name, resolveShaderUniform(uniform, context));
-    }
-    this.#output.rect(0, 0, width, height);
+    }, context);
+    const values = this.#compiled.passes.map((pass) => pass.uniforms.map((uniform) =>
+      [uniform.name, resolveShaderUniform(uniform, context)]));
+    let input = context.canvas;
+    this.#compiled.passes.forEach((pass, index) => {
+      const output = index % 2 ? this.#scratch : this.#output;
+      const program = this.#program[index];
+      output.clear();
+      output.shader(program);
+      program.setUniform('uScene', input);
+      program.setUniform('uOriginal', context.canvas);
+      if (this.#feedback) program.setUniform('uFeedback', this.#feedback);
+      program.setUniform('uResolution', [width, height]);
+      program.setUniform('uTime', context.time);
+      program.setUniform('uMix', mixValue);
+      for (const [name, value] of values[index]) program.setUniform(name, value);
+      output.rect(0, 0, width, height);
+      input = output;
+    });
     blendMode(REPLACE);
-    image(this.#output, 0, 0, width, height);
-    this.#feedback.clear();
-    this.#feedback.image(this.#output, 0, 0, width, height);
+    image(input, 0, 0, width, height);
+    if (this.#feedback) {
+      this.#feedback.clear();
+      this.#feedback.image(input, 0, 0, width, height);
+    }
   }
 
   dispose() {
     this.#output?.remove();
     this.#feedback?.remove();
+    this.#scratch?.remove();
     this.#output = null;
     this.#feedback = null;
+    this.#scratch = null;
     this.#program = null;
     this.#compiled = null;
     this.#signature = '';

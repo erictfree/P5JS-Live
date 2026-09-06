@@ -3,7 +3,8 @@
 // Views receive immutable snapshots and dispatch named actions. They never receive the
 // registry, state store, evaluator, audio engine, host loop, or authored objects themselves.
 
-import { findCells, sceneMemberNames } from '../language/sourceBlocks.js';
+import { findCells, findStatements, sceneMemberNames, sceneArrayEntries } from '../language/sourceBlocks.js';
+import { ShaderChain } from '../shaders/shaderChain.js';
 
 const LIFECYCLE_METHODS = ['state', 'enter', 'draw', 'beat', 'exit', 'dispose'];
 const FUNCTION_BUILT_INS = new Set(['length', 'name', 'arguments', 'caller', 'prototype']);
@@ -347,6 +348,35 @@ export function createAppController({
       order: registry.activeInstances().map(({ id, strategy }) => ({ id, strategy })),
       sourceOrder: sceneSourceOrder(),
     };
+    const source = sourceProvider();
+    const sourceCell = findCells(source).find((cell) => cell.label === `scene ${scene.name}`)
+      ?? findStatements(source).find((statement) => sceneArrayEntries(statement.text, scene.name));
+    scene.source = sourceCell?.text ?? '';
+    scene.dirty = scene.source.trim() !== (registry.sceneSource(scene.name) ?? '').trim();
+    const entries = sceneArrayEntries(scene.source, scene.name);
+    const describeTree = (nodes, path = []) => nodes.map((node, index) => {
+      const entryPath = [...path, index];
+      if (node.kind === 'group') return {
+        id: node.id, kind: 'group', path: entryPath,
+        label: node.sourceName || (node.layer ? 'Layer' : 'Group'),
+        sourceName: node.sourceName || scene.name,
+        muted: Boolean(node.muted),
+        children: describeTree(node.children, entryPath),
+      };
+      const record = registry.getStrategy(node.strategy);
+      const chain = record?.definition instanceof ShaderChain ? record.definition : null;
+      return {
+        id: node.id, path: entryPath, kind: chain ? 'effect' : 'patch',
+        label: node.strategy, sourceName: node.strategy,
+        status: record?.status ?? 'empty',
+        bypassed: chain?.bypassed ?? false,
+        operations: chain?.operations.map(({ name, args }) => ({ name, args: args.map((value) => formatValue(value)) })) ?? [],
+        passes: chain?.passCount ?? 0,
+      };
+    });
+    scene.tree = describeTree(registry.activeTree());
+    scene.canReorder = !scene.dirty && entries?.length === scene.tree.length &&
+      entries.every(({ text }) => !/^\.\.\./.test(text));
     const history = registry
       .listStrategies()
       .flatMap((record) =>

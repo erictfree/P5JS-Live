@@ -349,6 +349,46 @@ export function sceneMemberNames(source, sceneName) {
   return collect(source.slice(open + 1, close));
 }
 
+/** Exact expression ranges for direct array entries; never execute authored code. */
+export function sceneArrayEntries(source, sceneName) {
+  if (!isIdentifier(sceneName)) return null;
+  const masked = maskCommentsAndStrings(source);
+  const declarations = masked.matchAll(new RegExp(`\\b(?:const|let|var)\\s+${escapeRegExp(sceneName)}\\s*=\\s*\\[`, 'g'));
+  const declaration = [...declarations].find((match) => structureDepth(masked, match.index) === 0);
+  if (!declaration) return null;
+  const open = declaration.index + declaration[0].lastIndexOf('[');
+  let depth = 0;
+  let start = open + 1;
+  const entries = [];
+  for (let i = start; i < masked.length; i++) {
+    const ch = masked[i];
+    if ((ch === ',' || ch === ']') && depth === 0) {
+      const part = masked.slice(start, i);
+      const first = part.search(/\S/);
+      if (first >= 0) {
+        const end = start + part.trimEnd().length;
+        const from = start + first;
+        entries.push({ start: from, end, text: source.slice(from, end) });
+      } else if (ch === ',') return null; // sparse arrays have no safe runtime mapping
+      if (ch === ']') return entries;
+      start = i + 1;
+    } else if ('([{'.includes(ch)) depth++;
+    else if (')]}'.includes(ch) && --depth < 0) return null;
+  }
+  return null;
+}
+
+/** Swap adjacent expressions, preserving surrounding formatting and comments. */
+export function moveSceneEntry(source, sceneName, index, direction) {
+  const entries = sceneArrayEntries(source, sceneName);
+  if (!entries || entries.some(({ text }) => /^\.\.\./.test(text))) return null;
+  if (!Number.isInteger(index) || ![-1, 1].includes(direction)) return null;
+  const other = index + direction;
+  if (!entries[index] || !entries[other]) return null;
+  const [a, b] = [entries[Math.min(index, other)], entries[Math.max(index, other)]];
+  return source.slice(0, a.start) + b.text + source.slice(a.end, b.start) + a.text + source.slice(b.end);
+}
+
 function isIdentifier(value) {
   return typeof value === 'string' && /^[A-Za-z_$][\w$]*$/.test(value);
 }
@@ -400,13 +440,19 @@ function matchingSquareBracket(source, open) {
   return -1;
 }
 
-/** Replace comments and strings with spaces while retaining offsets and newlines. */
+/** Mask literal contents/comments, retaining token edges, offsets and newlines. */
 function maskCommentsAndStrings(source) {
-  const chars = [...source];
+  const chars = source.split(''); // offsets are UTF-16, like editor selections
   const blank = (start, end) => {
     for (let i = start; i < end; i++) if (chars[i] !== '\n' && chars[i] !== '\r') chars[i] = ' ';
   };
+  const literal = (start, end) => {
+    blank(start, end);
+    chars[start] = source[start];
+    chars[end - 1] = source[end - 1];
+  };
   let i = 0;
+  let previous = '';
   while (i < source.length) {
     const ch = source[i];
     if (ch === '/' && source[i + 1] === '/') {
@@ -425,16 +471,23 @@ function maskCommentsAndStrings(source) {
     }
     if (ch === '"' || ch === "'") {
       const after = skipString(source, i, ch);
-      blank(i, after);
+      literal(i, after);
       i = after;
+      previous = 'v';
       continue;
     }
     if (ch === '`') {
       const after = skipTemplate(source, i);
-      blank(i, after);
+      literal(i, after);
       i = after;
+      previous = 'v';
       continue;
     }
+    if (ch === '/' && (regexCanStartAfter(previous) || /\b(?:return|throw|yield|case)\s*$/.test(source.slice(0, i)))) {
+      const after = skipRegex(source, i);
+      if (after !== -1) { literal(i, after); i = after; previous = 'v'; continue; }
+    }
+    if (!/\s/.test(ch)) previous = ch;
     i++;
   }
   return chars.join('');

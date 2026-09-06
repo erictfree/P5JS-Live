@@ -9,6 +9,8 @@
 //
 // Drawing is injected through `drawing` so this file can be unit-tested without p5.
 
+import { layer } from './layer.js';
+
 const MAX_DT = 1 / 10; // after a stall, resumed state must not leap
 const FPS_WINDOW = 60;
 const ERROR_REPEAT_FRAMES = 120; // Throttle a strategy that throws every frame.
@@ -200,16 +202,20 @@ export function createHostLoop({
   }
 
   function materializeScene(entries) {
-    return (entries ?? []).map((entry) =>
-      Array.isArray(entry)
-        ? materializeScene(entry)
-        : registry.getStrategy(entry)?.definition);
+    return (entries ?? []).map((entry) => {
+      if (entry?.layer) {
+        const children = materializeScene(entry.group);
+        return layer(children[0]).fx(...children.slice(1)).mute(entry.muted);
+      }
+      return Array.isArray(entry) ? materializeScene(entry) : registry.getStrategy(entry)?.definition;
+    });
   }
 
   /** Draw the recursive scene tree. Nested arrays receive transparent offscreen targets. */
   function drawScene(inputs = drawInputs) {
     const visit = (nodes) => {
       for (const node of nodes ?? []) {
+        if (node?.kind === 'group' && node.muted) continue;
         if (node?.kind !== 'group') {
           drawStrategy(node, inputs);
           continue;

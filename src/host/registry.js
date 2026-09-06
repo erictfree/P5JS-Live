@@ -21,6 +21,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
   const strategies = new Map();
   /** @type {Map<string, Array<any>>} */
   const scenes = new Map();
+  const sceneSources = new Map();
   /** @type {Map<string, {value: any, type?: 'continuous'|'button'|'choice', mode?: 'momentary'|'toggle', choices?: string[], min?: number, max?: number, step?: number}>} */
   const params = new Map();
   let activeSceneName = null;
@@ -194,6 +195,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
         return {
           id: `${sceneName}:group${path.map((index) => `[${index}]`).join('')}`,
           kind: 'group',
+          ...(entry?.layer ? { layer: true, muted: entry.muted, sourceName: entry.sourceName } : {}),
           children: children.map((child, index) => visit(child, [...path, index])),
         };
       }
@@ -213,13 +215,17 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
   }
 
   function serializeTree(tree) {
-    return (tree ?? []).map((node) =>
-      node?.kind === 'group' ? serializeTree(node.children) : node.strategy);
+    return (tree ?? []).map((node) => {
+      if (node?.kind !== 'group') return node.strategy;
+      const group = serializeTree(node.children);
+      return node.layer ? { group, layer: true, muted: node.muted, sourceName: node.sourceName } : group;
+    });
   }
 
-  function defineScene(name, entries) {
+  function defineScene(name, entries, source = '') {
     const tree = toTree(name, entries);
     scenes.set(name, tree);
+    sceneSources.set(name, source);
     if (activeSceneName === null) activeSceneName = name;
     notify();
     return tree;
@@ -272,6 +278,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
       scenes: [...scenes.entries()].map(([name, order]) => ({
         name,
         entries: serializeTree(order),
+        source: sceneSources.get(name) ?? '',
       })),
       activeSceneName,
       safeSceneName,
@@ -282,8 +289,10 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
   function restoreConfiguration(snapshot) {
     if (!snapshot) return false;
     scenes.clear();
+    sceneSources.clear();
     for (const scene of snapshot.scenes ?? []) {
       scenes.set(scene.name, toTree(scene.name, scene.entries ?? []));
+      sceneSources.set(scene.name, scene.source ?? '');
     }
     activeSceneName =
       snapshot.activeSceneName !== null && scenes.has(snapshot.activeSceneName)
@@ -384,6 +393,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
   function reset() {
     strategies.clear();
     scenes.clear();
+    sceneSources.clear();
     params.clear();
     activeSceneName = null;
     safeSceneName = null;
@@ -415,6 +425,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
       tree: [...tree],
     })),
     activeSceneName: () => activeSceneName,
+    sceneSource: (name) => sceneSources.get(name) ?? '',
     setSafeScene,
     panic,
     safeSceneName: () => safeSceneName,

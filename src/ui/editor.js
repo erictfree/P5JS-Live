@@ -5,10 +5,12 @@
 import {
   findBlocks,
   findCells,
+  findStatements,
   blockAt,
   describeBlock,
   insertSceneMember,
   moveSceneCellsLast,
+  moveSceneEntry,
 } from '../language/sourceBlocks.js';
 import { tokenizeLines } from './highlight.js';
 import { tidySource } from './tidy.js';
@@ -27,7 +29,7 @@ const RESERVED_PATCH_NAMES = new Set([
   'var', 'void', 'while', 'with', 'yield',
   // These are evaluator-provided bindings, so declaring one in a cell would collide
   // with the live-coding API even though it is a legal JavaScript identifier.
-  'activate', 'control', 'param', 'reset', 'ShaderChain', 'StreamRoom',
+  'activate', 'control', 'param', 'reset', 'ShaderChain', 'StreamRoom', 'layer',
 ]);
 
 /** VS Code-style movement of the current line or selected consecutive lines. */
@@ -1597,6 +1599,26 @@ export function createEditor(textarea, handlers) {
     insertControlDeclaration,
     replaceNamedBlock,
     addStrategyToScene,
+    moveSceneEntry(sceneName, index, direction) {
+      const target = findBlocks(textarea.value).find((block) => describeBlock(block.text) === `scene ${sceneName}`);
+      if (!target) return false;
+      const next = moveSceneEntry(target.text, sceneName, index, direction);
+      if (next === null) return false;
+      write(textarea.value.slice(0, target.start) + next + textarea.value.slice(target.end), true);
+      changed();
+      this.revealScene(sceneName);
+      return true;
+    },
+    revealBinding(name) {
+      if (this.revealStrategy(name) || this.revealScene(name)) return true;
+      if (!PATCH_NAME.test(name)) return false;
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const target = findStatements(textarea.value).find((block) =>
+        new RegExp(`^\\s*(?:const|let|var|class|function)\\s+${escaped}(?![\\w$])`).test(block.text));
+      if (!target) return false;
+      revealRange(target.start, target.end);
+      return true;
+    },
     patchSource(name) {
       return findBlocks(textarea.value).find((block) => isPatchBlock(block, name))?.text ?? null;
     },

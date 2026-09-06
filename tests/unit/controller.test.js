@@ -20,7 +20,7 @@ describe('application controller boundary', () => {
     h.frame(2);
 
     const snapshot = h.controller.snapshot();
-    expect(snapshot.scene).toEqual({
+    expect(snapshot.scene).toMatchObject({
       name: 'show',
       order: [
         { id: 'rings', strategy: 'rings' },
