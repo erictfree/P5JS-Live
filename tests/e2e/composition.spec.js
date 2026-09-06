@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 const PATCHES = `// %% patch red
 const red = { draw() { background(255, 0, 0); } };
@@ -117,4 +118,48 @@ test('Scene inspector fits a narrow screen and keeps keyboard tab navigation', a
   expect(await page.locator('#scene-panel').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
   await page.getByRole('tab', { name: 'Scene', exact: true }).press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Library', exact: true })).toBeFocused();
+});
+
+test('Layer Lab imports, animates silently, isolates opacity, and recalls its order comparison', async ({ page }, testInfo) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  // Keep the portable project and its recall slots tied to the readable example.
+  const project = JSON.parse(readFileSync(new URL('../../starter/layer-lab.json', import.meta.url), 'utf8'));
+  const source = readFileSync(new URL('../../starter/layer-lab.js', import.meta.url), 'utf8');
+  expect(project.source.join('\n')).toBe(source);
+  expect(project.performances[0].source).toBe(source);
+  expect(project.performances[1].source).toBe(source.replace('// activate(orderLab);', 'activate(orderLab);'));
+  await boot(page, 'blue');
+  await page.locator('#import-file').setInputFiles({ name: 'layer-lab.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+  await page.getByRole('button', { name: 'Import and run', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeSceneName())).toBe('layerLab');
+  await expect.poll(async () => (await pixel(page))[0]).toBeGreaterThan(80);
+  await page.evaluate(() => window.p5jsLive.registry.setParam('labOpacity', 0));
+  await expect.poll(async () => (await pixel(page)).slice(0, 3).every(channel => channel < 60)).toBe(true);
+  await page.evaluate(() => window.p5jsLive.registry.setParam('labOpacity', 0.85));
+  await expect.poll(async () => (await pixel(page))[0]).toBeGreaterThan(80);
+  await page.screenshot({path:testInfo.outputPath('layer-lab.png')});
+  await page.locator('#tools-toggle').click();
+  await page.getByRole('tab', { name: 'Performances', exact: true }).click();
+  await page.getByTitle('Recall Layer Lab — effect order', { exact: true }).click();
+  await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeSceneName())).toBe('orderLab');
+  await page.evaluate(() => window.p5jsLive.registry.setParam('labPixels', 30));
+  await page.locator('#tools-toggle').click();
+  const visibleHalves = () => page.evaluate(() => {
+    const canvas = document.querySelector('#stage canvas');
+    const context = canvas.getContext('2d');
+    return [.25, .75].map(position => {
+      let bright = 0;
+      for (let y = canvas.height * .3; y < canvas.height * .7; y += 8) {
+        for (let x = canvas.width * (position - .12); x < canvas.width * (position + .12); x += 8) {
+          const [r, g] = context.getImageData(x, y, 1, 1).data;
+          if (r > 150 && g > 60) bright++;
+        }
+      }
+      return bright > 10;
+    });
+  });
+  await expect.poll(visibleHalves).toEqual([true, true]);
+  await page.screenshot({path:testInfo.outputPath('layer-lab-order.png')});
+  expect(errors).toEqual([]);
 });

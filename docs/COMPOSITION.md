@@ -4,6 +4,24 @@ Sketches and shaders share the same scene model. A patch is an ordinary function
 object with `draw()`. A nested array isolates a group. `layer()` adds fluent methods
 around that group while the host continues to own every patch's state and lifecycle.
 
+## Try Layer Lab
+
+Import [layer-lab.json](../starter/layer-lab.json) from **Tools → Performances →
+Project files → import**. Save your current performance first. Choose **Start
+silent** if asked; the example animates without audio and includes all its patches.
+The import also adds **Layer Lab** and **Layer Lab — effect order** recall slots.
+The editable source is [layer-lab.js](../starter/layer-lab.js).
+
+1. In **Controls**, lower `labOpacity` to zero: the grid and caption remain sharp.
+2. Adjust `labZoom`, `labHue`, and `labBlur`: both p5 sketches change together.
+3. In **Scene**, select `labRings`, change a stroke colour, and run just that patch.
+4. Edit `.mute(false)` to `.mute(true)` in `layerLab`, then run that scene. Only the
+   group disappears. Change it back to resume.
+5. Recall **Layer Lab — effect order** and lower `labPixels` to around 30. The left
+   image has rotated pixel blocks; the right image has screen-aligned blocks.
+   Both use the same sketch and values, with `pixelate` and `rotate` reversed.
+6. Recall **Layer Lab** to return. Recall restores the saved parameter values too.
+
 ## Start with an installed sketch
 
 ```js
