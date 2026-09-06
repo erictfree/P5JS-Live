@@ -132,20 +132,24 @@ computer. Audio files remain separate.
 
 ## First edit
 
-The starter scene contains a transparent ASCII layer followed by Plasma:
+The starter draws a pulsing square on a dark background. Its p5 patch is composed
+with a small rotation and opacity chain:
 
 ```js
 const scene = [
-  asciiNoise,
-  plasma,
+  () => background(20, 22, 27),
+  layer(myPatch).rotate(0, 0.2).opacity(0.85),
 ];
 
 activate(scene);
 ```
 
-Open `asciiNoise` and change `cellSize`, `density`, or `hue`; or open `plasma`
-and change `speed` or `motion`. Press `Cmd/Ctrl+Enter` in that cell. The image
-should change without a page reload.
+Open `myPatch` and change its fill colour or the `120` in its size calculation.
+Press `Cmd/Ctrl+Enter` in that cell. Edit the scene to change rotation or opacity.
+This works with **Start silent**, without loading audio. **New performance** and
+**Reset project** return to this starter; saved projects keep their own source.
+ASCII Noise and Plasma remain installable from the Library. For a larger testing
+example with live controls, see [Layer Lab](docs/COMPOSITION.md#try-layer-lab).
 
 To add a built-in patch:
 
@@ -239,7 +243,7 @@ Add it to the scene, then evaluate the scene cell.
 ### Old source returns after a restart
 
 p5js live restores the working project saved in that browser. Use **New performance**
-for the default ASCII Noise + Plasma scene, or import another project.
+for the default pulsing-square scene, or import another project.
 
 ### Audio does not start
 

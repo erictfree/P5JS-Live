@@ -460,7 +460,7 @@ Color operators:
 
 These operate on the current scene. `feedback` also samples the chain's previous
 output frame. Use a custom WebGL patch for arbitrary multiple textures.
-The starter `Plasma` class shows how to own an offscreen WebGL buffer, pass `canvas`
+The library's `Plasma` class shows how to own an offscreen WebGL buffer, pass `canvas`
 to a sampler, update uniforms, and release resources.
 
 ## StreamRoom (beta)

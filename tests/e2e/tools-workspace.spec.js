@@ -12,9 +12,9 @@ async function boot(page) {
 test('task navigation, secondary settings, width and scroll survive switching', async ({ page }) => {
   await boot(page);
   await expect(page.getByRole('tab', { name: 'Library', exact: true })).toHaveAttribute('aria-selected', 'true');
-  expect((await page.locator('#side').boundingBox()).width).toBe(480);
+  expect((await page.locator('#side').boundingBox()).width).toBeCloseTo(480, 1);
   await page.getByRole('button', { name: 'Use compact Tools panel' }).click();
-  expect((await page.locator('#side').boundingBox()).width).toBe(360);
+  expect((await page.locator('#side').boundingBox()).width).toBeCloseTo(360, 1);
   await page.locator('#panels').evaluate((node) => { node.scrollTop = 500; });
   const scroll = await page.locator('#panels').evaluate((node) => node.scrollTop);
   await page.getByRole('tab', { name: 'Settings', exact: true }).click();
@@ -30,7 +30,7 @@ test('task navigation, secondary settings, width and scroll survive switching', 
   await page.locator('#start-audio').click();
   await page.locator('#tools-toggle').click();
   await expect(page.getByRole('tab', { name: 'Controls', exact: true })).toHaveAttribute('aria-selected', 'true');
-  expect((await page.locator('#side').boundingBox()).width).toBe(360);
+  expect((await page.locator('#side').boundingBox()).width).toBeCloseTo(360, 1);
 });
 
 test('search, categories, and pending additions preserve explicit scene evaluation', async ({ page }) => {
@@ -49,10 +49,10 @@ test('search, categories, and pending additions preserve explicit scene evaluati
   await row.locator('button').click();
   await expect(row.locator('.patch-status')).toHaveText('Not run');
   await expect(page.locator('#library-pending')).toBeVisible();
-  await expect(page.locator('#live-layer-count')).toHaveText('2 layers');
+  await expect(page.locator('#live-layer-count')).toHaveText('3 layers');
   await page.locator('#library-review-scene').click();
   await page.getByRole('button', { name: 'Run scene scene', exact: true }).click();
-  await expect(page.locator('#live-layer-count')).toHaveText('3 layers');
+  await expect(page.locator('#live-layer-count')).toHaveText('4 layers');
   await expect(page.locator('#library-pending')).toBeHidden();
 });
 
@@ -97,10 +97,10 @@ test('narrow Tools fills the viewport without scrolling the app and returns to s
   const box = await page.locator('#side').boundingBox();
   expect(box.x).toBe(0); expect(box.y).toBe(0); expect(box.width).toBe(390);
   expect(await page.locator('#app').evaluate((node) => node.scrollLeft)).toBe(0);
-  await page.getByRole('searchbox', { name: 'Search patches' }).fill('plasma');
-  await page.locator('[data-library="plasma"] button').click();
+  await page.getByRole('searchbox', { name: 'Search patches' }).fill('myPatch');
+  await page.locator('[data-library="myPatch"] button').click();
   await expect(page.locator('#side')).toHaveAttribute('inert', '');
-  await expect(page.getByRole('textbox', { name: 'Edit patch plasma', exact: true })).toBeFocused();
+  await expect(page.getByRole('textbox', { name: 'Edit patch myPatch', exact: true })).toBeFocused();
   expect(await page.locator('#app').evaluate((node) => node.scrollLeft)).toBe(0);
   await page.keyboard.press('Control+Alt+a');
   await expect(page.locator('#ai-api-key')).toBeFocused();

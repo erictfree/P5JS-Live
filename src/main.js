@@ -38,6 +38,7 @@ import { createAppController } from './app/controller.js';
 import { evaluateStartupProject } from './app/startupRecovery.js';
 import { getDefaultNetworkManager } from './network/networkManager.js';
 import { STARTER_SOURCE, upgradeLegacyPlasma } from '../starter/starter.js';
+import { ASCII_PLASMA_SOURCE } from '../starter/ascii-plasma.js';
 import {
   LIBRARY,
   RAVE_PATCH_NAMES,
@@ -52,18 +53,18 @@ import {
   upgradeLegacyActivation,
 } from './language/sourceBlocks.js';
 
-const STARTER_PATCHES = findCells(STARTER_SOURCE).flatMap((cell) => {
+const STARTER_PATCHES = [STARTER_SOURCE, ASCII_PLASMA_SOURCE].flatMap((source) => findCells(source).flatMap((cell) => {
   const match = /^(?:strategy|patch)\s+([A-Za-z_$][\w$]*)$/.exec(cell.label);
   if (!match) return [];
   return [{
     name: match[1],
     title: match[1],
-    blurb: 'Included in the starter project.',
+    blurb: source === STARTER_SOURCE ? 'Included in the starter project.' : 'From the original ASCII + Plasma example.',
     source: cell.text.trimEnd(),
     origin: 'system',
     category: match[1] === 'plasma' ? 'shader' : 'visual',
   }];
-});
+}));
 
 const BUILT_IN_PATCH_LIBRARY = [
   ...STARTER_PATCHES,
@@ -653,7 +654,7 @@ window.windowResized = function windowResized() {
 
 const overlay = document.getElementById('start-overlay');
 function openFirstEdit() {
-  if (!editor.revealProperty('plasma', 'speed')) editor.revealStrategy('plasma');
+  editor.revealStrategy('myPatch');
 }
 function finishEntry() {
   overlay.hidden = true;
@@ -1531,7 +1532,7 @@ function loadStarterProject(message) {
   evaluator.evaluate(STARTER_SOURCE, { label: 'starter' });
   evaluator.applyPending();
   registry.setSafeScene();
-  // The new Plasma is still a candidate until it renders successfully. Capture the
+  // The new patches are still candidates until they render successfully. Capture the
   // complete safe checkpoint two frames later, but only if the performer has not
   // already moved on to another edit.
   requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -1565,7 +1566,7 @@ async function startNewPerformance() {
       `performances stay saved, and the music and canvas keep running.`,
     warning: 'Unsaved working edits cannot be recovered. Save, update, or export them first if needed.',
     confirmLabel: 'Start fresh',
-    message: 'New performance ready — ASCII Noise + Plasma',
+    message: 'New performance ready — pulsing square',
   });
   if (!started) return;
   performanceNameInput.value = '';

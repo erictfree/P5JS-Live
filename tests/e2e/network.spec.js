@@ -6,7 +6,7 @@ async function boot(page) {
     localStorage.clear();
     document.getElementById('start-overlay').hidden = true;
   });
-  await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder().length)).toBe(2);
+  await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder().length)).toBe(3);
 }
 
 test('publishes, discovers, inserts, and receives another editor canvas', async ({ page, context }) => {
@@ -20,7 +20,7 @@ test('publishes, discovers, inserts, and receives another editor canvas', async 
       performer: "Eric",
     });
     const publishMain = networkRoom.publish({ name: "main-output", fps: 20 });
-    const networkScene = [plasma, publishMain];
+    const networkScene = [...scene, publishMain];
     activate(networkScene);
   `));
   expect(publishResult.ok).toBe(true);

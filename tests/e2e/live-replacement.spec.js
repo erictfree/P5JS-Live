@@ -2,6 +2,7 @@
 // audio, state, and surrounding patches stay alive.
 
 import { test, expect } from '@playwright/test';
+import { loadAsciiProject } from '../fixtures/ascii-project.js';
 import { fileURLToPath } from 'node:url';
 
 const TONE = fileURLToPath(new URL('../fixtures/test-tone.wav', import.meta.url));
@@ -101,8 +102,7 @@ test('visual logic is replaceable while everything else stays alive', async ({ p
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
   await page.goto('/live/index.html');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+  await loadAsciiProject(page);
   await page.locator('#audio-file').setInputFiles(TONE);
   await expect(page.locator('#start-overlay')).toBeHidden({ timeout: 15_000 });
   await page.locator('#tools-toggle').click();
@@ -198,8 +198,7 @@ test('visual logic is replaceable while everything else stays alive', async ({ p
 
 test('source, installed patches, and scene order survive a refresh', async ({ page }) => {
   await page.goto('/live/index.html');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+  await loadAsciiProject(page);
   await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder()))
     .toEqual(['asciiNoise', 'plasma']);
 

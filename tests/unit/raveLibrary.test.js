@@ -8,7 +8,7 @@ import {
   libraryDemoSource,
   upgradeOpaqueDiagnostics,
 } from '../../starter/library.js';
-import { STARTER_SOURCE, upgradeLegacyPlasma } from '../../starter/starter.js';
+import { ASCII_PLASMA_SOURCE, upgradeLegacyPlasma } from '../../starter/ascii-plasma.js';
 import { createTestHost } from './helpers.js';
 
 const RAVE_PATCHES = [
@@ -27,24 +27,24 @@ const RAVE_PATCHES = [
 const MIX_ORDER = RAVE_PATCH_NAMES;
 
 describe('the system patch library', () => {
-  it('makes the starter Plasma visibly controllable and upgrades known untouched versions', () => {
-    expect(STARTER_SOURCE).toContain('float softBlob(');
-    expect(STARTER_SOURCE).toContain('speed = 0.35;');
-    expect(STARTER_SOURCE).toContain('motion = 0.48;');
-    expect(STARTER_SOURCE).toContain(
+  it('keeps the original Plasma visibly controllable and upgrades known untouched versions', () => {
+    expect(ASCII_PLASMA_SOURCE).toContain('float softBlob(');
+    expect(ASCII_PLASMA_SOURCE).toContain('speed = 0.35;');
+    expect(ASCII_PLASMA_SOURCE).toContain('motion = 0.48;');
+    expect(ASCII_PLASMA_SOURCE).toContain(
       'intensity = ({ audio }) => 0.035 + audio.bass * 0.080 + audio.mid * 0.035;',
     );
-    expect(STARTER_SOURCE).toContain('warp = ({ audio }) => 0.004 + audio.bass * 0.018;');
-    expect(STARTER_SOURCE).toContain(
+    expect(ASCII_PLASMA_SOURCE).toContain('warp = ({ audio }) => 0.004 + audio.bass * 0.018;');
+    expect(ASCII_PLASMA_SOURCE).toContain(
       'this.#program.setUniform("uIntensity", this.intensity({ audio, time }));',
     );
-    expect(STARTER_SOURCE).toContain('this.#program.setUniform("uSpeed", this.speed);');
-    expect(STARTER_SOURCE).toContain('Plasma transforms the existing scene');
-    expect(STARTER_SOURCE).toContain('gl_FragColor = vec4(colour, sourceSample.a);');
-    expect(STARTER_SOURCE).not.toContain('vec3 colour = scene + ambient;');
-    expect(STARTER_SOURCE).not.toContain('float bands = 0.5 + 0.5 * cos(');
+    expect(ASCII_PLASMA_SOURCE).toContain('this.#program.setUniform("uSpeed", this.speed);');
+    expect(ASCII_PLASMA_SOURCE).toContain('Plasma transforms the existing scene');
+    expect(ASCII_PLASMA_SOURCE).toContain('gl_FragColor = vec4(colour, sourceSample.a);');
+    expect(ASCII_PLASMA_SOURCE).not.toContain('vec3 colour = scene + ambient;');
+    expect(ASCII_PLASMA_SOURCE).not.toContain('float bands = 0.5 + 0.5 * cos(');
 
-    const customizedOpaque = STARTER_SOURCE
+    const customizedOpaque = ASCII_PLASMA_SOURCE
       .replace('motion = 0.48;', 'motion = 0.77;')
       .replace('      vec4 sourceSample = texture2D(uScene, sampleUv);\n', '')
       .replace(
@@ -59,7 +59,7 @@ describe('the system patch library', () => {
     expect(upgradedCustomized).toContain('motion = 0.77;');
     expect(upgradedCustomized).toContain('gl_FragColor = vec4(colour, sourceSample.a);');
 
-    const legacy = STARTER_SOURCE
+    const legacy = ASCII_PLASMA_SOURCE
       .replace(
         'vec2 sampleUv = clamp(uv + flow * uWarp, 0.002, 0.998);',
         'float warp = 0.008 + bass * 0.035;\n      vec2 sampleUv = clamp(uv + flow * warp, 0.002, 0.998);',
@@ -69,9 +69,9 @@ describe('the system patch library', () => {
         'float bands = 0.5 + 0.5 * cos(\n        radius * 16.0\n      );\n      vec3 plasmaColour = mix(cyan, magenta, 0.5);\n      float bloom = 1.0 + bass * 0.35 + mid * 0.15;',
       );
 
-    expect(upgradeLegacyPlasma(legacy)).toBe(STARTER_SOURCE);
+    expect(upgradeLegacyPlasma(legacy)).toBe(ASCII_PLASMA_SOURCE);
 
-    const previousControlled = STARTER_SOURCE
+    const previousControlled = ASCII_PLASMA_SOURCE
       .replace(
         'intensity = ({ audio }) => 0.035 + audio.bass * 0.080 + audio.mid * 0.035;',
         'intensity = ({ audio }) => 0.0038 + audio.bass * 0.006 + audio.mid * 0.002;',
@@ -82,9 +82,9 @@ describe('the system patch library', () => {
         'vec3 scene = vec3(red, green, blue) * 0.94;',
       );
 
-    expect(upgradeLegacyPlasma(previousControlled)).toBe(STARTER_SOURCE);
+    expect(upgradeLegacyPlasma(previousControlled)).toBe(ASCII_PLASMA_SOURCE);
 
-    const previousStarter = STARTER_SOURCE
+    const previousStarter = ASCII_PLASMA_SOURCE
       .replace('speed = 0.35;', 'speed = 0.22;')
       .replace('motion = 0.48;', 'motion = 0.34;')
       .replace(
@@ -94,13 +94,13 @@ describe('the system patch library', () => {
       .replace('warp = ({ audio }) => 0.004 + audio.bass * 0.018;', 'warp = ({ audio }) => 0.0025 + audio.bass * 0.012;')
       .replace('vec3 scene = vec3(red, green, blue) * 0.88;', 'vec3 scene = vec3(red, green, blue) * 0.90;');
 
-    expect(upgradeLegacyPlasma(previousStarter)).toBe(STARTER_SOURCE);
+    expect(upgradeLegacyPlasma(previousStarter)).toBe(ASCII_PLASMA_SOURCE);
 
   });
 
-  it('evaluates the ASCII and Plasma starter as ordinary live JavaScript', () => {
+  it('evaluates the ASCII and Plasma example as ordinary live JavaScript', () => {
     const h = createTestHost();
-    const result = h.evaluator.evaluate(STARTER_SOURCE);
+    const result = h.evaluator.evaluate(ASCII_PLASMA_SOURCE);
     h.host.commitPendingChanges();
 
     expect(result.ok).toBe(true);
@@ -169,10 +169,10 @@ describe('the system patch library', () => {
     expect(h.registry.activeInstancesOf('localVideo')).toHaveLength(0);
   });
 
-  it('starts with a transparent stateful random ASCII patch', () => {
-    const asciiSource = STARTER_SOURCE.slice(
-      STARTER_SOURCE.indexOf('// %% patch asciiNoise'),
-      STARTER_SOURCE.indexOf('// %% patch plasma'),
+  it('retains a transparent stateful random ASCII library patch', () => {
+    const asciiSource = ASCII_PLASMA_SOURCE.slice(
+      ASCII_PLASMA_SOURCE.indexOf('// %% patch asciiNoise'),
+      ASCII_PLASMA_SOURCE.indexOf('// %% patch plasma'),
     );
     expect(asciiSource).toContain('const asciiNoise = {');
     expect(asciiSource).toContain('characters:');
@@ -181,7 +181,7 @@ describe('the system patch library', () => {
     expect(asciiSource).not.toMatch(/\bbackground\s*\(/);
 
     const h = createTestHost();
-    expect(h.evaluator.evaluate(STARTER_SOURCE).ok).toBe(true);
+    expect(h.evaluator.evaluate(ASCII_PLASMA_SOURCE).ok).toBe(true);
     h.host.commitPendingChanges();
     expect(h.registry.hasStrategy('asciiNoise')).toBe(true);
   });

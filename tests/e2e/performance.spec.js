@@ -1,6 +1,7 @@
 // Performance behavior in the real page: projection, recovery, and import.
 
 import { test, expect } from '@playwright/test';
+import { loadAsciiProject } from '../fixtures/ascii-project.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
@@ -8,8 +9,7 @@ const TONE = fileURLToPath(new URL('../fixtures/test-tone.wav', import.meta.url)
 
 async function boot(page, { tools = true, folded = false, welcome = false } = {}) {
   await page.goto('/live/index.html');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+  await loadAsciiProject(page);
   await expect
     .poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder().length))
     .toBe(2);
@@ -450,8 +450,8 @@ activate(laserScene);`);
     await boot(page);
 
     const library = page.locator('#strategy-library');
-    await expect(library.locator('[data-library]')).toHaveCount(44);
-    await expect(page.getByRole('button', { name: /^Browse 44$/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(library.locator('[data-library]')).toHaveCount(45);
+    await expect(page.getByRole('button', { name: /^Browse 45$/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-library="laserFan"]')).toHaveAttribute('data-origin', 'system');
     await expect(page.locator('[data-library="plasma"]')).toHaveAttribute('data-origin', 'system');
     await expect(page.locator('[data-available="laserFan"]')).toContainText('laserFan');
@@ -590,15 +590,15 @@ activate(show);`;
 
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder()))
-      .toEqual(['asciiNoise', 'plasma']);
+      .toEqual(['scene[0]', 'myPatch', 'scene[1][1]']);
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.controller.snapshot().installedPatches))
-      .toEqual(['frequencyBars', 'audioMeters', 'asciiNoise', 'plasma']);
+      .toEqual(['frequencyBars', 'audioMeters', 'myPatch', 'scene[0]', 'scene[1][1]']);
     expect(pageErrors).toEqual([]);
     await expect(page.locator('[data-library="frequencyBars"]')).toContainText('In project');
     await expect(page.locator('[data-library="frequencyBars"]')).toContainText('Open source');
     await expect(page.locator('[data-library="audioMeters"]')).toContainText('In project');
-    await expect(page.getByRole('button', { name: /^In project 4$/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^In project 3$/ })).toBeVisible();
     await expect(page.locator('#diagnostics-list')).toContainText('Saved project recovered with errors');
     await expect(page.locator('#code')).toHaveValue(/const frequencyBars = \{ draw\(\) \{ \(\(\(/);
   });
@@ -2156,7 +2156,7 @@ test.describe('named Performance recall', () => {
     await dialog.getByRole('button', { name: 'Start fresh' }).click();
 
     await expect(page.locator('.folded-block[open]')).toHaveCount(0);
-    await expect(page.locator('.folded-block[data-block-description="patch plasma"]')).toBeVisible();
+    await expect(page.locator('.folded-block[data-block-description="patch myPatch"]')).toBeVisible();
     await expect.poll(() => page.locator('#folded-code').evaluate((node) => ({
       top: node.scrollTop,
       left: node.scrollLeft,
@@ -2195,9 +2195,9 @@ test.describe('named Performance recall', () => {
 
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder()))
-      .toEqual(['asciiNoise', 'plasma']);
+      .toEqual(['scene[0]', 'myPatch', 'scene[1][1]']);
     await expect(page.locator('#code')).toHaveValue(
-      /const scene = \[\s*asciiNoise,\s*plasma,\s*\]/,
+      /layer\(myPatch\)/,
     );
     await expect(page.locator('#code')).not.toHaveValue(/\/\/ %% patch effects/);
     await expect(page.locator('#performance-name')).toHaveValue('');
@@ -2458,7 +2458,7 @@ test.describe('project portability', () => {
 
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder()))
-      .toEqual(['asciiNoise', 'plasma']);
+      .toEqual(['scene[0]', 'myPatch', 'scene[1][1]']);
 
     const after = await page.evaluate(() => ({
       hasMess: window.p5jsLive.registry.hasStrategy('mess'),
@@ -2471,7 +2471,7 @@ test.describe('project portability', () => {
     }));
 
     expect(after.hasMess).toBe(false);
-    expect(after.stateKeys).toEqual(['asciiNoise', 'plasma']);
+    expect(after.stateKeys).toEqual(['myPatch', 'scene[0]', 'scene[1][1]']);
     expect(after.source).toContain('p5js live — starter scene');
     expect(after.safeScene).not.toBe(null);
     // The point of doing this in place rather than reloading: the canvas and the

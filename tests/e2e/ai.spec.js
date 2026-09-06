@@ -1,12 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { loadAsciiProject } from '../fixtures/ascii-project.js';
 
 async function boot(page) {
   await page.goto('/live/index.html');
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
-  await page.reload();
+  await page.evaluate(() => sessionStorage.clear());
+  await loadAsciiProject(page);
   await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder().length)).toBe(2);
   await page.evaluate(() => {
     document.getElementById('start-overlay').hidden = true;

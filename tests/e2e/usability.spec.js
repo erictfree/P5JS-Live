@@ -13,7 +13,19 @@ async function boot(page) {
 test('first edit, scene identity, keyboard dimmer, and drawer focus', async ({ page }) => {
   await boot(page);
   await expect(page.locator('#live-scene-name')).toHaveText('scene');
-  await expect(page.locator('#live-layer-count')).toHaveText('2 layers');
+  await expect(page.locator('#live-layer-count')).toHaveText('3 layers');
+  await expect(page.getByRole('textbox', { name: 'Edit patch myPatch', exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => {
+    const canvas = document.querySelector('#stage canvas');
+    const context = canvas.getContext('2d');
+    return {
+      center: [...context.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data],
+      corner: [...context.getImageData(5, 5, 1, 1).data],
+    };
+  })).toEqual({
+    center: [expect.closeTo(77, -1), expect.closeTo(189, -1), expect.closeTo(174, -1), 255],
+    corner: [20, 22, 27, 255],
+  });
   await expect(page.locator('#side')).toHaveAttribute('inert', '');
   await page.locator('#tools-toggle').click();
   await expect(page.locator('#side')).not.toHaveAttribute('inert');
@@ -44,26 +56,26 @@ test('first edit, scene identity, keyboard dimmer, and drawer focus', async ({ p
 
 test('cell Run preserves previous visuals on syntax and first-frame failures', async ({ page }) => {
   await boot(page);
-  const cell = page.locator('[data-block-description="patch plasma"]');
+  const cell = page.locator('[data-block-description="patch myPatch"]');
   const input = cell.locator('textarea');
   const before = await input.inputValue();
-  await input.fill(before.replace('speed = 0.35', 'speed = 0.7'));
+  await input.fill(before.replace('const size = 120', 'const size = 180'));
   await expect(cell.locator('.cell-status')).toContainText('Edited');
-  await cell.getByRole('button', { name: 'Run patch plasma', exact: true }).click();
+  await cell.getByRole('button', { name: 'Run patch myPatch', exact: true }).click();
   await expect(cell.locator('.cell-feedback')).toHaveText('Applied');
   await expect(cell.locator('.cell-status')).toHaveText('Live');
-  const version = await page.evaluate(() => window.p5jsLive.registry.getStrategy('plasma').version);
+  const version = await page.evaluate(() => window.p5jsLive.registry.getStrategy('myPatch').version);
 
-  await input.fill('const plasma = { draw() { throw new Error("usability rollback"); } };');
-  await cell.getByRole('button', { name: 'Run patch plasma', exact: true }).click();
+  await input.fill('const myPatch = { draw() { throw new Error("usability rollback"); } };');
+  await cell.getByRole('button', { name: 'Run patch myPatch', exact: true }).click();
   await expect(cell.locator('.cell-feedback')).toContainText('usability rollback');
   await expect(cell.locator('.cell-status')).toContainText('Edited');
-  expect(await page.evaluate(() => window.p5jsLive.registry.getStrategy('plasma').version)).toBe(version);
+  expect(await page.evaluate(() => window.p5jsLive.registry.getStrategy('myPatch').version)).toBe(version);
 
-  await input.fill('const plasma = {');
-  await cell.getByRole('button', { name: 'Run patch plasma', exact: true }).click();
+  await input.fill('const myPatch = {');
+  await cell.getByRole('button', { name: 'Run patch myPatch', exact: true }).click();
   await expect(cell.locator('.cell-feedback')).toContainText('Couldn’t apply');
-  expect(await page.evaluate(() => window.p5jsLive.registry.getStrategy('plasma').version)).toBe(version);
+  expect(await page.evaluate(() => window.p5jsLive.registry.getStrategy('myPatch').version)).toBe(version);
   await page.locator('#panic').click();
   await expect(page.locator('#live-scene-name')).toHaveText('scene');
 });
@@ -77,13 +89,13 @@ test('library addition reviews source before activation', async ({ page }) => {
   await row.locator('button').click();
   await expect(row.locator('button')).toHaveText('Add to scene…');
   await row.locator('button').click();
-  await expect(page.locator('#live-layer-count')).toHaveText('2 layers');
+  await expect(page.locator('#live-layer-count')).toHaveText('3 layers');
   await expect(row.locator('button')).toHaveText('Review scene & run');
   await row.locator('button').click();
   const scene = page.locator('[data-block-description="scene scene"]');
   await expect(scene.locator('.cell-status')).toContainText('Edited');
   await scene.getByRole('button', { name: 'Run scene scene', exact: true }).click();
-  await expect(page.locator('#live-layer-count')).toHaveText('3 layers');
+  await expect(page.locator('#live-layer-count')).toHaveText('4 layers');
   await expect(scene.locator('.cell-feedback')).toHaveText('Applied');
   await expect(row.locator('button')).toHaveText('Edit source');
   await expect(row.locator('button')).toBeEnabled();
@@ -94,18 +106,18 @@ test('cell Run in the complete editor applies the selected scene and respects AI
   await page.locator('#fold-code').click();
   const code = page.locator('#code');
   const before = await code.inputValue();
-  await code.fill(before.replace('const scene = [', 'const scene = [\n  asciiNoise,'));
+  await code.fill(before.replace('const scene = [', 'const scene = [\n  myPatch,'));
   await expect(page.locator('#current-cell-bar .cell-status')).toContainText('Edited');
   await page.locator('#current-cell-bar button').click();
-  await expect(page.locator('#live-layer-count')).toHaveText('3 layers');
+  await expect(page.locator('#live-layer-count')).toHaveText('4 layers');
   await expect(page.locator('#current-cell-bar .cell-feedback')).toHaveText('Applied');
 
   await page.evaluate(() => {
     const editor = window.p5jsLive.editor;
-    editor.stageSource(editor.value.replace('speed = 0.35', 'speed = 0.9'));
+    editor.stageSource(editor.value.replace('const size = 120', 'const size = 190'));
   });
   await expect(page.locator('#current-cell-bar button')).toHaveText('Accept & run all');
   await page.locator('#current-cell-bar button').click();
   await expect.poll(() => page.evaluate(() => window.p5jsLive.editor.hasStagedSource())).toBe(false);
-  await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.getStrategy('plasma').definition.speed)).toBe(0.9);
+  await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.getStrategy('myPatch').source)).toContain('const size = 190');
 });

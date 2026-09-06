@@ -351,10 +351,9 @@ the characters and lines, so the visual remains visible while you perform.
 
 Use the starter project for the first edit:
 
-1. Select the disclosure arrow beside `asciiNoise` or `plasma` to unfold that patch.
+1. Select the disclosure arrow beside `myPatch` to unfold the starter patch.
 2. Click inside the patch so the text cursor is visible.
-3. Change one number. Good first choices are `cellSize`, `density`, or `hue` in
-   `asciiNoise`, and `speed` or `motion` in `plasma`.
+3. Change `120` in the size calculation to `180`, or change the hex colour in `fill()`.
 4. Press `Cmd/Ctrl+Enter` while the cursor remains inside that patch.
 5. Watch the stage and the status message at the bottom.
 
@@ -363,6 +362,11 @@ Use the starter project for the first edit:
 
 Change the value again and repeat. Try a large change so the relationship between
 source and image is obvious. Then restore a value you like.
+
+The starter scene uses `layer(myPatch).rotate(0, 0.2).opacity(0.85)` over a separate
+dark background. Edit and run the scene to change those effects. New and reset
+performances use this pulsing-square starter; saved projects retain their source.
+The original `asciiNoise` and `plasma` patches are still available in the Library.
 
 Evaluation is different from typing. Typing prepares the next possibility;
 evaluation makes that possibility part of the running performance.

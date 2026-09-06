@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { STARTER_SOURCE } from '../../starter/starter.js';
+import { ASCII_PLASMA_SOURCE } from '../../starter/ascii-plasma.js';
 import { LIBRARY } from '../../starter/library.js';
 
 const SOURCE = `// %% patch redBackground
@@ -74,7 +74,7 @@ test('nested scene arrays render on transparent recursive targets', async ({ pag
 });
 
 test('Plasma inside a group preserves the parent background', async ({ page }) => {
-  const source = STARTER_SOURCE.replace(
+  const source = ASCII_PLASMA_SOURCE.replace(
     /\/\/ %% scene scene[\s\S]*$/,
     `// %% patch solidBackground
 const solidBackground = {
@@ -130,7 +130,7 @@ activate(scene);`,
 });
 
 test('Plasma inside a group returns the processed group pixels', async ({ page }) => {
-  const source = STARTER_SOURCE.replace(
+  const source = ASCII_PLASMA_SOURCE.replace(
     /\/\/ %% scene scene[\s\S]*$/,
     `// %% patch solidBackground
 const solidBackground = { draw() { background(24, 10, 38); } };
@@ -175,7 +175,7 @@ test('Neon Tunnel and ASCII remain visible when Plasma scopes them as a group', 
   const neonSource = LIBRARY.find(({ name }) => name === 'neonTunnel').source;
   const solidSource = LIBRARY.find(({ name }) => name === 'solidBackground').source
     .replace('colour: [6, 8, 18]', 'colour: [24, 10, 38]');
-  const source = STARTER_SOURCE.replace(
+  const source = ASCII_PLASMA_SOURCE.replace(
     /\/\/ %% scene scene[\s\S]*$/,
     `${solidSource}\n\n${neonSource}\n\n// %% scene scene
 const scene = [solidBackground, [neonTunnel, asciiNoise, plasma]];
