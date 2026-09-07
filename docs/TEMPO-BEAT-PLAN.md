@@ -11,8 +11,11 @@ Tap tempo and automatic estimation offer an optional rhythmic reference for moti
 Raw reactions to sound continue independently of that reference.
 
 The first deliverable is a dependable tap-tempo control and shared beat position.
-The second connects a small `lfo()` helper to seconds or beats. Automatic tracking
-follows behind an accuracy and performance check using actual audio inputs.
+The second delivers a small visual signal library: LFOs, attack/release envelopes,
+ramps, stepped sequences, range mapping, and seeded variation. These helpers work
+with sound, elapsed time, or the optional clock; none requires automatic tempo
+detection. Automatic tracking follows behind an accuracy and performance check
+using actual audio inputs.
 
 ## Three separate concepts
 
@@ -153,11 +156,31 @@ Maintain phase continuity through ordinary rate corrections and source handoffs.
 Explicit alignment is a marked discontinuity: clear stale crossing bookkeeping,
 emit at most one intentional pulse, and never replay earlier beats.
 
-## Motion helpers
+## Visual signal helpers
 
-Keep the agreed starting point: one small `lfo()` helper producing a function that
-accepts the normal draw context. It works in p5 code and shader argument callbacks.
-Start with a sine wave and an explicit range.
+Include all six operators in this delivery. They produce changing values for
+visual properties such as size, rotation, color, opacity, and shader parameters.
+They do not generate audio or introduce another scene-composition language.
+
+| Operator | Initial behavior | Visual use |
+| --- | --- | --- |
+| LFO | Repeat a sine, triangle, saw, or square wave within a range. | Breathe a shape's size or oscillate distortion. |
+| Attack/release envelope | A trigger rises from the current value to a peak over attack time, then falls to rest over release time. | Flash on an audio hit, then fade smoothly. |
+| Ramp | Move from a start value to an end value over a duration and hold the endpoint. An optional trigger restarts it. | Zoom in over several seconds. |
+| Stepped sequence | Select successive numeric values at a time interval or on a trigger; wrap at the end. | Change a palette index on each detected hit. |
+| Range mapping | Convert a numeric signal from one range to another, with explicit clamping. | Map bass energy from 0–1 to a diameter of 20–200. |
+| Seeded variation | Choose a reproducible numeric value for each timed or triggered step. Hold between steps. | Change position or hue without random flicker every frame. |
+
+All helpers return ordinary functions accepting the draw context and returning a
+number. A p5 patch can call that function with its context; array effects and
+ShaderChain can accept it through their existing parameter callback paths. Mapping
+can consume another helper, so the operators compose without special wiring.
+Instantiate a helper once outside drawing, then reuse it wherever needed.
+
+Use `lfo`, `envelope`, `ramp`, `sequence`, `remap`, and `variation` as working names
+for the plan. Final exports must pass a namespace audit against p5, the live API,
+and editor bindings before implementation. In particular, avoid repurposing p5's
+`map()` or `random()`. These are ordinary live-code helpers, not new Array methods.
 
 Proposed syntax, not current API:
 
@@ -169,15 +192,73 @@ const scene = [backdrop, [rings].opacity(synced)];
 scene.draw();
 ```
 
-The named patches above stand for existing patch definitions. `period` is in
-seconds; `beats` opts into `context.clock`. Supplying both is an error. Define phase
-zero at the low endpoint of the sine cycle; validate finite bounds and a positive
-period. Reversed bounds may intentionally invert the motion.
+The named patches above stand for existing patch definitions. This illustrates the
+shared callback contract; exact option signatures for the other helpers will be
+specified together before implementation.
 
-Derive each LFO sample from shared time or beat position. Reading the same helper
-from three parameters must not advance it three times or depend on draw order.
-The existing array and ShaderChain callback paths can consume the function directly.
-Envelope and sequence helpers can follow when a concrete patch establishes a need.
+### Time and trigger contracts
+
+- Seconds are the default time unit. Beat durations explicitly opt into
+  `context.clock`; conflicting time bases are errors. For the LFO example,
+  `period` means seconds and `beats` means clock beats. Phase zero starts at the
+  low endpoint of the default sine cycle.
+- Time-driven motion uses shared host time or beat position, independent of scene
+  time and the number of consumers. Beat-driven motion holds when the clock stops;
+  seconds-driven motion and audio triggers continue with timing Off.
+- A trigger is an event, such as a detected onset, a clock boundary, or a rising
+  edge deliberately derived from a control. Specify pulse and held-gate adapters
+  explicitly: a held control must not retrigger every frame, while distinct onset
+  events must not be collapsed merely because they arrive in adjacent frames.
+- Envelopes start at rest and retrigger from their current value to avoid a jump.
+  The initial envelope has attack and release only, without sustain. Zero attack
+  or release is an intentional immediate transition; durations cannot be negative.
+- Ramps without a trigger start when their defining code is successfully applied.
+  Triggered ramps wait at the start value; retriggering restarts from that specified
+  value. This deliberate reset differs from an envelope's continuous retrigger.
+  A completed ramp holds its endpoint; repetition uses an LFO or a repeated trigger.
+- Sequences initially expose their first value. Each subsequent trigger or timed
+  boundary advances one step. Periodic sequences derive the current index directly
+  from elapsed time; clock-triggered sequences account for `clock.crossings` during
+  ordinary missed frames. Neither emits a burst of callbacks to catch up. Suppress
+  trigger backlogs after suspension, consistent with the clock contract.
+- Seeded variation derives its value from a seed and logical step index, rather
+  than consuming p5's global random stream. The same seed, settings, and step index
+  reproduce the same value across render rates. Audio-triggered variation also
+  depends on the actual trigger history; this is not a promise of audio replay.
+
+### Sampling, state, and validation
+
+Every helper sees the same frame inputs. Repeated reads in one frame return the
+same value: using an envelope in three parameters must not advance it three times.
+Shared helper instances share state; two separately constructed envelopes respond
+independently. Chaining a mapper around an envelope must preserve this behavior.
+
+Derive periodic values directly from absolute time. Stateful helpers need a host
+sampling/lifecycle contract with a frame identifier, timestamped triggers, and
+explicit ownership. Do not let draw order or whether one shader parameter happened
+to be read determine which events a live helper observes. Finalize enrollment,
+replacement, and disposal of these helpers as part of the existing evaluation
+transaction before adding their public exports; failed evaluation must leave the
+running helpers untouched. This is bounded signal state, not a second scheduler.
+
+New stateful helper definitions start fresh when successfully applied: envelopes
+at rest, ramps at their start, and triggered sequences/variation at index zero.
+Unchanged helper instances continue across patch edits and scene selections.
+Periodic LFOs retain their relationship to shared host time/beat position. Document
+this distinction in the example rather than implying that source edits can infer
+and migrate arbitrary closure state.
+
+Validate finite numeric values, nonempty numeric sequences, positive periods, and
+nonnegative envelope/ramp durations. A zero-duration ramp reaches its endpoint
+immediately. Range mapping rejects a zero-width input range; reversed ranges are
+valid for inversion, and clamping defaults on. Reject conflicting timing/trigger
+options rather than silently choosing one. Detect cyclic signal dependencies and
+report invalid callback results through normal live-code diagnostics while
+preserving the last working scene.
+
+Keep the initial outputs numeric. Palette selection can use a numeric index in
+ordinary JavaScript; vector/color objects and an editable modulation-routing graph
+are outside this delivery.
 
 ## Performer interface
 
@@ -206,7 +287,7 @@ Run continues to apply code immediately at a rendering boundary.
 | Seek or file loop discontinuity | Reacquire Auto; do not mistake pre-seek evidence for the new position. |
 | Audio pause, silence, or input failure | Manual continues; Auto enters Holding then Lost unless evidence returns. |
 | Resume after suspension | No catch-up event burst; discard stale Auto results. |
-| Reevaluate a helper | Reconstruct its description against the existing host time/beat position. |
+| Reevaluate a helper | Apply a new definition transactionally; periodic motion uses shared time, while new stateful definitions start fresh as specified above. |
 
 Persist timing source, manual BPM, and user metrical preference with project and
 performance settings. Do not serialize analysis buffers, tap history, confidence,
@@ -222,13 +303,21 @@ recall failure recovery so a rejected recall does not leave timing changed.
 Update project/performance storage, import/export, restore paths, and validation
 together. Follow the existing schema policy; do not introduce legacy adapters.
 
+Helper definitions and seeds live in source. Project export does not capture a
+live envelope's position or pretend to replay prior triggers. Reconstructing source
+on recall uses the helper initialization rules above. In-memory rollback must
+retain the previous helper instances and their state when an evaluation or recall
+fails. Specify Safe State's helper reset behavior alongside its existing occurrence
+state behavior; do not silently claim that arbitrary signal closures are restored.
+
 ## Delivery sequence
 
 Suggested code boundaries: pure clock/tap logic in `src/rhythm/clock.js` and
 `tapTempo.js`; source selection and snapshots in `src/rhythm/rhythmManager.js`;
-motion sampling in `src/rhythm/lfo.js`; optional causal tracking in
-`src/rhythm/tempoTracker.js`. The Auto analysis producer/worker belongs at the
-audio boundary. These are proposed files. Wire the service through the existing
+visual helper definitions and sampling in `src/signals/` so they do not require a
+running tempo clock; optional causal tracking in `src/rhythm/tempoTracker.js`.
+The Auto analysis producer/worker belongs at the audio boundary. These are proposed
+files. Wire the service through the existing
 host, controller, and persistence interfaces rather than putting its state in UI
 handlers or individual patches.
 
@@ -244,14 +333,25 @@ handlers or individual patches.
 Completion: accurate Manual timing, clear source/status, no changes to audio
 reaction semantics, and consistent shared phase across patches and shaders.
 
-### 2. Add the first motion helper
+### 2. Add the visual signal library
 
-- Add and validate `lfo()` through the live-code API and editor reserved names.
-- Demonstrate a seconds-based motion and a beat-based motion side by side.
-- Verify seconds mode, Manual mode, Off behavior, repeated reads, and live editing.
+- Specify the six helpers' options, units, trigger adapters, validation, and names
+  together; check p5/live API collisions and editor reserved names.
+- Implement pure sampling first: LFO waveforms, range mapping, time-indexed
+  sequences, and seeded values. Add the shared sampling/lifecycle contract before
+  introducing envelopes, triggered ramps, and triggered stepping.
+- Wire helper construction and ownership through evaluation, replacement, recovery,
+  and disposal. Reuse the current context-callback interface for p5 and shaders.
+- Add a runnable Motion Lab with all six operators: a breathing shape, hit-driven
+  glow, gradual zoom, stepped palette index, bass-to-size mapping, and reproducible
+  variation. Show seconds and optional beat timing side by side. Include a manual
+  trigger so envelopes and sequences can be tested without sound.
+- Verify timing Off, Manual, shared reads, nested helper composition, patch/scene
+  changes, helper replacement, and failed evaluation/recall.
 
-Completion: the same helper works in an ordinary p5 patch and an array effect
-without new scene syntax or per-consumer clocks.
+Completion: all six helpers work in p5 patches and array/shader effects without new
+scene syntax or per-consumer clocks. Their audio-reactive and seconds-based uses
+remain useful without tempo estimation. Auto is not a dependency for this stage.
 
 ### 3. Evaluate and integrate Auto
 
@@ -267,9 +367,10 @@ cannot interrupt Manual timing or ordinary reactive visuals.
 
 ### 4. Rehearse and document
 
-Update the data model, API, quickstart, manual keyboard table, and a runnable
-tempo/LFO example. Rehearse with a file, microphone/line input, quiet material,
-changing tempo, and deliberate errors. Tune defaults from those observations.
+Update the data model, API, quickstart, and manual keyboard table. Publish runnable
+tempo diagnostic and Motion Lab examples. Rehearse with a file, microphone/line
+input, quiet material, changing tempo, and deliberate errors. Tune defaults from
+those observations.
 
 ## Verification and proposed acceptance targets
 
@@ -282,7 +383,21 @@ These are targets to validate during implementation, not measured results.
   numeric tolerance, regardless of render sampling at 15, 30, 60, or 120 FPS.
   Test missed frames, rate changes, alignment, source switches, and suspension.
 - **LFO:** repeated reads in one frame agree; output stays within its bounds;
-  seconds mode needs no audio; beat mode holds cleanly when timing stops.
+  verify all waveform boundaries, phase offsets, and inverted ranges. Seconds mode
+  needs no audio; beat mode holds cleanly when timing stops.
+- **Envelope and ramp:** verify attack/release duration, endpoint holds, zero
+  durations, retriggers, and late frames against timestamped expected values.
+  Reading the output from multiple consumers must not speed it up. Test pulse
+  events in adjacent frames separately from a sustained gate.
+- **Sequence and variation:** verify first value, wraparound, missed boundaries,
+  repeat reads, suspension, and Off behavior. The same seed and logical indices
+  yield identical values at different render rates without altering p5 randomness.
+- **Mapping and composition:** verify endpoints, clamping, inversion, invalid input
+  ranges, and an envelope mapped into both a p5 property and shader argument.
+  Reject cyclic dependencies and non-finite signal values with useful diagnostics.
+- **Signal lifecycle:** unchanged helpers continue; replacements follow documented
+  initialization; failed edits and recalls retain prior signal state. Repeated live
+  edits must not accumulate helper registrations or retain old patch resources.
 - **Auto:** begin with synthetic and recorded, licensed test inputs covering a
   steady pulse, syncopation, missing kicks, loudness changes, sustained tones,
   ambient audio, tempo changes, and ambiguous half/double interpretations.
