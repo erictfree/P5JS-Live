@@ -246,12 +246,12 @@ class Plasma {
 const plasma = new Plasma();
 
 // %% scene scene
-// Array order is layer order. Keep plasma last when you add another patch.
+// Entries draw in order. Keep plasma last when you add another patch.
 const scene = [
   asciiNoise,
   plasma,
 ];
-activate(scene);
+scene.draw();
 `;
 
 /** Upgrade known untouched starter Plasma versions without disturbing other cells. */

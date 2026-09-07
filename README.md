@@ -14,7 +14,7 @@ creative coders, performers, and the live-coding community.
 ## How it works
 
 A **patch** is a JavaScript function, object, or class instance that draws. A
-**scene** is an array of patches in layer order. A nested array is a transparent,
+**scene** is an array of patches in draw order. A nested array is a transparent,
 isolated render group, so effects inside it apply only to that group.
 
 ```js
@@ -256,6 +256,8 @@ check whether the transport says **Play**. Enter with silence to test visuals al
 | --- | --- |
 | [Guide](docs/GUIDE.md) | Patches, scenes, audio, shaders, networking, and recovery |
 | [API](docs/API.md) | Context fields, lifecycle, identity, commands, and exact behavior |
+| [Data model](docs/DATA-MODEL.md) | Arrays, layers, effect scope, and the draw loop |
+| [Layer composition](docs/COMPOSITION.md) | Native array effects and the playable Layer Lab examples |
 | [Nested render groups](docs/NESTED-RENDER-GROUPS.md) | Recursive scene composition, factories, and effect scope |
 | [Networking (disabled)](docs/NETWORKING.md) | Inactive beta implementation and deployment notes |
 | [Architecture](docs/ARCHITECTURE.md) | Runtime design and implementation invariants |

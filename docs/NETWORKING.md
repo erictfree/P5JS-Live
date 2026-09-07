@@ -48,7 +48,7 @@ const scene = [
   publishMain,
 ];
 
-activate(scene);
+scene.draw();
 ```
 
 With no `source` option, the publisher captures the final p5js live canvas. It starts

@@ -263,13 +263,13 @@
               <div id="scene-inspector-status" class="scene-inspector-status" role="status"></div>
               <div id="scene-pending" class="library-pending" hidden><strong>Scene edits are waiting to run</strong><p>The tree below shows the live composition.</p><button id="scene-review-source" type="button">Review scene &amp; run</button></div>
               <ol id="scene-tree" class="scene-tree" aria-label="Live scene composition"></ol>
-              <details class="tool-disclosure scene-recipe"><summary>Chain effects onto a sketch</summary><p>Wrap an installed sketch in <code>layer()</code>. Edit its scene cell, then Run.</p><pre><code>const scene = [
-  layer(waveScope)
-    .fx(new ShaderChain().kaleid(6))
+              <details class="tool-disclosure scene-recipe"><summary>Chain effects onto a sketch</summary><p>Put one or more installed sketches in an array, then chain effects onto that array. Edit its scene cell, then Run.</p><pre><code>const scene = [
+  [waveScope]
+    .kaleid(6)
     .opacity(({ audio }) =&gt;
       0.4 + audio.bass * 0.6),
 ];
-activate(scene);</code></pre><p><code>.rotate()</code>, <code>.scale()</code>, and <code>.translate()</code> transform the rendered layer. <code>.mute()</code> pauses its drawing while retaining state.</p></details>
+scene.draw();</code></pre><p><code>[waveScope, laserFan].rotate(0, 0.2)</code> rotates both sketches together. Nest that array to keep its effects separate from other patches. <code>.mute()</code> pauses its drawing while retaining state.</p></details>
             </div>
           </section>
           <section
@@ -518,10 +518,11 @@ const publishMain = room.publish({
               <details class="shader-operator-reference">
                 <summary>Shader operators</summary>
                 <div class="shader-operator-body">
-                  <p><code>new ShaderChain()</code> turns the image already drawn by earlier patches into one post-processing patch.</p>
-                  <div><strong>Transform</strong> <code>rotate</code> <code>scale</code> <code>pixelate</code> <code>repeat</code> <code>repeatX</code> <code>repeatY</code> <code>kaleid</code> <code>scroll</code> <code>scrollX</code> <code>scrollY</code></div>
-                  <div><strong>Color</strong> <code>posterize</code> <code>shift</code> <code>invert</code> <code>contrast</code> <code>brightness</code> <code>luma</code> <code>thresh</code> <code>color</code> <code>saturate</code> <code>hue</code> <code>colorama</code> <code>sum</code> <code>rgba</code></div>
-                  <p>Every argument may be a number or <code>({ audio, time }) =&gt; value</code>. Operators run in written order; <code>.mix()</code>, <code>.blend()</code>, and <code>.bypass()</code> control the whole chain. Use <code>layer(sketch).fx(chain)</code> to process one sketch in isolation.</p>
+                  <p>Chain operators onto an array: <code>[waveScope].kaleid(6).hue(0.1)</code>. Each operator processes the image drawn so far in that layer.</p>
+                  <div><strong>Transform</strong> <code>transform</code> <code>translate</code> <code>rotate</code> <code>scale</code> <code>mirror</code> <code>crop</code> <code>noiseWarp</code> <code>pixelate</code> <code>repeat</code> <code>repeatX</code> <code>repeatY</code> <code>kaleid</code> <code>scroll</code> <code>scrollX</code> <code>scrollY</code></div>
+                  <div><strong>Sampling</strong> <code>blur</code> <code>sharpen</code> <code>edgeDetect</code> <code>bloom</code> <code>vignette</code> <code>rgbSplit</code> <code>feedback</code> <code>lumaMask</code></div>
+                  <div><strong>Color</strong> <code>opacity</code> <code>posterize</code> <code>colorShift</code> <code>invert</code> <code>contrast</code> <code>brightness</code> <code>luma</code> <code>thresh</code> <code>color</code> <code>saturate</code> <code>hue</code> <code>colorama</code> <code>sum</code> <code>rgba</code></div>
+                  <p>Numeric arguments may be numbers or <code>({ audio, time }) =&gt; value</code>. Operators run in written order. For wet/dry mix, blend mode, or bypass, create a <code>new ShaderChain()</code> and append it with <code>.fx(chain)</code>. The shader's <code>shift()</code> is <code>colorShift()</code> on arrays; native array <code>shift()</code> still removes the first entry.</p>
                 </div>
               </details>
             </div>

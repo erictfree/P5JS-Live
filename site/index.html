@@ -177,7 +177,7 @@
       <div style="flex: 1 1 420px; min-width: 300px;">
         <h2 style="margin: 0 0 10px 0; font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 800; color: #5b3fa6;">Build performances from patches.</h2>
         <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.75; color: #2a2540;">A patch is a small visual behavior.</p>
-        <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.75; color: #2a2540;">A scene is simply an array of patches in layer order.</p>
+        <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.75; color: #2a2540;">A scene is an array of patches. Nest arrays to group visuals and chain effects onto each group.</p>
         <p style="margin: 0 0 16px 0; font-size: 16px; line-height: 1.75; color: #2a2540;">Add, remove, reorder, and rewrite pieces while the scene is running.</p>
         <p style="margin: 0; font-size: 16px; line-height: 1.75; color: #2a2540;">Small patches stay reusable. Scenes stay easy to understand. And you can gradually build a personal library of visual material for performance.</p>
       </div>
@@ -185,12 +185,12 @@
         <div style="background: #211e2e; border-radius: 10px; padding: 22px 24px; overflow-x: auto;">
           <pre style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 13.5px; line-height: 1.75; color: #e8e6f0;"><span style="color:#ff7aa8;">const</span> scene = [
   solidBackground,
-  waveScope,
-  rings,
-  plasma
+  [waveScope, laserFan]
+    .rotate(0, 0.2)
+    .opacity(0.8),
 ];
 
-activate(scene);</pre>
+scene.draw();</pre>
         </div>
       </div>
     </div>

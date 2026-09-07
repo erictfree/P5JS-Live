@@ -161,7 +161,7 @@ p5 globals such as `circle`, `fill`, `noise`, `width`, and `height` remain avail
 
 ## Compose a scene
 
-A scene is an array in layer order. Later patches draw over or post-process earlier
+A scene is an array in draw order. Later patches draw over or post-process earlier
 ones.
 
 ```js
@@ -172,7 +172,7 @@ const scene = [
   plasma,
 ];
 
-activate(scene);
+scene.draw();
 ```
 
 A nested array creates a transparent isolated group. Effects inside the group see
@@ -265,16 +265,32 @@ const flash = audio.beat ? 255 : 30;
 Use level or frequency bands for continuous motion and `audio.beat` for events. Map
 a few features first; audio ranges differ across tracks and input devices.
 
-## Post-process with ShaderChain
+## Chain effects onto arrays
 
 **Tools → Scene** shows the live composition, nested groups, shader operators, and
 pass counts. Select a source or operator to open its code. The arrows edit the
 top-level scene order; **Review scene & run** opens the source for explicit evaluation.
-Until you Run, the tree continues to show the live composition. For fluent sketch
-composition, see [Layer composition](COMPOSITION.md).
+Until you Run, the tree continues to show the live composition.
 
-`ShaderChain` captures the pixels drawn by earlier patches and applies its operators
-in order.
+Put sketches in an array and chain effects onto their combined image:
+
+```js
+const scene = [
+  solidBackground,
+  [waveScope, laserFan]
+    .rotate(0, 0.15)
+    .bloom(0.3, 4, 0.5)
+    .opacity(0.8),
+];
+scene.draw();
+```
+
+The nested array isolates both sketches and their effects from the background.
+For more examples, see [Layer composition](COMPOSITION.md).
+
+Use an explicit `ShaderChain` when you want a reusable effect patch or chain-wide
+mix, blend, or bypass settings. It captures the pixels drawn by earlier patches
+and applies its operators in order.
 
 ```js
 const spin = new ShaderChain()
@@ -331,7 +347,7 @@ const scene = [
   publishMain,
 ];
 
-activate(scene);
+scene.draw();
 ```
 
 The stream appears as `Eric/main-output`. Publishing begins only while

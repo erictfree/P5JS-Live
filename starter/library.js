@@ -1789,6 +1789,7 @@ const patternCRT = new PatternCRT({
 // shaderFlow — ShaderChain is an ordinary patch object with a fluent API.
 // Each argument may be a number or a function of the normal draw context.
 // Put the finished chain after drawing patches so it transforms their combined image.
+// To process a group, use [waveScope, laserFan].fx(shaderFlow) inside your scene.
 const shaderFlow = new ShaderChain()
   .rotate(({ time, audio }) => time * 0.035 + audio.mid * 0.08)
   .scale(({ audio }) => 1.02 + audio.bass * 0.16)
@@ -2509,4 +2510,4 @@ const stacked = [
   beatBurst,
   strobe,
 ];
-activate(stacked);`;
+stacked.draw();`;

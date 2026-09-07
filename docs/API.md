@@ -215,8 +215,8 @@ The copies share one implementation but have separate state. They appear as
 ## Live commands
 
 ```js
-activate(scene);     // activate at the next frame boundary
-scene.draw();        // the same activation through the array's native method
+scene.draw();        // select this array for the ongoing frame loop
+// activate(scene);  // compatible activation command
 reset(laserFan);     // recreate state for every active copy
 control("trail", 0.08, { type: "continuous", min: 0, max: 0.3 });
 ```

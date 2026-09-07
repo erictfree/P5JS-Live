@@ -16,7 +16,7 @@ const scene = [
   vignette,
 ];
 
-activate(scene);
+scene.draw();
 ```
 
 The inner group renders independently. `plasma` affects only `asciiNoise`; the
@@ -173,5 +173,7 @@ It makes closures, factories, first-class functions, higher-order functions, rec
 data, `map`, spread, state identity, evaluation timing and visual scope observable
 through immediate graphics.
 
-Nested arrays remain the core composition syntax. The optional [layer() builder](COMPOSITION.md)
-adds fluent effects and mute while retaining arrays and the same per-patch lifecycle.
+Nested arrays are the core composition syntax. Native [array effect methods](COMPOSITION.md)
+add chaining directly: `[patch1, patch2].rotate(0, 0.2).opacity(0.6)` processes both
+patches together. Nest that array to isolate its effects. The host retains each
+patch's lifecycle and state; `scene.draw()` selects the scene for ongoing rendering.

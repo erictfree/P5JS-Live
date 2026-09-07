@@ -32,7 +32,8 @@ The editable source is [layer-lab.js](../starter/layer-lab.js).
 const scene = [
   solidBackground,
   [waveScope]
-    .fx(new ShaderChain().kaleid(6).hue(0.1))
+    .kaleid(6)
+    .hue(0.1)
     .opacity(({ audio }) => 0.4 + audio.bass * 0.6),
 ];
 scene.draw();
@@ -48,7 +49,7 @@ const scene = [
   [waveScope, laserFan]
     .rotate(({ time }) => time * 0.1)
     .scale(1.1)
-    .fx(new ShaderChain().bloom(0.4, 3, 0.6)),
+    .bloom(0.4, 3, 0.6),
 ];
 scene.draw();
 ```
@@ -74,6 +75,12 @@ All direct ShaderChain operators are supported on arrays, except the shader's
 `shift()` is named `colorShift()`; native `.shift()` still removes the first entry.
 For example, `[waveScope].hue(0.2).blur(3)` processes hue before blur. Use an explicit
 ShaderChain through `.fx()` for wet/dry mix, blend mode, and bypass settings.
+
+```js
+const softFocus = new ShaderChain().blur(3).mix(0.4);
+const scene = [solidBackground, [waveScope].fx(softFocus)];
+scene.draw();
+```
 
 These methods live on `Array.prototype`. They are non-enumerable and protected:
 reassigning an installed method throws even in non-strict code, and its prototype

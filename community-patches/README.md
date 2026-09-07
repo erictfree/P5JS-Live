@@ -18,6 +18,17 @@ const myPatch = {
 };
 ```
 
+After installing the patch, try it in a scene cell:
+
+```js
+// %% scene scene
+const scene = [[myPatch].rotate(0, 0.2).opacity(0.8)];
+scene.draw();
+```
+
+Keep the contribution file focused on the patch definition. Array composition and
+effects belong in the performer's scene, where patches can be combined freely.
+
 Valid categories are:
 
 - `visual` — a general drawing patch

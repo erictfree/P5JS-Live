@@ -69,16 +69,22 @@ current implementation on every call. Object methods use
 The evaluator scans top-level statements or explicit `// %%` cells, executes them in
 a staging environment, and captures declarations.
 
-- An object with `draw()` is a patch.
+- A non-array object with `draw()` is a patch. Arrays are classified first because
+  their `.draw()` method is a scene command.
 - A function becomes a patch when a scene uses it.
 - An inline value receives a path identity such as `scene[1][0]`.
-- A top-level array is a scene; a nested array is an isolated render group.
+- An array of patches can become a scene; a nested array is an isolated render group.
 - Other functions, classes, arrays, and values remain ordinary bindings.
 - `activate`, `reset`, and `control` are the injected live commands.
 
 Bindings persist between evaluations, so a later array contains the actual values
-declared earlier. `activate(scene)` receives the array itself; no string registry is
-exposed to live code.
+declared earlier. Native `scene.draw()` stages activation through the current
+evaluation transaction. It can select a layer prepared in an earlier block, keeping
+its original source for navigation. `activate(scene)` remains compatible.
+
+Protected, non-enumerable array methods build immutable layer descriptions using
+the existing ShaderChain and nested-group renderer. They do not replace p5's
+global draw callback or translate array syntax. See the [data model](DATA-MODEL.md).
 
 A `// %%` cell updates its class or factory and constructed patch together. Before a
 full-buffer evaluation, duplicate named patch cells are collapsed to the newest

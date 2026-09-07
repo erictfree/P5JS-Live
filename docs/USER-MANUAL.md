@@ -235,7 +235,7 @@ them only after you have used the instrument.
 
 #### A first scene
 
-Here is a complete two-layer scene. You do not need to understand every symbol yet:
+Here is a scene containing two patches. You do not need to understand every symbol yet:
 
 ```js
 const dot = ({ audio }) => {
@@ -247,17 +247,16 @@ const scene = [
   dot,
 ];
 
-activate(scene);
+scene.draw();
 ```
 
-Read the `scene` array from top to bottom. `solidBackground` establishes the first
-layer. `dot` adds a circle whose size follows the bass. Earlier entries contribute
+Read the `scene` array from top to bottom. `solidBackground` draws the background.
+`dot` adds a circle whose size follows the bass. Earlier entries contribute
 pixels first; later entries draw over them or transform what is already there.
 
-`activate(scene)` identifies this array as the composition to run. You can also
-write `scene.draw()`, the native array method used by the starter. When the scene
-cell is evaluated, p5js live updates the active composition at a frame boundary.
-This array method does not replace p5's global `draw()` callback.
+`scene.draw()` selects this array for the ongoing frame loop. When the scene cell
+is evaluated, p5js live updates the active composition at a frame boundary.
+The array method has its own namespace, separate from p5's global `draw()` callback.
 
 #### Source and the running performance
 
@@ -734,11 +733,12 @@ const scene = [
   plasma,
 ];
 
-activate(scene);
+scene.draw();
 ```
 
-`activate()` receives the array value, not a string. Use `activate(scene)`, not
-`activate("scene")`.
+Call `.draw()` on the named array. You can evaluate the definition and its draw
+command together or in separate blocks. Existing `activate(scene)` calls remain
+supported and take the array value.
 
 To change the image, add, remove, duplicate, comment, or reorder array entries and
 evaluate the scene cell. The Library's **Add to scene** action inserts at the cursor
@@ -784,29 +784,25 @@ A higher-order function receives or returns a function, patch, or group. Because
 patches and arrays are ordinary values, scene construction can itself be creative
 code.
 
-#### Function returning a patch
+#### Parameterize a layer
 
 ```js
-const onlyWhen = (test, patch) => ({
-  draw(context) {
-    if (!test(context)) return;
+const visibleWhen = (test, ...patches) => patches
+  .opacity(context => test(context) ? 1 : 0);
 
-    if (typeof patch === "function") {
-      patch(context);
-    } else {
-      patch.draw(context);
-    }
-  },
-});
-
-const loudRings = onlyWhen(
+const loudRings = visibleWhen(
   ({ audio }) => audio.level > 0.35,
   rings,
 );
+
+const scene = [solidBackground, loudRings];
+scene.draw();
 ```
 
-The wrapper receives behavior and a patch, then returns another patch. This is a
-higher-order adapter built from first-class values.
+The helper receives a predicate and patches, then returns an array with an opacity
+effect. The host still runs each patch's lifecycle and keeps its occurrence state.
+Opacity zero hides the image while drawing continues. `.mute(true)` pauses a group
+when you reevaluate its scene.
 
 #### Function returning an array
 
@@ -1082,8 +1078,27 @@ all onscreen controls working.
 
 ### 16. Transform pixels with ShaderChain
 
+Use the same effect methods directly on an array of sketches:
+
+```js
+const scene = [
+  solidBackground,
+  [waveLine, rings]
+    .rotate(0, 0.2)
+    .blur(2)
+    .opacity(0.7),
+];
+scene.draw();
+```
+
+The two sketches share rotation, blur, and opacity; the background stays outside
+that group. `[waveLine, rings].blur(2).add(laserFan)` draws the laser after blurring,
+while `[waveLine, rings].add(laserFan).blur(2)` blurs all three. See
+[Layer composition](COMPOSITION.md) for nesting and argument units.
+
 Drawing patches create pixels. A `ShaderChain` is a patch that captures pixels drawn
-before it and processes them on the GPU:
+before it and processes them on the GPU. Keep named chains for reusable effect
+patches or explicit wet/dry mix, blend mode, and bypass settings:
 
 ```js
 const pixelDrift = new ShaderChain()
@@ -1121,9 +1136,12 @@ Common operators include:
 - Color: `posterize`, `shift`, `invert`, `contrast`, `brightness`, `luma`,
   `thresh`, `color`, `saturate`, `hue`, `colorama`, `sum`, and `rgba`.
 
-Most operators also support wet/dry mix, blend modes, or bypass. Blend modes include
-alpha, add, multiply, screen, overlay, difference, subtract, lighten, and darken.
-Operator order matters because each step receives the previous step's pixels.
+These operators are also array methods, with `colorShift()` in place of the shader's
+`shift()`; native array `shift()` still removes an entry. Wet/dry mix, blend mode,
+and bypass belong to the explicit ShaderChain and apply to the whole chain. Append
+one with `[waveLine].fx(pixelDrift)`. Blend modes include alpha, add, multiply,
+screen, overlay, difference, subtract, lighten, and darken. Operator order matters
+because each step receives the previous step's pixels.
 
 Place a chain inside a nested group to limit its input:
 
@@ -1463,7 +1481,7 @@ scene.
 
 The system turns abstract ideas into immediate visual consequences:
 
-- array order becomes layer order;
+- array entries run in written order;
 - nesting becomes rendering scope;
 - identity determines whether a trail continues;
 - a closure holds configuration;
@@ -1549,7 +1567,7 @@ Scene item = Patch | Group
 Group      = Array<Scene item>
 ```
 
-A flat array is an ordered stack. A nested array is both a child collection and one
+A flat array describes one ordered layer. A nested array is both a child collection and one
 composited result in its parent. This is the **Composite pattern**: individual patches
 and groups participate in one recursive tree while groups introduce a rendering
 boundary.
@@ -1776,7 +1794,7 @@ const visualSandwich = (source, effect, overlay) => [
 ];
 
 const scene = visualSandwich(neonTunnel, plasma, vignette);
-activate(scene);
+scene.draw();
 ```
 
 The function captures a compositional rule while leaving the ingredients open.
@@ -1990,12 +2008,13 @@ resources on the owning object rather than in `state`.
 
 | Command | Result |
 | --- | --- |
-| `activate(scene)` | Queue the supplied scene array as active at a frame boundary |
+| `scene.draw()` | Select the named array for the ongoing frame loop, at a frame boundary |
+| `activate(scene)` | Compatible command with the same activation behavior |
 | `reset(patch)` | Recreate state for every active occurrence of the supplied patch value |
 | `control(name, initial, options)` | Declare or update a project-wide live control; current performer value is preserved on reevaluation |
 
-Commands accept actual JavaScript values. Use `activate(scene)` and `reset(rings)`,
-not string names.
+Commands use actual JavaScript values: `scene.draw()` selects a scene array and
+`reset(rings)` resets a patch's occurrences.
 
 Control value types are number, Boolean, or string:
 
@@ -2239,7 +2258,7 @@ const publishMain = room.publish({
 });
 
 const scene = [remoteParticles, plasma, publishMain];
-activate(scene);
+scene.draw();
 ```
 
 `receive()` and `publish()` return normal lifecycle patches. Publication is explicit
