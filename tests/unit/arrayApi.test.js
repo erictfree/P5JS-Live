@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { runInNewContext } from 'node:vm';
 import { ARRAY_METHOD_NAMES, ARRAY_SHADER_METHODS, installArrayMethods } from '../../src/host/arrayApi.js';
 import { ShaderChain } from '../../src/shaders/shaderChain.js';
-import { layer } from '../../src/host/layer.js';
 import { validateStrategy } from '../../src/host/liveApi.js';
 import { sceneMemberNames, insertSceneMember, describeBlock, findStatements } from '../../src/language/sourceBlocks.js';
 import { createTestHost } from './helpers.js';
@@ -86,7 +85,7 @@ describe('native array composition', () => {
     const shared = [a];
     expect([shared, shared].opacity()).toHaveLength(3);
     expect(() => validateStrategy([a], 'notAPatch')).toThrow();
-    expect(layer(a).rotate().add(b).slice(0, 1)).toEqual([a]);
+    expect([a].rotate().add(b).slice(0, 1)).toEqual([a]);
   });
 });
 
@@ -121,6 +120,41 @@ describe('protected prototype methods', () => {
 });
 
 describe('array draw transactions', () => {
+  it('selects scenes only through draw, with the last command winning at the boundary', () => {
+    const h = createTestHost();
+    expect(h.evaluator.evaluate('const patch = () => {}; const first = [patch]; const second = [patch, patch];').ok).toBe(true);
+    h.frame();
+    expect(h.registry.activeSceneName()).toBeNull();
+    expect(h.registry.listScenes()).toEqual([]);
+    expect(h.evaluator.evaluate('first.draw(); second.draw();').ok).toBe(true);
+    expect(h.registry.activeSceneName()).toBeNull();
+    h.frame();
+    expect(h.registry.activeSceneName()).toBe('second');
+    expect(h.registry.activeOrder()).toEqual(['patch', 'patch#2']);
+  });
+
+  it('rejects removed authoring aliases and exposes only controls in patch context', () => {
+    const h = createTestHost();
+    expect(h.evaluator.evaluate(`
+      control('gain', 0.4);
+      const patch = { state: () => ({}), draw(context) {
+        context.state.gain = context.controls.gain;
+        context.state.hasParamsAlias = Object.hasOwn(context, 'params');
+      } };
+      const scene = [patch]; scene.draw();
+    `).ok).toBe(true);
+    h.frame(2);
+    expect(h.stateStore.get('patch')).toEqual({ gain: 0.4, hasParamsAlias: false });
+    for (const source of ['layer(patch)', 'activate(scene)', 'param("gain", 0.9)']) {
+      const result = h.evaluator.evaluate(source);
+      expect(result.ok).toBe(false);
+      expect(result.error).toBeInstanceOf(ReferenceError);
+    }
+    h.frame();
+    expect(h.registry.activeSceneName()).toBe('scene');
+    expect(h.stateStore.get('patch').gain).toBe(0.4);
+  });
+
   it('can prepare a layer and draw it in a later evaluated block, retaining its source', () => {
     const h = createTestHost();
     const source = 'const scene = [() => {}].opacity(0.5);';

@@ -2451,49 +2451,6 @@ export const DIAGNOSTIC_PATCH_NAMES = [
   'audioMeters',
 ];
 
-/**
- * Update copied system diagnostics without rewriting unrelated project code.
- * Only the exact former defaults inside the named patch cells are replaced.
- */
-export function upgradeOpaqueDiagnostics(source) {
-  const updateCell = (sourceText, name, replacements) =>
-    sourceText.replace(
-      new RegExp(`(// %% patch ${name}\\n[\\s\\S]*?)(?=\\n// %% |$)`),
-      (cell) => replacements.reduce(
-        (updated, [before, after]) => updated.replaceAll(before, after),
-        cell,
-      ),
-    );
-
-  const frequencyUpdated = updateCell(source, 'frequencyBars', [
-    ['panelHeight: 0.34', 'heightRatio: 0.34'],
-    ['this.panelHeight', 'this.heightRatio'],
-    ['fill(100, 145, 255, 230)', 'fill(100, 145, 255)'],
-    ['fill(190, 125, 255, 230)', 'fill(190, 125, 255)'],
-    ['fill(255, 190, 95, 230)', 'fill(255, 190, 95)'],
-  ]);
-
-  const metersUpdated = updateCell(frequencyUpdated, 'audioMeters', [
-    ['fill(...colour, 220)', 'fill(...colour)'],
-  ]);
-
-  const ellipseUpdated = updateCell(metersUpdated, 'breathingEllipse', [
-    ['    background(8, 8, 12); // Clear the previous frame so shrinking stays visible.\n', ''],
-  ]);
-
-  const checkerUpdated = updateCell(ellipseUpdated, 'checkerZoom', [
-    ['// Keep it first: it provides the dark fade behind the other patches.',
-      '// Add solidBackground before it when the scene should clear each frame.'],
-    ['  noStroke();\n  fill(4, 4, 10, 35);\n  rect(0, 0, width, height);\n\n', ''],
-  ]);
-
-  return updateCell(checkerUpdated, 'cellularBlobular', [
-    ['      gl_FragColor = vec4(colour, 1.0);',
-      '      float alpha = clamp(body + rim, 0.0, 1.0);\n      gl_FragColor = vec4(colour, alpha);'],
-    ['    write.shader(program);', '    write.clear();\n    write.shader(program);'],
-  ]);
-}
-
 /** Ready-made source that mixes all ten system library patches. */
 export const libraryDemoSource = () => `// %% scene stacked
 // Ten independently configurable patches, composited in array order.

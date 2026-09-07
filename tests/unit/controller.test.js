@@ -15,7 +15,7 @@ describe('application controller boundary', () => {
     h.evaluator.evaluate(`
       const rings = { draw() {} };
       const show = [rings, rings];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
 
@@ -45,7 +45,7 @@ const rings = { draw() {} };
 const scene = [
   plasma,
 ];
-activate(scene);`;
+scene.draw();`;
     h.controller.setSourceProvider(() => source);
     h.evaluator.evaluate(source);
     h.frame(2);
@@ -73,7 +73,7 @@ const broken = { draw() { ((( } };`);
   it('describes public function, object, and class interfaces without exposing or invoking them', () => {
     const h = setup();
     h.evaluator.evaluate(`
-      // %% strategy examples
+      // %% patch examples
       const wash = ({ audio }) => {};
       const rings = {
         count: 4,
@@ -93,7 +93,7 @@ const broken = { draw() { ((( } };`);
       }
       const orbiters = new Orbiters();
       const show = [wash, rings, orbiters];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
 
@@ -127,7 +127,7 @@ const broken = { draw() { ((( } };`);
     h.controller.dispose();
   });
 
-  it('dispatches reset, parameter, safe-scene, and panic actions', () => {
+  it('dispatches reset, parameter, safe-state, and panic actions', () => {
     const h = setup();
     h.evaluator.evaluate(`
       const counter = {
@@ -136,18 +136,18 @@ const broken = { draw() { ((( } };`);
       };
       const safe = [counter];
       const empty = [];
-      activate(empty);
-      activate(safe);
+      empty.draw();
+      safe.draw();
       control("speed", 1, { min: 0, max: 2 });
     `);
     h.frame(8);
 
-    expect(h.controller.actions.setSafeScene()).toBe('safe');
+    expect(h.controller.actions.setSafeState()).toMatchObject({ ok: true, sceneName: 'safe' });
     h.controller.actions.setParam('speed', 1.5);
     h.controller.actions.resetStrategy('counter');
     expect(h.stateStore.get('counter').n).toBe(0);
 
-    h.evaluator.evaluate('activate(empty);');
+    h.evaluator.evaluate('empty.draw();');
     h.frame(2);
     expect(h.registry.activeSceneName()).toBe('empty');
     expect(h.controller.actions.panic()).toBe('safe');
@@ -165,7 +165,7 @@ const broken = { draw() { ((( } };`);
         draw({ state }) { state.n++; state.version = 1; },
       };
       const trusted = [counter];
-      activate(trusted);
+      trusted.draw();
       control("speed", 1, { min: 0, max: 4 });
     `;
     h.controller.setSourceProvider(() => source);
@@ -181,7 +181,7 @@ const broken = { draw() { ((( } };`);
     source = `
       const counter = { draw({ state }) { state.version = 2; } };
       const empty = [];
-      activate(empty);
+      empty.draw();
       control("speed", 0);
     `;
     h.controller.sourceChanged();
@@ -217,7 +217,7 @@ const broken = { draw() { ((( } };`);
         draw({ state }) { state.frames++; },
       };
       const trusted = [trustedPatch];
-      activate(trusted);
+      trusted.draw();
       control("energy", 0.75);
     `;
     h.controller.setSourceProvider(() => source);
@@ -227,7 +227,7 @@ const broken = { draw() { ((( } };`);
     const checkpoint = h.controller.checkpoint();
     const trustedFrames = h.stateStore.get('trustedPatch').frames;
 
-    source = 'const temporary = { draw() {} }; const other = [temporary]; activate(other);';
+    source = 'const temporary = { draw() {} }; const other = [temporary]; other.draw();';
     h.evaluator.evaluate(source);
     h.frame(2);
     expect(h.registry.activeSceneName()).toBe('other');
@@ -268,7 +268,7 @@ const broken = { draw() { ((( } };`);
       audio: { status: () => ({ source: 'none', contextState: 'running' }) },
       controlManager,
     });
-    let source = 'const patch = { draw() {} }; const scene = [patch]; activate(scene); control("speed", 1);';
+    let source = 'const patch = { draw() {} }; const scene = [patch]; scene.draw(); control("speed", 1);';
     controller.setSourceProvider(() => source);
     runtime.evaluator.evaluate(source);
     runtime.frame(2);

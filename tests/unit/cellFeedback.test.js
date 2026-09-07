@@ -3,7 +3,7 @@ import { createCellFeedback } from '../../src/ui/cellFeedback.js';
 
 const original = '// %% patch pulse\nconst pulse = { speed: 1, draw() {} };';
 const edited = original.replace('speed: 1', 'speed: 2');
-const scene = '// %% scene scene\nconst scene = [pulse];\nactivate(scene);';
+const scene = '// %% scene scene\nconst scene = [pulse];\nscene.draw();';
 const snapshot = (source = original, extra = {}) => ({
   strategies: [{ name: 'pulse', source, version: 1, running: true, pending: false, ...extra }],
   scene: { name: 'scene' },

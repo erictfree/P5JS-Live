@@ -8,11 +8,10 @@
 //
 // Top-level class/function/value bindings are retained between block evaluations.
 // Objects with draw() become replaceable strategies immediately. Functions become
-// strategies contextually when a scene uses them. Arrays made from
-// strategies become scenes. All registry changes still land only at a frame boundary.
+// strategies when a scene uses them. Arrays describe layers; .draw() selects one as
+// the active scene. All registry changes land only at a frame boundary.
 
 import { createTransaction, LIVE_API_NAMES } from './liveApi.js';
-import { isLayer, assertPatch } from './layer.js';
 import { installArrayMethods, withArrayDrawing } from './arrayApi.js';
 import { strategyOf } from './stateStore.js';
 import { findCells, findStatements } from '../language/sourceBlocks.js';
@@ -48,19 +47,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
       return { ok: false, phase: 'empty', error: new Error('Nothing to evaluate') };
     }
 
-    // Older builds could append the same library cell twice before the first install
-    // reached the frame boundary. Keep the newest copy at the original cell position:
-    // this removes duplicate class/const declarations without changing scene ordering.
-    const normalized = collapseDuplicatePatchCells(source);
-    const executableSource = normalized.source;
-    if (normalized.names.length) {
-      diagnostics?.warn(
-        `Duplicate patch source repaired: ${normalized.names.join(', ')}`,
-        'The newest cell was evaluated as the replacement. Remove the older duplicate from the editor when convenient.',
-      );
-    }
-
-    const declarations = declarationEntries(executableSource);
+    const declarations = declarationEntries(source);
     const declaredNames = new Set(declarations.map((entry) => entry.name));
     const availableBindings = [...bindings.entries()].filter(
       ([name]) => !declaredNames.has(name) && !LIVE_API_NAMES.includes(name),
@@ -74,18 +61,18 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
       compiled = new Function(
         ...LIVE_API_NAMES,
         ...availableBindings.map(([name]) => name),
-        `${executableSource}${capture}`,
+        `${source}${capture}`,
       );
     } catch (error) {
-      diagnostics?.error(`Syntax error — ${label} not applied`, formatError(error, executableSource));
+      diagnostics?.error(`Syntax error — ${label} not applied`, formatError(error, source));
       return { ok: false, phase: 'syntax', error };
     }
 
-    const transaction = createTransaction(executableSource, { nameOf: knownNameOf });
+    const transaction = createTransaction(source, { nameOf: knownNameOf });
     let captured = {};
     try {
       captured =
-        withArrayDrawing(transaction.api.activate, () => compiled(
+        withArrayDrawing(transaction.selectScene, () => compiled(
           ...transaction.args(),
           ...availableBindings.map(([, value]) => value),
         )) ?? {};
@@ -93,7 +80,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
       transaction.resolveCommandTargets(localNameOf);
       promoteNewReferences(transaction);
     } catch (error) {
-      diagnostics?.error(`Evaluation error — ${label} not applied`, formatError(error, executableSource));
+      diagnostics?.error(`Evaluation error — ${label} not applied`, formatError(error, source));
       return { ok: false, phase: 'evaluation', error };
     }
 
@@ -151,7 +138,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
     // everything declared in the same buffer as already on its way into the registry.
     for (const declaration of declarations) {
       const value = captured[declaration.name];
-      const explicitStrategyName = /^(?:strategy|patch)\s+([A-Za-z_$][\w$]*)$/.exec(
+      const explicitStrategyName = /^patch\s+([A-Za-z_$][\w$]*)$/.exec(
         declaration.cellLabel ?? '',
       )?.[1];
       if (
@@ -169,10 +156,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
         (op) => op.type === 'activate' && op.target === value,
       );
       const isExistingScene = registry.listScenes().some((scene) => scene.name === declaration.name);
-      if (
-        (isStrategyArray(value) && !isLayer(value)) ||
-        (Array.isArray(value) && (isActivationTarget || isExistingScene))
-      ) {
+      if (Array.isArray(value) && (isActivationTarget || isExistingScene)) {
         transaction.defineScene(declaration.name, value, localNameOf, declaration.source);
       }
     }
@@ -263,7 +247,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
         staged.push(name);
       }
 
-      // Scene arrays may be captured after activate() ran inside the JavaScript function.
+      // Scene arrays may be captured after .draw() ran inside the JavaScript function.
       // Definitions therefore apply first, then commands run in their written order.
       for (const op of transaction.operations.filter((op) => op.type === 'scene')) {
         applyOperation(op, label);
@@ -388,58 +372,8 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
   };
 }
 
-/**
- * Collapse duplicate explicit patch cells before JavaScript compilation.
- *
- * Re-evaluating one class cell is already safe because the previous class binding is
- * excluded from the generated function parameters. The observed `Cannot declare a
- * class twice` error came from two copies of the entire installed cell in the buffer.
- * This repair makes that legacy source mean what the user intended: the newest cell
- * replaces the earlier definition.
- */
-function collapseDuplicatePatchCells(source) {
-  const groups = new Map();
-  for (const cell of findCells(source)) {
-    const match = /^(?:strategy|patch)\s+([A-Za-z_$][\w$]*)$/.exec(cell.label);
-    if (!match) continue;
-    const group = groups.get(match[1]) ?? [];
-    group.push(cell);
-    groups.set(match[1], group);
-  }
-
-  const replacements = new Map();
-  const names = [];
-  for (const [name, cells] of groups) {
-    if (cells.length < 2) continue;
-    names.push(name);
-    const newest = cells.at(-1).text;
-    replacements.set(cells[0].start, newest);
-    for (const cell of cells.slice(1)) {
-      replacements.set(cell.start, '\n'.repeat(Math.max(1, cell.text.split('\n').length - 1)));
-    }
-  }
-  if (replacements.size === 0) return { source, names };
-
-  let result = '';
-  let cursor = 0;
-  for (const cell of findCells(source)) {
-    if (!replacements.has(cell.start)) continue;
-    result += source.slice(cursor, cell.start);
-    result += replacements.get(cell.start);
-    cursor = cell.end;
-  }
-  result += source.slice(cursor);
-  return { source: result, names };
-}
-
 function isObjectStrategy(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value) && typeof value.draw === 'function';
-}
-
-function isStrategyArray(value) {
-  if (!Array.isArray(value) || value.length === 0) return false;
-  try { assertPatch(value); return true; }
-  catch { return false; }
 }
 
 function flattenSceneEntries(entries, result = []) {

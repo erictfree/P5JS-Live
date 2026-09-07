@@ -85,8 +85,7 @@ scene.draw();
 These methods live on `Array.prototype`. They are non-enumerable and protected:
 reassigning an installed method throws even in non-strict code, and its prototype
 property cannot be redefined. Installation refuses occupied names and never
-replaces native methods. No source translation is used. `layer(sketch)` and
-`activate(scene)` remain supported for existing performances.
+replaces native methods. No source translation is used.
 
 ## Composition methods
 
@@ -115,7 +114,7 @@ Child patch objects remain ordinary references; use separate patch objects or
 `ShaderChain.clone()` when you need independent object-owned resources/feedback.
 
 Build layer arrays outside patch `draw()` methods, not once per frame. Named
-compositions become active when you run `scene.draw()` or `activate(scene)`. Changing
+compositions become active when you run `scene.draw()`. Changing
 a layer's structure requires reevaluating the scene that uses it. Replacing a named sketch's
 implementation updates its existing instances without rebuilding the layer. The
 host preserves occurrence state and handles failed first-frame replacement.

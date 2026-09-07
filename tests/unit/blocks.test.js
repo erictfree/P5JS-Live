@@ -13,8 +13,6 @@ import {
   insertSceneMember,
   sceneMemberNames,
   moveSceneCellsLast,
-  renameLegacyStarterScene,
-  upgradeLegacyActivation,
 } from '../../src/language/sourceBlocks.js';
 
 const SOURCE = `// a comment with a brace {
@@ -33,30 +31,30 @@ const rings = {
 };
 
 const tunnel = [wash, rings];
-activate(tunnel)
+tunnel.draw()
 `;
 
 describe('findBlocks', () => {
   it('finds each top-level statement', () => {
     const blocks = findBlocks(SOURCE);
     expect(blocks.map((b) => describeBlock(b.text))).toEqual([
-      'strategy wash',
-      'strategy rings',
+      'patch wash',
+      'patch rings',
       'scene tunnel',
-      'activate tunnel',
+      'draw tunnel',
     ]);
   });
 
   it('is not fooled by braces or semicolons inside strings', () => {
     const blocks = findBlocks(SOURCE);
-    const rings = blocks.find((b) => describeBlock(b.text) === 'strategy rings');
+    const rings = blocks.find((b) => describeBlock(b.text) === 'patch rings');
     expect(rings.text).toContain('a string with ; and } in it');
     expect(rings.text.trimEnd().endsWith('};')).toBe(true);
   });
 
   it('ends a statement at a newline when brackets are balanced', () => {
     const blocks = findBlocks(SOURCE);
-    expect(blocks.at(-1).text.trim()).toBe('activate(tunnel)');
+    expect(blocks.at(-1).text.trim()).toBe('tunnel.draw()');
   });
 
   it('handles template literals, regexes, and block comments', () => {
@@ -64,19 +62,19 @@ describe('findBlocks', () => {
       'const a = { draw() { const s = `x ${ { y: 1 } } z`; } };',
       'const r = /}\\/;{/g;',
       '/* } ; } */',
-      'activate(a)',
+      'a.draw()',
     ].join('\n');
     const blocks = findBlocks(source);
     expect(blocks).toHaveLength(3);
     expect(blocks[0].text).toContain('${ { y: 1 } }');
-    expect(blocks.at(-1).text.trim()).toBe('activate(a)');
+    expect(blocks.at(-1).text.trim()).toBe('a.draw()');
   });
 
   it('recognizes a constructed class instance as a strategy declaration', () => {
     expect(describeBlock('const plasma = new class Plasma { draw() {} }();')).toBe(
-      'strategy plasma',
+      'patch plasma',
     );
-    expect(describeBlock('const orbiters = new Orbiters();')).toBe('strategy orbiters');
+    expect(describeBlock('const orbiters = new Orbiters();')).toBe('patch orbiters');
   });
 
   it('returns nothing for an empty or comment-only buffer', () => {
@@ -86,7 +84,7 @@ describe('findBlocks', () => {
 });
 
 describe('explicit evaluation cells', () => {
-  const source = `// %% strategy orbiters
+  const source = `// %% patch orbiters
 class Orbiters {
   draw() {}
 }
@@ -94,14 +92,14 @@ const orbiters = new Orbiters();
 
 // %% scene show
 const show = [orbiters];
-activate(show);
+show.draw();
 `;
 
   it('groups a class and its instance into one atomic block', () => {
     const blocks = findBlocks(source);
     expect(blocks).toHaveLength(2);
     expect(blocks.map((block) => describeBlock(block.text))).toEqual([
-      'strategy orbiters',
+      'patch orbiters',
       'scene show',
     ]);
     expect(blocks[0].text).toContain('class Orbiters');
@@ -122,7 +120,7 @@ const wash = { draw() {} };
 
 // %% scene tunnel
 const tunnel = [wash, newPatch];
-activate(tunnel);
+tunnel.draw();
 
 // %% patch newPatch
 const newPatch = { draw() {} };
@@ -140,7 +138,7 @@ const newPatch = { draw() {} };
     const prefixed = `// project notes\n\n${source}`;
     const ordered = moveSceneCellsLast(prefixed);
 
-    expect(ordered.startsWith('// %% strategy orbiters\n// project notes')).toBe(true);
+    expect(ordered.startsWith('// %% patch orbiters\n// project notes')).toBe(true);
     expect(findCells(ordered)[0].start).toBe(0);
   });
 
@@ -154,7 +152,7 @@ const show = [
   plasma,
 
 ];
-activate(show);`;
+show.draw();`;
     const blank = scene.indexOf('\n\n') + 1;
 
     expect(insertSceneMember(scene, 'show', 'rings', { before: 'plasma', at: blank }))
@@ -163,7 +161,7 @@ const show = [
   plasma,
   rings,
 ];
-activate(show);`);
+show.draw();`);
   });
 
   it('inserts before a top-level scene line when the cursor is in its indentation', () => {
@@ -172,7 +170,7 @@ const show = [
   wash,
   plasma,
 ];
-activate(show);`;
+show.draw();`;
     const plasmaLine = scene.indexOf('  plasma,') + 1;
 
     expect(insertSceneMember(scene, 'show', 'rings', { before: 'plasma', at: plasmaLine }))
@@ -182,7 +180,7 @@ const show = [
   rings,
   plasma,
 ];
-activate(show);`);
+show.draw();`);
   });
 
   it('inserts before a top-level scene line when the cursor is inside its patch name', () => {
@@ -191,7 +189,7 @@ const show = [
   wash,
   plasma,
 ];
-activate(show);`;
+show.draw();`;
     const plasmaName = scene.indexOf('plasma') + 3;
 
     expect(insertSceneMember(scene, 'show', 'rings', { at: plasmaName }))
@@ -201,7 +199,7 @@ const show = [
   rings,
   plasma,
 ];
-activate(show);`);
+show.draw();`);
   });
 
   it('does not split a nested multi-line scene expression at the cursor', () => {
@@ -223,43 +221,6 @@ activate(show);`);
 ];`);
   });
 
-  it('renames only the marked legacy starter scene', () => {
-    const legacy = `// %% patch plasma
-const plasma = { draw() {} };
-
-// %% scene tunnel
-const tunnel = [plasma];
-go(tunnel);
-`;
-    const renamed = renameLegacyStarterScene(legacy);
-
-    expect(renamed).toContain('// %% scene scene');
-    expect(renamed).toContain(`const scene = [
-  plasma,
-];`);
-    expect(renamed).toContain('activate(scene);');
-    expect(renamed).not.toContain('tunnel');
-  });
-
-  it('does not rename a deliberately different project', () => {
-    expect(renameLegacyStarterScene('const tunnel = [plasma];\ngo(tunnel);')).toBe(
-      'const tunnel = [plasma];\ngo(tunnel);',
-    );
-  });
-});
-
-describe('upgradeLegacyActivation', () => {
-  it('upgrades executable calls but leaves strings and comments untouched', () => {
-    const source = `// go(scene) is the retired spelling
-const note = "go(scene)";
-controller.go(scene);
-go(scene);`;
-
-    expect(upgradeLegacyActivation(source)).toBe(`// go(scene) is the retired spelling
-const note = "go(scene)";
-controller.go(scene);
-activate(scene);`);
-  });
 });
 
 describe('insertSceneMember', () => {
@@ -268,14 +229,14 @@ describe('insertSceneMember', () => {
 const scene = [
   // plasma,
 ];
-activate(scene);`;
+scene.draw();`;
 
     expect(insertSceneMember(source, 'scene', 'rings', { before: 'plasma' })).toBe(`// %% scene scene
 const scene = [
   // plasma,
   rings,
 ];
-activate(scene);`);
+scene.draw();`);
   });
 
   it('inserts before an active post-processing patch without rewriting comments', () => {
@@ -320,16 +281,16 @@ describe('sceneMemberNames', () => {
 describe('blockAt', () => {
   it('finds the block containing the cursor', () => {
     const cursor = SOURCE.indexOf('rect(0, 0');
-    expect(describeBlock(blockAt(SOURCE, cursor).text)).toBe('strategy wash');
+    expect(describeBlock(blockAt(SOURCE, cursor).text)).toBe('patch wash');
   });
 
   it('finds the block when the cursor sits on its closing line', () => {
     const cursor = SOURCE.indexOf('text(label');
-    expect(describeBlock(blockAt(SOURCE, cursor).text)).toBe('strategy rings');
+    expect(describeBlock(blockAt(SOURCE, cursor).text)).toBe('patch rings');
   });
 
   it('falls back to the last block past the end of the buffer', () => {
-    expect(describeBlock(blockAt(SOURCE, SOURCE.length).text)).toBe('activate tunnel');
+    expect(describeBlock(blockAt(SOURCE, SOURCE.length).text)).toBe('draw tunnel');
   });
 
   it('returns null when there is nothing to evaluate', () => {

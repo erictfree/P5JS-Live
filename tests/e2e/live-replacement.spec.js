@@ -37,7 +37,7 @@ const trailDots = {
 
 // %% scene liveSet
 const liveSet = [baseFade, laserFan, trailDots, plasma];
-activate(liveSet);
+liveSet.draw();
 `;
 
 const LASER_EDITED = `const laserFan = {

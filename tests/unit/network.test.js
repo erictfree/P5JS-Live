@@ -138,7 +138,7 @@ describe('network stream objects', () => {
       const room = new StreamRoom({ name: "Thursday", performer: "Eric", manager });
       const publishMain = room.publish({ name: "main-output" });
       const scene = [publishMain];
-      activate(scene);
+      scene.draw();
     `);
     expect(result.ok).toBe(true);
     host.frame(2);

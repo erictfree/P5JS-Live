@@ -37,24 +37,18 @@ import {
 import { createAppController } from './app/controller.js';
 import { evaluateStartupProject } from './app/startupRecovery.js';
 import { getDefaultNetworkManager } from './network/networkManager.js';
-import { STARTER_SOURCE, upgradeLegacyPlasma } from '../starter/starter.js';
+import { STARTER_SOURCE } from '../starter/starter.js';
 import { ASCII_PLASMA_SOURCE } from '../starter/ascii-plasma.js';
 import {
   LIBRARY,
   RAVE_PATCH_NAMES,
   libraryDemoSource,
-  upgradeOpaqueDiagnostics,
 } from '../starter/library.js';
 import { COMMUNITY_PATCHES } from './generated/communityPatches.js';
-import {
-  findCells,
-  moveSceneCellsLast,
-  renameLegacyStarterScene,
-  upgradeLegacyActivation,
-} from './language/sourceBlocks.js';
+import { findCells } from './language/sourceBlocks.js';
 
 const STARTER_PATCHES = [STARTER_SOURCE, ASCII_PLASMA_SOURCE].flatMap((source) => findCells(source).flatMap((cell) => {
-  const match = /^(?:strategy|patch)\s+([A-Za-z_$][\w$]*)$/.exec(cell.label);
+  const match = /^patch\s+([A-Za-z_$][\w$]*)$/.exec(cell.label);
   if (!match) return [];
   return [{
     name: match[1],
@@ -456,7 +450,7 @@ function receiverCellsFor(stream) {
   const literal = JSON.stringify(stream).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const streamProperty = new RegExp(`\\bstream\\s*:\\s*${literal}`);
   return findCells(editor.value).flatMap((cell) => {
-    const patch = /^(?:strategy|patch)\s+([A-Za-z_$][\w$]*)$/.exec(cell.label);
+    const patch = /^patch\s+([A-Za-z_$][\w$]*)$/.exec(cell.label);
     return patch && streamProperty.test(cell.text)
       ? [{ name: patch[1], source: cell.text.trimEnd() }]
       : [];
@@ -553,44 +547,12 @@ window.setup = function setup() {
   const saved = projectStore.load();
   try { offerFirstEdit = !saved && localStorage.getItem('p5js-live.firstEditDismissed') !== 'true'; } catch { offerFirstEdit = !saved; }
   const source = saved?.source ?? STARTER_SOURCE;
-  const upgradedSource = upgradeLegacyPlasma(source);
-  const diagnosticSource = upgradeOpaqueDiagnostics(upgradedSource);
-  const commandSource = upgradeLegacyActivation(diagnosticSource);
-  const namedSource = renameLegacyStarterScene(commandSource);
-  const orderedSource = moveSceneCellsLast(namedSource);
-  editor.value = orderedSource;
-  if (upgradedSource !== source) {
-    diagnostics.info(
-      'Updated starter Plasma',
-      'Its live speed, motion, intensity, and warp controls are now grouped at the top.',
-    );
-  }
-  if (diagnosticSource !== upgradedSource) {
-    diagnostics.info(
-      'Updated transparent patches',
-      'Drawing patches and diagnostics no longer add an implicit backing tint.',
-    );
-  }
-  if (commandSource !== diagnosticSource) {
-    diagnostics.info(
-      'Updated scene activation command',
-      'activate(scene) now makes a scene array active.',
-    );
-  }
-  if (namedSource !== commandSource) {
-    diagnostics.info('Renamed the starter scene', 'The default scene binding is now simply scene.');
-  }
-  if (orderedSource !== namedSource) {
-    diagnostics.info(
-      'Organized project cells',
-      'The first patch begins at line 1 and scene arrays load after their patch declarations.',
-    );
-  }
+  editor.value = source;
   // The starter/saved project goes through the ordinary atomic evaluation path. If
   // one saved cell is broken on reload, recover its other independent cells and keep
   // a small visible scene running instead of accepting an empty registry.
   const startup = evaluateStartupProject({
-    source: orderedSource,
+    source,
     label: saved ? 'saved project' : 'starter',
     starterSource: STARTER_SOURCE,
     evaluator,
@@ -598,7 +560,7 @@ window.setup = function setup() {
     stateStore,
     host,
   });
-  startupSourceToConfirm = startup.ok && !startup.recovered ? orderedSource : null;
+  startupSourceToConfirm = startup.ok && !startup.recovered ? source : null;
   if (startup.recovered) {
     diagnostics.warn(
       'Saved project recovered with errors',
@@ -606,11 +568,7 @@ window.setup = function setup() {
         'Their source is still in the editor. Installed source remains visible in the library; open the failed cell, fix it, and press Cmd/Ctrl+Enter.',
     );
   }
-  projectStore.restoreSettings(
-    saved?.safeScene === 'tunnel' && namedSource !== commandSource
-      ? { ...saved, safeScene: 'scene' }
-      : saved,
-  );
+  projectStore.restoreSettings(saved);
   // Panic needs somewhere to go from the first minute, not only after the performer
   // has deliberately designated a safe scene.
   if (registry.safeSceneName() === null) registry.setSafeScene();
@@ -900,13 +858,6 @@ const side = document.getElementById('side');
 const referenceSide = document.getElementById('reference-side');
 
 const OPACITY_KEY = 'p5js-live.toolsAlpha';
-const LEGACY_OPACITY_KEYS = [
-  'algolab.toolsAlpha',
-  'livecode-lab.toolsAlpha',
-  'patchlab.toolsAlpha',
-  'patchbay.toolsAlpha',
-  'response.toolsAlpha',
-];
 
 /**
  * How see-through the tools are.
@@ -936,7 +887,6 @@ opacityInput.addEventListener('input', () => setToolsOpacity(opacityInput.value)
   let saved = null;
   try {
     saved = localStorage.getItem(OPACITY_KEY);
-    for (const legacyKey of LEGACY_OPACITY_KEYS) saved ??= localStorage.getItem(legacyKey);
   } catch {
     /* ignore */
   }
@@ -944,13 +894,6 @@ opacityInput.addEventListener('input', () => setToolsOpacity(opacityInput.value)
 }
 
 const CODE_FONT_SIZE_KEY = 'p5js-live.codeFontSize';
-const LEGACY_CODE_FONT_SIZE_KEYS = [
-  'algolab.codeFontSize',
-  'livecode-lab.codeFontSize',
-  'patchlab.codeFontSize',
-  'patchbay.codeFontSize',
-  'response.codeFontSize',
-];
 const codeSizeInput = document.getElementById('code-size');
 
 function setCodeFontSize(size) {
@@ -977,7 +920,6 @@ codeSizeInput.addEventListener('input', () => setCodeFontSize(codeSizeInput.valu
   let saved = null;
   try {
     saved = localStorage.getItem(CODE_FONT_SIZE_KEY);
-    for (const legacyKey of LEGACY_CODE_FONT_SIZE_KEYS) saved ??= localStorage.getItem(legacyKey);
   } catch {
     /* ignore */
   }
@@ -1254,7 +1196,7 @@ function restoreBeforePerformance(checkpoint, performance, detail) {
 function recallPerformance(performance) {
   const checkpoint = controller.checkpoint();
   const sequence = ++performanceRecallSequence;
-  const performanceSource = upgradeLegacyActivation(performance.source);
+  const performanceSource = performance.source;
 
   evaluator.discardPending();
   evaluator.clearBindings();
@@ -1600,7 +1542,7 @@ document.getElementById('import-file').addEventListener('change', async (event) 
     diagnostics.error(`Could not import ${file.name}`, parsed.error);
     return;
   }
-  const importedSource = upgradeLegacyActivation(parsed.data.source);
+  const importedSource = parsed.data.source;
 
   // Importing runs someone else's JavaScript on this machine. Error boundaries are
   // not a sandbox, so confirmation shows the actual source and defaults to Cancel.

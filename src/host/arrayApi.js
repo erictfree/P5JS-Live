@@ -1,5 +1,5 @@
 // Native array methods for the live-coding language. User source is never rewritten.
-import { arrayLayer, assertPatch, processLayer } from './layer.js';
+import { appendToLayer, muteLayer, processLayer } from './layer.js';
 
 // Explicit allowlist: never copy lifecycle methods or native Array names from a
 // shader prototype. In particular, Array.shift must retain its normal behavior.
@@ -11,14 +11,14 @@ export const ARRAY_SHADER_METHODS = Object.freeze([
   'color', 'saturate', 'hue', 'colorama', 'sum', 'rgba',
 ]);
 
-let activateScene = null;
+let selectScene = null;
 
 /** Commands belong to the current synchronous evaluation transaction, not window. */
-export function withArrayDrawing(activate, evaluate) {
-  const previous = activateScene;
-  activateScene = activate;
+export function withArrayDrawing(select, evaluate) {
+  const previous = selectScene;
+  selectScene = select;
   try { return evaluate(); }
-  finally { activateScene = previous; }
+  finally { selectScene = previous; }
 }
 
 const methods = Object.fromEntries(ARRAY_SHADER_METHODS.map(name => [name, function (...args) {
@@ -30,14 +30,13 @@ Object.assign(methods, {
   scale(amount = 1, ...args) { return processLayer(this, 'scale', [amount, ...args]); },
   translate(x = 0, y = 0) { return processLayer(this, 'transform', [x, y]); },
   opacity(amount = 1) { return processLayer(this, 'color', [1, 1, 1, amount]); },
-  add(...patches) { return arrayLayer(this).fx(...patches); },
-  fx(...effects) { return arrayLayer(this).fx(...effects); },
-  mute(enabled = true) { return arrayLayer(this).mute(enabled); },
+  add(...patches) { return appendToLayer(this, patches); },
+  fx(...effects) { return appendToLayer(this, effects); },
+  mute(enabled = true) { return muteLayer(this, enabled); },
   draw() {
     if (!Array.isArray(this)) throw new TypeError('scene.draw() needs a scene array');
-    assertPatch(this);
-    if (!activateScene) throw new Error('Call scene.draw() while evaluating live code; the host owns the frame loop');
-    return activateScene(this);
+    if (!selectScene) throw new Error('Call scene.draw() while evaluating live code; the host owns the frame loop');
+    return selectScene(this);
   },
 });
 export const ARRAY_METHOD_NAMES = Object.freeze(Object.keys(methods));

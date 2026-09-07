@@ -8,23 +8,19 @@
 //   const scene = [waveScope, [laserFan, plasma]];
 //
 // The evaluator captures those bindings. An object with draw() is immediately a
-// strategy; a function becomes one when it is placed in a scene. A top-level array is
-// a scene and a nested array is a transparent isolated render group. Anonymous entries
+// strategy; a function becomes one when it is placed in a scene. Arrays describe
+// layers, and .draw() selects a named array as the scene. Anonymous entries
 // receive path-based identities such as `scene[1][0]`. Composition changes only by
 // editing that array.
 
 import { ShaderChain } from '../shaders/shaderChain.js';
 import { StreamRoom } from '../network/streamRoom.js';
-import { layer, isLayer, assertPatch } from './layer.js';
+import { isLayerArray, assertPatch } from './layer.js';
 
 export const LIVE_API_NAMES = [
-  'activate',
   'reset',
   'control',
-  // Compatibility only for saved projects created before the student-facing rename.
-  'param',
   'ShaderChain',
-  'layer',
   'StreamRoom',
 ];
 
@@ -104,7 +100,8 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
   function normalizeSceneEntry(sceneName, path, entry, localNameOf = nameOf, sceneSource = source) {
     if (Array.isArray(entry)) {
       return {
-        ...(isLayer(entry) ? { layer: true, muted: entry.muted, sourceName: localNameOf(entry) } : {}),
+        muted: isLayerArray(entry) && entry.muted === true,
+        sourceName: localNameOf(entry),
         group: entry.map((child, index) =>
           normalizeSceneEntry(sceneName, [...path, index], child, localNameOf, sceneSource)),
       };
@@ -127,7 +124,7 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
       type: 'scene',
       name,
       source: sceneSource,
-      entries: (isLayer(entries) && entries.rootGroup ? [entries] : entries).map((entry, index) =>
+      entries: (isLayerArray(entries) && Object.hasOwn(entries, 'muted') ? [entries] : entries).map((entry, index) =>
         normalizeSceneEntry(name, [index], entry, localNameOf, sceneSource)),
     });
     return name;
@@ -151,17 +148,7 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
 
   const api = {
     ShaderChain,
-    layer,
     StreamRoom,
-
-    activate(scene) {
-      if (typeof scene === 'string') {
-        throw new TypeError('activate() takes a scene array, not a scene name');
-      }
-      if (!Array.isArray(scene)) throw new TypeError('activate() needs a scene array');
-      operations.push({ type: 'activate', target: scene });
-      return scene;
-    },
 
     reset(strategy) {
       operations.push({ type: 'reset', target: commandTarget(strategy, 'reset') });
@@ -169,10 +156,14 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
     },
 
     control: declareControl,
-    // Do not advertise this alias in the editor or documentation; it only keeps
-    // already-saved performances recoverable.
-    param: declareControl,
   };
+
+  // Invoked only by the array draw command during evaluation; never injected as
+  // a second authoring interface.
+  function selectScene(scene) {
+    operations.push({ type: 'activate', target: scene });
+    return scene;
+  }
 
   /** Resolve command objects after the evaluator has captured same-buffer bindings. */
   function resolveCommandTargets(localNameOf = nameOf) {
@@ -191,6 +182,7 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
 
   return {
     api,
+    selectScene,
     stagedStrategies,
     referencedStrategies,
     bindingUpdates,

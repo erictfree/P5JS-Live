@@ -9,7 +9,7 @@
 //
 // Drawing is injected through `drawing` so this file can be unit-tested without p5.
 
-import { layer } from './layer.js';
+import { createLayerArray } from './layer.js';
 
 const MAX_DT = 1 / 10; // after a stall, resumed state must not leap
 const FPS_WINDOW = 60;
@@ -51,9 +51,6 @@ export function createHostLoop({
     time: 0,
     sceneTime: 0,
     controls: liveControls,
-    // Temporary source-compatibility alias. New code and all teaching material use
-    // `controls`; old saved performances can still open while students migrate them.
-    params: liveControls,
     keyboard,
   };
 
@@ -175,7 +172,7 @@ export function createHostLoop({
 
       // Anonymous scene entries have registry identities like `scene[1]`, but no
       // hidden JavaScript variable. Rebuild the visible scene-array binding from the
-      // restored registry configuration so a later `activate(scene)` cannot accidentally
+      // restored registry configuration so a later `scene.draw()` cannot accidentally
       // resurrect the failed function object. Named strategies restore normally.
       const inline = /^([A-Za-z_$][\w$]*)((?:\[\d+\])+)$/.exec(name);
       if (inline && evaluator.hasBinding(inline[1])) {
@@ -203,11 +200,11 @@ export function createHostLoop({
 
   function materializeScene(entries) {
     return (entries ?? []).map((entry) => {
-      if (entry?.layer) {
+      if (Array.isArray(entry?.group)) {
         const children = materializeScene(entry.group);
-        return layer(children[0]).fx(...children.slice(1)).mute(entry.muted);
+        return createLayerArray(children, entry.muted);
       }
-      return Array.isArray(entry) ? materializeScene(entry) : registry.getStrategy(entry)?.definition;
+      return registry.getStrategy(entry)?.definition;
     });
   }
 

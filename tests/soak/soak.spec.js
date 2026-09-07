@@ -46,7 +46,7 @@ const EDITS = [
   };`,
   () => 'const rings = { draw({ audio }) { this is not javascript ((( } };',
   () => 'const rings = { draw({ audio }) { definitelyNotDefined.boom(); } };',
-  () => 'activate(tunnel);',
+  () => 'tunnel.draw();',
 ];
 
 test(`soak — ${MINUTES} minutes of continuous render, analysis, and evaluation`, async ({

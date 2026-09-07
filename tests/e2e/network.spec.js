@@ -21,7 +21,7 @@ test('publishes, discovers, inserts, and receives another editor canvas', async 
     });
     const publishMain = networkRoom.publish({ name: "main-output", fps: 20 });
     const networkScene = [...scene, publishMain];
-    activate(networkScene);
+    networkScene.draw();
   `));
   expect(publishResult.ok).toBe(true);
   await expect.poll(() => page.evaluate(() =>

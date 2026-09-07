@@ -106,7 +106,7 @@ describe('OpenAI source editing', () => {
 
 describe('AI library composition', () => {
   it('installs requested source once and keeps the scene cell last', () => {
-    const source = `// %% scene scene\nconst scene = [laserFan];\nactivate(scene);`;
+    const source = `// %% scene scene\nconst scene = [laserFan];\nscene.draw();`;
     const patch = `// %% patch laserFan\nconst laserFan = { draw() {} };`;
     const once = installLibrarySources(source, ['laserFan'], [{ name: 'laserFan', source: patch }]);
     const twice = installLibrarySources(once, ['laserFan'], [{ name: 'laserFan', source: patch }]);

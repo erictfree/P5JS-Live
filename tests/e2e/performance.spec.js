@@ -101,7 +101,7 @@ test.describe('projection view', () => {
     // Put a real error in the performer's Messages panel first — the whole point of
     // Performer diagnostics must not travel to the projector.
     await page.evaluate(() =>
-      window.p5jsLive.evaluator.evaluate('const rings = { draw() { ((( broken', { label: 'strategy rings' }),
+      window.p5jsLive.evaluator.evaluate('const rings = { draw() { ((( broken', { label: 'patch rings' }),
     );
     await expect(page.locator('#diagnostics-list')).toContainText('Syntax error');
     await expect(page.getByRole('tab', { name: /^Messages/ })).toHaveAttribute('aria-selected', 'true');
@@ -291,7 +291,7 @@ test.describe('multiple copies of one strategy', () => {
     await appendCellAndEvaluate(page, `// %% configured laser scene
 const pinkLasers = { ...laserFan, hue: 330, direction: -1 };
 const laserScene = [laserFan, laserFan, pinkLasers, plasma];
-activate(laserScene);`);
+laserScene.draw();`);
     await expect
       .poll(() =>
         page.evaluate(() => window.p5jsLive.registry.getStrategy('pinkLasers')?.definition.hue),
@@ -572,7 +572,7 @@ const audioMeters = { draw() { rect(20, 20, 40, 8); } };
 
 // %% scene show
 const show = [frequencyBars, audioMeters];
-activate(show);`;
+show.draw();`;
 
     await page.addInitScript((savedSource) => {
       localStorage.clear();
@@ -857,7 +857,7 @@ const inlineShow = [
     );
   },
 ];
-activate(inlineShow);`);
+inlineShow.draw();`);
 
     await expect
       .poll(() => page.evaluate(() => ({
@@ -2081,7 +2081,7 @@ test.describe('safe-state recovery', () => {
 
     await page.evaluate(() => {
       window.p5jsLive.evaluator.evaluate(
-        'const chaos = { draw() { circle(10, 10, 5); } }; const wild = [chaos]; activate(wild); control("safeProbe", 9);',
+        'const chaos = { draw() { circle(10, 10, 5); } }; const wild = [chaos]; wild.draw(); control("safeProbe", 9);',
         { label: 'buffer' },
       );
     });
@@ -2132,7 +2132,7 @@ test.describe('named Performance recall', () => {
       'const scene = [',
       '  previous,',
       '];',
-      'activate(scene);',
+      'scene.draw();',
     ].join('\n');
     await page.evaluate((source) => {
       window.p5jsLive.editor.value = source;
@@ -2175,7 +2175,7 @@ test.describe('named Performance recall', () => {
       'const alternate = { draw() { circle(40, 40, 20); } };',
       '// %% scene other',
       'const other = [alternate];',
-      'activate(other);',
+      'other.draw();',
     ].join('\n');
     await page.evaluate((source) => {
       window.p5jsLive.editor.value = source;
@@ -2235,7 +2235,7 @@ test.describe('named Performance recall', () => {
       '// %% scene other',
       'const other = [alternate];',
       'control("energy", 0.2, { min: 0, max: 1 });',
-      'activate(other);',
+      'other.draw();',
     ].join('\n');
     await page.evaluate((source) => {
       window.p5jsLive.editor.value = source;
@@ -2292,7 +2292,7 @@ test.describe('named Performance recall', () => {
       'const keeper = { draw() { circle(80, 80, 30); } };',
       '// %% scene keeperScene',
       'const keeperScene = [keeper];',
-      'activate(keeperScene);',
+      'keeperScene.draw();',
     ].join('\n');
     await page.evaluate((source) => {
       window.p5jsLive.editor.value = source;
@@ -2350,7 +2350,7 @@ test.describe('project portability', () => {
 
     await page.evaluate(() => window.p5jsLive.performanceStore.save({
       name: 'Portable custom patch',
-      source: 'const myNewPatch = { draw() {} }; const scene = [myNewPatch]; activate(scene);',
+      source: 'const myNewPatch = { draw() {} }; const scene = [myNewPatch]; scene.draw();',
       params: [],
       audio: {},
       view: {},
@@ -2375,7 +2375,7 @@ test.describe('project portability', () => {
       source: [
         'const imported = { draw() { circle(50, 50, 20); } };',
         'const main = [imported];',
-        'activate(main);',
+        'main.draw();',
       ],
       params: [],
       performances: [{
@@ -2383,7 +2383,7 @@ test.describe('project portability', () => {
         name: 'Imported set',
         createdAt: 10,
         updatedAt: 20,
-        source: 'const savedPatch = { draw() {} }; const saved = [savedPatch]; activate(saved);',
+        source: 'const savedPatch = { draw() {} }; const saved = [savedPatch]; saved.draw();',
         params: [],
         audio: {},
         view: {},
@@ -2430,7 +2430,7 @@ test.describe('project portability', () => {
     // Make a mess: a new strategy, extra copies, a wrecked scene, accumulated state.
     await page.evaluate(() =>
       window.p5jsLive.evaluator.evaluate(
-        'const mess = { draw() { circle(5, 5, 5); } }; const messy = [mess, plasma, plasma]; activate(messy);',
+        'const mess = { draw() { circle(5, 5, 5); } }; const messy = [mess, plasma, plasma]; messy.draw();',
         { label: 'test' },
       ),
     );
@@ -2555,7 +2555,7 @@ test.describe('patch sharing and live commands', () => {
       '',
       '// %% scene alternate',
       'const alternate = [movingDot];',
-      'activate(alternate);',
+      'alternate.draw();',
     ].join('\n');
     await page.evaluate((source) => {
       window.p5jsLive.editor.value = source;

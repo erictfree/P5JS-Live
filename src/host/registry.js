@@ -190,12 +190,13 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
   function toTree(sceneName, entries) {
     const instances = [];
     const visit = (entry, path) => {
-      const children = Array.isArray(entry) ? entry : entry?.group;
+      const children = entry?.group;
       if (Array.isArray(children)) {
         return {
           id: `${sceneName}:group${path.map((index) => `[${index}]`).join('')}`,
           kind: 'group',
-          ...(entry?.layer ? { layer: true, muted: entry.muted, sourceName: entry.sourceName } : {}),
+          muted: entry?.muted === true,
+          sourceName: entry?.sourceName ?? null,
           children: children.map((child, index) => visit(child, [...path, index])),
         };
       }
@@ -218,7 +219,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     return (tree ?? []).map((node) => {
       if (node?.kind !== 'group') return node.strategy;
       const group = serializeTree(node.children);
-      return node.layer ? { group, layer: true, muted: node.muted, sourceName: node.sourceName } : group;
+      return { group, muted: node.muted, sourceName: node.sourceName };
     });
   }
 
@@ -226,7 +227,6 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     const tree = toTree(name, entries);
     scenes.set(name, tree);
     sceneSources.set(name, source);
-    if (activeSceneName === null) activeSceneName = name;
     notify();
     return tree;
   }

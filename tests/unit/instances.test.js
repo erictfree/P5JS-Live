@@ -7,13 +7,13 @@ import { createTestHost } from './helpers.js';
 const COUNTER = `
   const c = { draw({ state }) { state.n = (state.n || 0) + 1; } };
   const show = [c];
-  activate(show);
+  show.draw();
 `;
 
 const COUNTER_COPIES = `
   const c = { draw({ state }) { state.n = (state.n || 0) + 1; } };
   const show = [c, c];
-  activate(show);
+  show.draw();
 `;
 
 describe('first-class strategy instances', () => {
@@ -27,7 +27,7 @@ describe('first-class strategy instances', () => {
         }
       };
       const show = [probe];
-      activate(show);
+      show.draw();
     `);
     h.frame();
     h.registry.setParam('flash', true);
@@ -43,7 +43,7 @@ describe('first-class strategy instances', () => {
     h.evaluator.evaluate(`
       const c = { draw() {} };
       const show = [c];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
 
@@ -73,7 +73,7 @@ describe('first-class strategy instances', () => {
       }
       const oop = new SophisticatedStrategy();
       const show = [oop];
-      activate(show);
+      show.draw();
       globalThis.__oopImplementation = oop;
     `);
     h.frame(4);
@@ -103,7 +103,7 @@ describe('first-class strategy instances', () => {
       const a = { draw() {} };
       const b = { draw() {} };
       const show = [a, b, a, b];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
     expect(h.registry.activeOrder()).toEqual(['a', 'b', 'a#2', 'b#2']);
@@ -126,7 +126,7 @@ describe('first-class strategy instances', () => {
     h.evaluator.evaluate(`
       const c = { draw() { __drawn.push("c"); } };
       const show = [c, c, c];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
 
@@ -146,7 +146,7 @@ describe('source-authoritative composition', () => {
       const b = { draw({ canvas }) { __nestedOrder.push(["b", canvas?.id ?? "root"]); } };
       const c = { draw({ canvas }) { __nestedOrder.push(["c", canvas?.id ?? "root"]); } };
       const show = [a, [b, [c]], a];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
 
@@ -179,7 +179,7 @@ describe('source-authoritative composition', () => {
       const objectPatch = { draw() {} };
       const makeGroup = () => { __factoryCalls += 1; return [objectPatch]; };
       const show = [framePatch, makeGroup()];
-      activate(show);
+      show.draw();
     `);
     h.frame(5);
 
@@ -196,7 +196,7 @@ describe('source-authoritative composition', () => {
       const a = { draw() {} };
       const b = { draw() {} };
       const show = [a, [b, [a]]];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
     const snapshot = h.registry.snapshotConfiguration();
@@ -206,7 +206,7 @@ describe('source-authoritative composition', () => {
     h.registry.restoreConfiguration(snapshot);
 
     expect(h.registry.snapshotConfiguration().scenes.find(({ name }) => name === 'show').entries)
-      .toEqual(['a', ['b', ['a']]]);
+      .toEqual(['a', { group: ['b', { group: ['a'], muted: false, sourceName: null }], muted: false, sourceName: null }]);
     expect(h.registry.activeOrder()).toEqual(['a', 'b', 'a#2']);
   });
 
@@ -216,7 +216,7 @@ describe('source-authoritative composition', () => {
       const a = { draw() {} };
       const b = { draw() {} };
       const show = [a];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
     expect(h.registry.activeOrder()).toEqual(['a']);
@@ -250,7 +250,7 @@ describe('source-authoritative composition', () => {
         draw({ state }) { state.n = (state.n || 0) + 1; state.hue = this.hue; },
       };
       const show = [c];
-      activate(show);
+      show.draw();
     `);
     h.frame(5);
     const state = h.stateStore.get('c');
@@ -276,7 +276,7 @@ describe('lifecycle is per scene instance', () => {
         draw() {},
       };
       const show = [c, c];
-      activate(show);
+      show.draw();
     `);
     h.frame(3);
     expect(globalThis.__life).toEqual(['enter', 'enter']);
@@ -294,7 +294,7 @@ describe('lifecycle is per scene instance', () => {
     h.evaluator.evaluate(`
       const c = { beat() { __beat(); }, draw() {} };
       const show = [c, c, c];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
 
@@ -312,7 +312,7 @@ describe('replacing a duplicated strategy', () => {
     h.evaluator.evaluate(`
       const c = { draw() { __versions.push(1); } };
       const show = [c, c];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
 
@@ -362,7 +362,7 @@ describe('replacing a duplicated strategy', () => {
     h.evaluator.evaluate(`
       const c = { state: () => ({ n: 0 }), draw({ state }) { state.n++; } };
       const show = [c, c];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
     h.stateStore.get('c#2').fail = true;
@@ -388,7 +388,7 @@ describe('replacing a duplicated strategy', () => {
     h.evaluator.evaluate(`
       const c = { state: () => ({ n: 0 }), draw({ state }) { state.n++; } };
       const show = [c, c];
-      activate(show);
+      show.draw();
     `);
     h.frame(10);
     expect(h.stateStore.get('c').n).toBeGreaterThan(5);
@@ -410,7 +410,7 @@ describe('scene-local identities', () => {
           state.last = time + audio.level;
         },
       ];
-      activate(show);
+      show.draw();
     `);
     h.frame(4, { beat: false, level: 0.25 });
 
@@ -431,7 +431,7 @@ describe('scene-local identities', () => {
           state.total = this.total;
         },
       }];
-      activate(show);
+      show.draw();
     `);
     h.frame(4);
 
@@ -451,7 +451,7 @@ describe('scene-local identities', () => {
         };
       }
       const show = [multiplyBy(4)];
-      activate(show);
+      show.draw();
     `);
     h.frame(4);
 
@@ -464,7 +464,7 @@ describe('scene-local identities', () => {
     const h = createTestHost();
     h.evaluator.evaluate(`
       const show = [({ state }) => { state.calls = (state.calls || 0) + 1; }];
-      activate(show);
+      show.draw();
     `);
     h.frame(5);
     const state = h.stateStore.get('show[0]');
@@ -489,7 +489,7 @@ describe('scene-local identities', () => {
     h.evaluator.evaluate(`
       const named = () => {};
       const show = [({ state }) => { state.position = 0; }];
-      activate(show);
+      show.draw();
     `);
     h.frame(3);
 
@@ -513,7 +513,7 @@ const show = [
   named,
   ({ state }) => { state.inline = true; },
 ];
-activate(show);`, { label: 'buffer' });
+show.draw();`, { label: 'buffer' });
     h.frame(3);
 
     const source = h.registry.getStrategy('show[1]').source;
@@ -526,7 +526,7 @@ activate(show);`, { label: 'buffer' });
     const h = createTestHost();
     const result = h.evaluator.evaluate(`
       const badScene = [{ helper: true }];
-      activate(badScene);
+      badScene.draw();
     `);
 
     expect(result.ok).toBe(false);

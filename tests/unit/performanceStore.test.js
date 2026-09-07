@@ -15,7 +15,7 @@ function fakeStorage() {
 
 const snapshot = (name = 'Afterglow') => ({
   name,
-  source: 'const scene = [plasma]; activate(scene);',
+  source: 'const scene = [plasma]; scene.draw();',
   sceneName: 'scene',
   safeScene: 'scene',
   params: [{ name: 'energy', value: 0.7, min: 0, max: 1, step: 0.1 }],
@@ -84,7 +84,7 @@ describe('named performance persistence', () => {
     expect(store.get('one').sceneName).toBe('encore');
   });
 
-  it('moves previous product performances to the p5js live storage key', () => {
+  it('reads only the current performance storage key', () => {
     const storage = fakeStorage();
     storage.setItem('algolab.performances.v1', JSON.stringify({
       schema: 1,
@@ -96,9 +96,9 @@ describe('named performance persistence', () => {
       }],
     }));
 
-    expect(createPerformanceStore({ storage }).list()[0].name).toBe('Migrated');
-    expect(storage.getItem('p5js-live.performances.v1')).not.toBe(null);
-    expect(storage.getItem('algolab.performances.v1')).toBe(null);
+    expect(createPerformanceStore({ storage }).list()).toEqual([]);
+    expect(storage.getItem('p5js-live.performances.v1')).toBe(null);
+    expect(storage.getItem('algolab.performances.v1')).not.toBe(null);
   });
 
   it('deletes only the requested performance and rejects incomplete snapshots', () => {

@@ -7,7 +7,7 @@ const plasma = { draw() {} };
 
 // %% scene scene
 const scene = [plasma];
-activate(scene);`;
+scene.draw();`;
 
 describe('startup project recovery', () => {
   it('keeps an atomic successful project unchanged', () => {
@@ -33,7 +33,7 @@ const broken = { draw() { ((( } };
 
 // %% scene show
 const show = [valid, broken];
-activate(show);`;
+show.draw();`;
     const result = evaluateStartupProject({
       source,
       label: 'saved project',
@@ -60,7 +60,7 @@ const broken = { draw() { ((( } };
 
 // %% scene show
 const show = [plasma, broken];
-activate(show);`;
+show.draw();`;
     const result = evaluateStartupProject({
       source,
       label: 'saved project',

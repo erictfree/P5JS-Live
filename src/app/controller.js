@@ -228,7 +228,7 @@ export function createAppController({
 
   function installedSourceNames(source = sourceProvider()) {
     return findCells(source).flatMap((cell) => {
-      const match = /^(?:strategy|patch)\s+([A-Za-z_$][\w$]*)$/.exec(cell.label);
+      const match = /^patch\s+([A-Za-z_$][\w$]*)$/.exec(cell.label);
       return match ? [match[1]] : [];
     });
   }
@@ -358,7 +358,7 @@ export function createAppController({
       const entryPath = [...path, index];
       if (node.kind === 'group') return {
         id: node.id, kind: 'group', path: entryPath,
-        label: node.sourceName || (node.layer ? 'Layer' : 'Group'),
+        label: node.sourceName || 'Layer',
         sourceName: node.sourceName || scene.name,
         muted: Boolean(node.muted),
         children: describeTree(node.children, entryPath),
@@ -463,12 +463,6 @@ export function createAppController({
 
     setSafeState() {
       return captureSafeState();
-    },
-
-    // Compatibility for code/tests that used the older scene-name-only action.
-    setSafeScene() {
-      const result = captureSafeState();
-      return result.ok ? result.sceneName : null;
     },
 
     restoreSafeState() {

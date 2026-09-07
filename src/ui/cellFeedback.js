@@ -1,6 +1,6 @@
 import { findBlocks, describeBlock } from '../language/sourceBlocks.js';
 
-const keyOf = (text) => describeBlock(text).replace(/^strategy\s+/, 'patch ');
+const keyOf = (text) => describeBlock(text);
 const clean = (text) => text.trim();
 
 /** Source receipts belong to the editor; the runtime remains authoritative for Live. */

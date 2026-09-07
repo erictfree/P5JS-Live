@@ -8,7 +8,7 @@ const TWO_SCENES = `
   const wild = { draw({ state }) { state.n = (state.n || 0) + 1; } };
   const calm = [safe];
   const chaos = [safe, wild];
-  activate(calm);
+  calm.draw();
 `;
 
 describe('safe scene and recovery', () => {
@@ -18,7 +18,7 @@ describe('safe scene and recovery', () => {
     h.frame(3);
 
     h.registry.setSafeScene(); // marks "calm", the active scene
-    h.evaluator.evaluate('activate(chaos);');
+    h.evaluator.evaluate('chaos.draw();');
     h.frame(3);
     expect(h.registry.activeOrder()).toEqual(['safe', 'wild']);
 
@@ -32,7 +32,7 @@ describe('safe scene and recovery', () => {
     h.evaluator.evaluate(TWO_SCENES);
     h.frame(20);
     h.registry.setSafeScene();
-    h.evaluator.evaluate('activate(chaos);');
+    h.evaluator.evaluate('chaos.draw();');
     h.frame(20);
 
     const safeState = h.stateStore.get('safe');

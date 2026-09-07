@@ -1,6 +1,5 @@
 // The default testing scene: an ordinary p5 patch with native array effects.
 // Existing saved projects retain their source; this is used for fresh/new/reset projects.
-export { upgradeLegacyPlasma } from './ascii-plasma.js';
 
 export const STARTER_SOURCE = `// %% patch myPatch
 // p5js live — starter scene

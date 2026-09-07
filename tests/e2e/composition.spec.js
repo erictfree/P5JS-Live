@@ -13,7 +13,7 @@ const shape = { draw() {
 } };`;
 
 async function boot(page, entries) {
-  const source = `${PATCHES}\n// %% scene show\nconst show = [${entries}];\nactivate(show);`;
+  const source = `${PATCHES}\n// %% scene show\nconst show = [${entries}];\nshow.draw();`;
   await page.addInitScript((source) => {
     localStorage.setItem('p5js-live.project.v5', JSON.stringify({ schema: 6, savedAt: Date.now(), source, params: [] }));
   }, source);
@@ -42,34 +42,34 @@ test('hue survives blur and wet/dry uses the original scene across passes', asyn
   page.on('pageerror', error => errors.push(error.message));
   await boot(page, 'red, new ShaderChain().hue(1/3).blur(3)');
   await expect.poll(() => pixel(page)).toEqual([0, 255, 0, 255]);
-  await evaluate(page, 'const show = [red, new ShaderChain().hue(1/3).blur(3).mix(0)]; activate(show);');
+  await evaluate(page, 'const show = [red, new ShaderChain().hue(1/3).blur(3).mix(0)]; show.draw();');
   await expect.poll(() => pixel(page)).toEqual([255, 0, 0, 255]);
-  await evaluate(page, 'const show = [red, new ShaderChain().hue(1/3).blur(3).invert().blur(3)]; activate(show);');
+  await evaluate(page, 'const show = [red, new ShaderChain().hue(1/3).blur(3).invert().blur(3)]; show.draw();');
   await expect.poll(() => pixel(page)).toEqual([255, 0, 255, 255]);
   expect(errors).toEqual([]);
 });
 
 test('layer opacity composites over its parent and mute retains the parent image', async ({ page }) => {
-  await boot(page, 'blue, layer(red).opacity(0.5)');
+  await boot(page, 'blue, [red].opacity(0.5)');
   await expect.poll(async () => {
     const [r, g, b, a] = await pixel(page);
     return Math.abs(r - 128) <= 2 && g === 0 && Math.abs(b - 127) <= 2 && a === 255;
   }).toBe(true);
-  await evaluate(page, 'const show = [blue, layer(red).opacity(0.5).mute()]; activate(show);');
+  await evaluate(page, 'const show = [blue, [red].opacity(0.5).mute()]; show.draw();');
   await expect.poll(() => pixel(page)).toEqual([0, 0, 255, 255]);
 });
 
 test('blur and bloom carry visible color into transparent layer edges', async ({ page }) => {
   const whiteBlock = '() => { noStroke(); fill(255); rect(100, 100, 100, 100); }';
-  await boot(page, `blue, layer(${whiteBlock}).fx(new ShaderChain().blur(8))`);
+  await boot(page, `blue, [${whiteBlock}].fx(new ShaderChain().blur(8))`);
   const edge = () => page.evaluate(() => [...document.querySelector('#stage canvas').getContext('2d').getImageData(205, 150, 1, 1).data]);
   await expect.poll(edge).toEqual([expect.closeTo(71, -1), expect.closeTo(71, -1), 255, 255]);
-  await evaluate(page, `const show = [blue, layer(${whiteBlock}).fx(new ShaderChain().bloom(1, 8, .5))]; activate(show);`);
+  await evaluate(page, `const show = [blue, [${whiteBlock}].fx(new ShaderChain().bloom(1, 8, .5))]; show.draw();`);
   await expect.poll(edge).toEqual([expect.closeTo(64, -1), expect.closeTo(64, -1), 255, 255]);
 });
 
 test('fused transformations and repeated operators match separate ordered patches', async ({ page }) => {
-  await boot(page, 'layer(shape).fx(new ShaderChain().crop(0, .5, 0, 1).rotate(.7).rotate(-.2).hue(.2))');
+  await boot(page, '[shape].fx(new ShaderChain().crop(0, .5, 0, 1).rotate(.7).rotate(-.2).hue(.2))');
   const samples = () => page.evaluate(() => {
     const canvas = document.querySelector('#stage canvas');
     const context = canvas.getContext('2d');
@@ -81,9 +81,9 @@ test('fused transformations and repeated operators match separate ordered patche
   });
   const combined = await samples();
   expect(combined.some(([r, g, b]) => r + g + b > 100)).toBe(true);
-  await evaluate(page, `const show = [layer(shape).fx(
+  await evaluate(page, `const show = [[shape].fx(
     new ShaderChain().crop(0, .5, 0, 1), new ShaderChain().rotate(.7),
-    new ShaderChain().rotate(-.2), new ShaderChain().hue(.2))]; activate(show);`);
+    new ShaderChain().rotate(-.2), new ShaderChain().hue(.2))]; show.draw();`);
   const separate = await samples();
   // Intermediate rasterization changes edge antialiasing, but interiors agree.
   const matches = combined.filter((color, i) => color.every((value, channel) => Math.abs(value - separate[i][channel]) < 8));
@@ -91,7 +91,7 @@ test('fused transformations and repeated operators match separate ordered patche
 });
 
 test('Scene inspector shows scopes, preserves live order until Run, and links to source', async ({ page }, testInfo) => {
-  await boot(page, 'blue, layer(red).fx(new ShaderChain().hue(.2).blur(3))');
+  await boot(page, 'blue, [red].fx(new ShaderChain().hue(.2).blur(3))');
   await page.locator('#tools-toggle').click();
   await page.getByRole('tab', { name: 'Scene', exact: true }).click();
   await expect(page.locator('#scene-tree')).toContainText('Isolated');
@@ -112,7 +112,7 @@ test('Scene inspector shows scopes, preserves live order until Run, and links to
 
 test('Scene inspector fits a narrow screen and keeps keyboard tab navigation', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await boot(page, 'blue, layer(red).fx(new ShaderChain().hue(.2))');
+  await boot(page, 'blue, [red].fx(new ShaderChain().hue(.2))');
   await page.locator('#tools-toggle').click();
   await page.getByRole('tab', { name: 'Scene', exact: true }).click();
   expect(await page.locator('#scene-panel').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);

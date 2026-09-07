@@ -138,8 +138,8 @@ Earlier entries draw first. Only one scene is active at a time. `scene.draw()`
 selects the named array for the host's ongoing frame loop, replacing the active
 scene at the next frame boundary. To render multiple layers together, include
 them in one scene array. It is an array method and does not replace p5's `window.draw`.
-Call it while evaluating live code. `activate(scene)` remains a compatible command
-that accepts the array, not its name as a string.
+Call it while evaluating live code. Defining an array prepares a layer; `.draw()`
+selects it as the active scene.
 Re-evaluating a scene changes its order without replacing unchanged patch
 implementations or their state.
 
@@ -218,7 +218,6 @@ The copies share one implementation but have separate state. They appear as
 
 ```js
 scene.draw();        // select this array for the ongoing frame loop
-// activate(scene);  // compatible activation command
 reset(laserFan);     // recreate state for every active copy
 control("trail", 0.08, { type: "continuous", min: 0, max: 0.3 });
 ```
@@ -436,8 +435,7 @@ The shader operators below are also array methods, except `shift()` is exposed a
 `.translate(x, y)` and `.opacity(amount)`. Use an explicit
 `.fx(new ShaderChain()...)` for the mix, blend, and bypass settings described below.
 
-`layer(sketch)` remains a compatible builder around an isolated group. See
-[Layer composition](COMPOSITION.md) for units, examples, method protection, and
+See [Layer composition](COMPOSITION.md) for units, examples, method protection, and
 source editing. These are native JavaScript methods, not a source transformation.
 
 Every effect chain also supports:

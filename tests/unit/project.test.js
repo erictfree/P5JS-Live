@@ -45,7 +45,7 @@ const SOURCE = [
   'const wash = { draw() {} };',
   'const rings = { draw() {} };',
   'const tunnel = [wash, rings];',
-  'activate(tunnel);',
+  'tunnel.draw();',
 ].join('\n');
 
 describe('local persistence', () => {
@@ -60,7 +60,7 @@ describe('local persistence', () => {
     expect(loaded.params[0]).toMatchObject({ name: 'trail', value: 0.08 });
   });
 
-  it('moves the previous product save to the p5js live storage key', () => {
+  it('reads only the current product storage key', () => {
     const registry = createRegistry();
     const storage = fakeStorage();
     storage.setItem(
@@ -70,9 +70,9 @@ describe('local persistence', () => {
 
     const loaded = createProjectStore({ registry, storage }).load();
 
-    expect(loaded.source).toBe(SOURCE);
-    expect(storage.getItem('p5js-live.project.v5')).not.toBe(null);
-    expect(storage.getItem('algolab.project.v5')).toBe(null);
+    expect(loaded).toBe(null);
+    expect(storage.getItem('p5js-live.project.v5')).toBe(null);
+    expect(storage.getItem('algolab.project.v5')).not.toBe(null);
   });
 
   it('does not save a second copy of scene membership or order', () => {
@@ -121,13 +121,13 @@ describe('local persistence', () => {
   it('starts fresh rather than throwing on a corrupt or outdated save', () => {
     const registry = createRegistry();
     const storage = fakeStorage();
-    storage.setItem('response.project.v1', '{ not json');
+    storage.setItem('p5js-live.project.v5', '{ not json');
     expect(createProjectStore({ registry, storage }).load()).toBe(null);
 
-    storage.setItem('response.project.v1', JSON.stringify({ schema: 99, source: 'x' }));
+    storage.setItem('p5js-live.project.v5', JSON.stringify({ schema: 99, source: 'x' }));
     expect(createProjectStore({ registry, storage }).load()).toBe(null);
 
-    storage.setItem('response.project.v1', JSON.stringify({ schema: 5, source: 'old syntax' }));
+    storage.setItem('p5js-live.project.v5', JSON.stringify({ schema: 5, source: 'old syntax' }));
     expect(createProjectStore({ registry, storage }).load()).toBe(null);
   });
 
@@ -218,7 +218,7 @@ describe('export is human-readable', () => {
       name: 'Afterglow',
       createdAt: 10,
       updatedAt: 20,
-      source: 'const myNewPatch = { draw() {} };\nconst scene = [myNewPatch];\nactivate(scene);',
+      source: 'const myNewPatch = { draw() {} };\nconst scene = [myNewPatch];\nscene.draw();',
       params: [],
       audio: {},
       view: {},
@@ -243,7 +243,7 @@ describe('import parsing is separate from running', () => {
     expect(parsed.data.performances).toEqual([]);
   });
 
-  it('still imports projects exported under former product names', () => {
+  it('rejects project formats from former products', () => {
     const { store } = setup();
     for (const format of [
       'livecode-lab-project',
@@ -255,8 +255,8 @@ describe('import parsing is separate from running', () => {
       const parsed = store.parseProject(
         JSON.stringify({ format, schema: 6, source: SOURCE.split('\n') }),
       );
-      expect(parsed.ok).toBe(true);
-      expect(parsed.data.source).toBe(SOURCE);
+      expect(parsed.ok).toBe(false);
+      expect(parsed.error).toContain('Not a p5js live project');
     }
   });
 

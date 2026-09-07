@@ -12,7 +12,7 @@ describe('replacing a strategy preserves compatible state', () => {
         draw({ state }) { state.angle += 0.1; state.trail.push(state.angle); },
       };
       const show = [orbiters];
-      activate(show);
+      show.draw();
     `);
     h.frame(30);
 
@@ -46,7 +46,7 @@ describe('replacing a strategy preserves compatible state', () => {
     h.evaluator.evaluate(`
       const p = { state() { return __countStateCalls(); }, draw() {} };
       const show = [p];
-      activate(show);
+      show.draw();
     `);
     h.frame(3);
     h.evaluator.evaluate('const p = { state() { return __countStateCalls(); }, draw() {} };');
@@ -66,7 +66,7 @@ describe('explicit reset', () => {
         draw({ state }) { state.trail.push(1); },
       };
       const show = [orbiters];
-      activate(show);
+      show.draw();
     `);
     h.frame(20);
     expect(h.stateStore.get('orbiters').trail.length).toBeGreaterThan(10);
@@ -115,7 +115,7 @@ describe('scene arrays', () => {
       const a = { draw() { __order.push("a"); } };
       const b = { draw() { __order.push("b"); } };
       const show = [a, b];
-      activate(show);
+      show.draw();
     `);
     h.frame(2);
     order.length = 0;
@@ -136,7 +136,7 @@ describe('scene arrays', () => {
       const a = { draw({ state }) { state.n = (state.n||0)+1; } };
       const b = { draw({ state }) { state.n = (state.n||0)+1; } };
       const show = [a, b];
-      activate(show);
+      show.draw();
     `);
     h.frame(10);
     const bVersion = h.registry.getStrategy('b').version;
@@ -166,7 +166,7 @@ describe('scene arrays', () => {
         draw() {},
       };
       const show = [a];
-      activate(show);
+      show.draw();
     `);
     h.frame(5);
     expect(log.filter((entry) => entry === 'enter')).toHaveLength(1);
@@ -184,7 +184,7 @@ describe('scene arrays', () => {
     h.evaluator.evaluate(`
       const a = { beat() { __beats.push(1); }, draw() {} };
       const show = [a];
-      activate(show);
+      show.draw();
     `);
     h.frame(3, { beat: false });
     expect(log).toHaveLength(0);
@@ -202,7 +202,7 @@ describe('source-authoritative scene membership', () => {
     expect(h.registry.hasStrategy('first')).toBe(true);
     expect(h.registry.activeOrder()).not.toContain('first');
 
-    h.evaluator.evaluate('const show = [first]; activate(show);');
+    h.evaluator.evaluate('const show = [first]; show.draw();');
     h.frame(2);
     expect(h.registry.activeOrder()).toEqual(['first']);
   });
@@ -212,14 +212,14 @@ describe('source-authoritative scene membership', () => {
     h.evaluator.evaluate(`
       const wash = { draw() {} };
       const calm = [wash];
-      activate(calm);
+      calm.draw();
     `);
     h.frame(3);
 
     h.evaluator.evaluate(`
       const chaos = { draw() {} };
       const wild = [chaos];
-      activate(wild);
+      wild.draw();
     `);
     h.frame(3);
 

@@ -6,9 +6,8 @@ import {
   RAVE_PATCH_NAMES,
   STANDARD_EFFECT_NAMES,
   libraryDemoSource,
-  upgradeOpaqueDiagnostics,
 } from '../../starter/library.js';
-import { ASCII_PLASMA_SOURCE, upgradeLegacyPlasma } from '../../starter/ascii-plasma.js';
+import { ASCII_PLASMA_SOURCE } from '../../starter/ascii-plasma.js';
 import { createTestHost } from './helpers.js';
 
 const RAVE_PATCHES = [
@@ -27,7 +26,7 @@ const RAVE_PATCHES = [
 const MIX_ORDER = RAVE_PATCH_NAMES;
 
 describe('the system patch library', () => {
-  it('keeps the original Plasma visibly controllable and upgrades known untouched versions', () => {
+  it('keeps Plasma visibly controllable', () => {
     expect(ASCII_PLASMA_SOURCE).toContain('float softBlob(');
     expect(ASCII_PLASMA_SOURCE).toContain('speed = 0.35;');
     expect(ASCII_PLASMA_SOURCE).toContain('motion = 0.48;');
@@ -43,58 +42,6 @@ describe('the system patch library', () => {
     expect(ASCII_PLASMA_SOURCE).toContain('gl_FragColor = vec4(colour, sourceSample.a);');
     expect(ASCII_PLASMA_SOURCE).not.toContain('vec3 colour = scene + ambient;');
     expect(ASCII_PLASMA_SOURCE).not.toContain('float bands = 0.5 + 0.5 * cos(');
-
-    const customizedOpaque = ASCII_PLASMA_SOURCE
-      .replace('motion = 0.48;', 'motion = 0.77;')
-      .replace('      vec4 sourceSample = texture2D(uScene, sampleUv);\n', '')
-      .replace(
-        '      // Plasma transforms the existing scene; it never supplies a background.\n      vec3 colour = scene * (vec3(1.0) + ambient * 0.12);',
-        '      vec3 colour = scene + ambient;',
-      )
-      .replace(
-        '      gl_FragColor = vec4(colour, sourceSample.a);',
-        '      gl_FragColor = vec4(colour, 1.0);',
-      );
-    const upgradedCustomized = upgradeLegacyPlasma(customizedOpaque);
-    expect(upgradedCustomized).toContain('motion = 0.77;');
-    expect(upgradedCustomized).toContain('gl_FragColor = vec4(colour, sourceSample.a);');
-
-    const legacy = ASCII_PLASMA_SOURCE
-      .replace(
-        'vec2 sampleUv = clamp(uv + flow * uWarp, 0.002, 0.998);',
-        'float warp = 0.008 + bass * 0.035;\n      vec2 sampleUv = clamp(uv + flow * warp, 0.002, 0.998);',
-      )
-      .replace(
-        'float bloom = 1.0 + bass * 0.35 + mid * 0.15;',
-        'float bands = 0.5 + 0.5 * cos(\n        radius * 16.0\n      );\n      vec3 plasmaColour = mix(cyan, magenta, 0.5);\n      float bloom = 1.0 + bass * 0.35 + mid * 0.15;',
-      );
-
-    expect(upgradeLegacyPlasma(legacy)).toBe(ASCII_PLASMA_SOURCE);
-
-    const previousControlled = ASCII_PLASMA_SOURCE
-      .replace(
-        'intensity = ({ audio }) => 0.035 + audio.bass * 0.080 + audio.mid * 0.035;',
-        'intensity = ({ audio }) => 0.0038 + audio.bass * 0.006 + audio.mid * 0.002;',
-      )
-      .replace('float drift = uTime * uSpeed;', 'float drift = uTime * 0.075;')
-      .replace(
-        'vec3 scene = vec3(red, green, blue) * 0.88;',
-        'vec3 scene = vec3(red, green, blue) * 0.94;',
-      );
-
-    expect(upgradeLegacyPlasma(previousControlled)).toBe(ASCII_PLASMA_SOURCE);
-
-    const previousStarter = ASCII_PLASMA_SOURCE
-      .replace('speed = 0.35;', 'speed = 0.22;')
-      .replace('motion = 0.48;', 'motion = 0.34;')
-      .replace(
-        'intensity = ({ audio }) => 0.035 + audio.bass * 0.080 + audio.mid * 0.035;',
-        'intensity = ({ audio }) => 0.022 + audio.bass * 0.055 + audio.mid * 0.020;',
-      )
-      .replace('warp = ({ audio }) => 0.004 + audio.bass * 0.018;', 'warp = ({ audio }) => 0.0025 + audio.bass * 0.012;')
-      .replace('vec3 scene = vec3(red, green, blue) * 0.88;', 'vec3 scene = vec3(red, green, blue) * 0.90;');
-
-    expect(upgradeLegacyPlasma(previousStarter)).toBe(ASCII_PLASMA_SOURCE);
 
   });
 
@@ -315,26 +262,6 @@ describe('the system patch library', () => {
     expect(entry.source).toContain('performer: "your-name"');
     expect(entry.source).toContain('stream: "performer/main-output"');
     expect(entry.source).toContain('const networkReceiver = receiverRoom.receive({');
-  });
-
-  it('upgrades copied diagnostic defaults without touching other patch cells', () => {
-    const source = `// %% patch frequencyBars
-const frequencyBars = {
-  panelHeight: 0.34,
-  draw() { fill(100, 145, 255, 230); fill(190, 125, 255, 230); fill(255, 190, 95, 230); }
-};
-
-// %% patch audioMeters
-const audioMeters = { draw() { fill(...colour, 220); } };
-
-// %% patch customPatch
-const customPatch = { draw() { fill(100, 145, 255, 230); } };`;
-
-    const upgraded = upgradeOpaqueDiagnostics(source);
-    expect(upgraded).toContain('heightRatio: 0.34');
-    expect(upgraded).toContain('fill(100, 145, 255);');
-    expect(upgraded).toContain('fill(...colour);');
-    expect(upgraded).toContain('customPatch = { draw() { fill(100, 145, 255, 230); } }');
   });
 
   it('gives every system library patch an explicit display category', () => {

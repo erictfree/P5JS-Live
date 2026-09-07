@@ -29,7 +29,7 @@ const scene = [
   redBackground,
   [greenHalf, [groupProbe]],
 ];
-activate(scene);`;
+scene.draw();`;
 
 test('nested scene arrays render on transparent recursive targets', async ({ page }) => {
   const pageErrors = [];
@@ -87,7 +87,7 @@ const scene = [
   solidBackground,
   [asciiNoise, plasma],
 ];
-activate(scene);`,
+scene.draw();`,
   );
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
@@ -146,7 +146,7 @@ const groupFill = {
 
 // %% scene scene
 const scene = [solidBackground, [groupFill, plasma]];
-activate(scene);`,
+scene.draw();`,
   );
   await page.addInitScript((savedSource) => {
     localStorage.clear();
@@ -179,7 +179,7 @@ test('Neon Tunnel and ASCII remain visible when Plasma scopes them as a group', 
     /\/\/ %% scene scene[\s\S]*$/,
     `${solidSource}\n\n${neonSource}\n\n// %% scene scene
 const scene = [solidBackground, [neonTunnel, asciiNoise, plasma]];
-activate(scene);`,
+scene.draw();`,
   );
   await page.addInitScript((savedSource) => {
     localStorage.clear();

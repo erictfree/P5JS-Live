@@ -11,37 +11,9 @@
 // than throwing during startup, because a performer should never be met with a
 // broken page.
 
-// v5 intentionally starts from the compact, self-sufficient starter. Previous local
-// project keys contained the retired built-in patches, so reading them would immediately
-// repopulate a library the product has deliberately removed. Exported v6 projects are
-// still readable and can be imported explicitly.
 const KEY = 'p5js-live.project.v5';
-const PREVIOUS_KEY = 'algolab.project.v5';
-const OBSOLETE_KEYS = [
-  'algolab.project.v1',
-  'algolab.project.v2',
-  'algolab.project.v3',
-  'algolab.project.v4',
-];
-const LEGACY_KEYS = [
-  'livecode-lab.project.v1',
-  'patchlab.project.v1',
-  'patchbay.project.v1',
-  'response.project.v1',
-];
 const PROJECT_FORMAT = 'p5js-live-project';
-const READABLE_FORMATS = new Set([
-  PROJECT_FORMAT,
-  'algolab-project',
-  'livecode-lab-project',
-  'patchlab-project',
-  'patchbay-project',
-  'response-project',
-]);
-// v6 makes source the sole scene-composition authority. Persistence stores source and
-// performer settings, never a second mutable copy of scene membership or order.
 const SCHEMA = 6;
-const READABLE_SCHEMAS = new Set([6]);
 
 export function createProjectStore({
   registry,
@@ -86,13 +58,8 @@ export function createProjectStore({
 
   function load() {
     let raw;
-    let sourceKey = KEY;
     try {
       raw = storage?.getItem(KEY);
-      if (!raw) {
-        raw = storage?.getItem(PREVIOUS_KEY);
-        sourceKey = PREVIOUS_KEY;
-      }
     } catch (error) {
       diagnostics?.warn('Could not read saved project', error.message);
       return null;
@@ -101,13 +68,9 @@ export function createProjectStore({
 
     try {
       const data = JSON.parse(raw);
-      if (!READABLE_SCHEMAS.has(data?.schema) || typeof data.source !== 'string') {
+      if (data?.schema !== SCHEMA || typeof data.source !== 'string') {
         diagnostics?.warn('Saved project is from an older format — starting fresh');
         return null;
-      }
-      if (sourceKey !== KEY) {
-        storage?.setItem(KEY, raw);
-        storage?.removeItem(sourceKey);
       }
       return data;
     } catch (error) {
@@ -135,9 +98,6 @@ export function createProjectStore({
   function clear() {
     try {
       storage?.removeItem(KEY);
-      storage?.removeItem(PREVIOUS_KEY);
-      for (const obsoleteKey of OBSOLETE_KEYS) storage?.removeItem(obsoleteKey);
-      for (const legacyKey of LEGACY_KEYS) storage?.removeItem(legacyKey);
     } catch {
       /* nothing useful to do */
     }
@@ -202,13 +162,13 @@ export function createProjectStore({
     } catch (error) {
       return { ok: false, error: `Not a valid project file — ${error.message}` };
     }
-    if (!READABLE_FORMATS.has(data?.format)) {
+    if (data?.format !== PROJECT_FORMAT) {
       return { ok: false, error: 'Not a p5js live project file' };
     }
-    if (!READABLE_SCHEMAS.has(data.schema)) {
+    if (data.schema !== SCHEMA) {
       return {
         ok: false,
-        error: `Project uses format version ${data.schema}, this build reads ${[...READABLE_SCHEMAS].join(' and ')}`,
+        error: `Project uses format version ${data.schema}, this build reads ${SCHEMA}`,
       };
     }
     const source = Array.isArray(data.source) ? data.source.join('\n') : data.source;

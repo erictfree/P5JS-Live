@@ -95,7 +95,7 @@ export function findStatements(source) {
 
     if (ch === '\n') {
       // Newline ends a top-level statement only when everything is balanced —
-      // the "automatic semicolon" case: `activate(scene)` on its own line.
+      // the "automatic semicolon" case: `scene.draw()` on its own line.
       if (depth === 0 && start !== -1 && endsStatement(prev) && !continuesMethodChain(source, i + 1)) push(i + 1);
       i++;
       continue;
@@ -133,50 +133,6 @@ export function findCells(source) {
       label: marker[1].trim(),
     };
   });
-}
-
-/**
- * Upgrade the retired scene command in persisted source without exposing it as a
- * runtime alias. Comments and strings remain untouched so project notes and example
- * text retain exactly what the author wrote.
- *
- * @param {string} source
- * @returns {string}
- */
-export function upgradeLegacyActivation(source) {
-  const masked = maskCommentsAndStrings(source);
-  const matches = [...masked.matchAll(/\bgo(?=\s*\()/g)]
-    .filter((match) => masked[match.index - 1] !== '.');
-  let upgraded = source;
-  for (let i = matches.length - 1; i >= 0; i--) {
-    const at = matches[i].index;
-    upgraded = `${upgraded.slice(0, at)}activate${upgraded.slice(at + 2)}`;
-  }
-  return upgraded;
-}
-
-/**
- * Rename the original demo's default `tunnel` scene without touching patches or a
- * deliberately named scene in another project. The exact marked cell makes this a
- * narrow source migration rather than a global identifier replacement.
- *
- * @param {string} source
- * @returns {string}
- */
-export function renameLegacyStarterScene(source) {
-  if (/\b(?:const|let|var)\s+scene\b/.test(source)) return source;
-  const legacy = findCells(source).find((cell) => cell.label === 'scene tunnel');
-  if (!legacy || !/\b(?:const|let|var)\s+tunnel\s*=\s*\[/.test(legacy.text)) return source;
-
-  const renamed = legacy.text
-    .replace(/^\/\/\s*%%\s*scene\s+tunnel\s*$/m, '// %% scene scene')
-    .replace(/\b(const|let|var)\s+tunnel\s*=/, '$1 scene =')
-    .replace(
-      /\b(const|let|var)\s+scene\s*=\s*\[\s*plasma\s*,?\s*\]\s*;?/,
-      '$1 scene = [\n  plasma,\n];',
-    )
-    .replace(/\b(?:go|activate)\s*\(\s*tunnel\s*\)/, 'activate(scene)');
-  return `${source.slice(0, legacy.start)}${renamed}${source.slice(legacy.end)}`;
 }
 
 /**
@@ -687,18 +643,15 @@ export function describeBlock(text) {
   if (cell?.[1].trim()) return cell[1].trim();
 
   const declaration = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(\[|\{|new\b)/.exec(text);
-  if (declaration) return `${declaration[2] === '[' ? 'scene' : 'strategy'} ${declaration[1]}`;
+  if (declaration) return `${declaration[2] === '[' ? 'scene' : 'patch'} ${declaration[1]}`;
 
   const classDeclaration = /\bclass\s+([A-Za-z_$][\w$]*)/.exec(text);
   if (classDeclaration) return `class ${classDeclaration[1]}`;
 
-  const activateCommand = /\bactivate\s*\(\s*([A-Za-z_$][\w$]*)/.exec(text);
-  if (activateCommand) return `activate ${activateCommand[1]}`;
-
   const drawCommand = /^\s*([A-Za-z_$][\w$]*)\s*\.\s*draw\s*\(/.exec(text);
   if (drawCommand) return `draw ${drawCommand[1]}`;
 
-  const namedCommand = /\b(?:control|param)\s*\(\s*["'`]([^"'`]+)["'`]/.exec(text);
+  const namedCommand = /\bcontrol\s*\(\s*["'`]([^"'`]+)["'`]/.exec(text);
   if (namedCommand) return `control ${namedCommand[1]}`;
 
   const objectCommand = /\breset\s*\(\s*([A-Za-z_$][\w$]*)/.exec(text);

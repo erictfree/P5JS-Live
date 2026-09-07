@@ -1,7 +1,7 @@
 # Arrays, layers, and the draw loop
 
-The native array API uses ordinary JavaScript methods. Existing `layer()` and
-`activate()` remain compatible.
+The authoring model uses ordinary JavaScript arrays with native effect methods.
+An array describes a layer; `.draw()` selects it for the host's frame loop.
 
 ## The model
 
@@ -67,7 +67,7 @@ Numeric effect arguments may be constants or functions of the live context.
 
 The direct shader vocabulary follows ShaderChain, with `colorShift()` replacing
 its `shift()` spelling because native arrays already use `shift()`. `.translate()`
-and `.opacity()` retain the existing layer conveniences. Explicit ShaderChain
+and `.opacity()` provide convenient transform and alpha operations. Explicit ShaderChain
 objects remain available for wet/dry mix, blending, and bypass configuration.
 `.mute(boolean)` pauses a group's draw and beat calls while retaining state.
 
@@ -80,7 +80,7 @@ at the same boundary, the last one wins. To render multiple layers together,
 include them in one scene array.
 
 The command returns that array, so `const scene = [...].draw()` can also capture the name. A
-scene must have a named binding, as with `activate(scene)` today. Call activation
+scene must have a named binding. Call `.draw()`
 while evaluating live code; the host owns subsequent frames. The array definition
 and its `.draw()` command can be evaluated together or in separate blocks.
 
@@ -101,13 +101,12 @@ on reassignment even in non-strict code. This protects the extensions on
 the installer rejects attempts to register over them. This does not prohibit
 deliberate own-property definitions on individual arrays.
 
-## Compatibility
+## Runtime responsibilities
 
-The immutable layer builder and ShaderChain implement the operations. Array
-methods preserve existing nested groups and named patch references. Malformed,
-sparse, and cyclic patch groups are rejected before activation. The starter uses
-array effects; existing saved projects keep their source. The `layer(sketch)`
-builder and `activate(scene)` command remain available.
+Effect and composition methods return ordinary frozen arrays. ShaderChain
+implements their GPU operations. Array methods preserve nested groups and named
+patch references. Malformed, sparse, and cyclic patch groups are rejected before
+activation. Source is evaluated exactly as written.
 
 Source remains the composition authority. Editing prepares a change; Run applies
 it. Projects store source and performer settings. GPU buffers remain runtime

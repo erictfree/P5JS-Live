@@ -1,26 +1,30 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { layer, isLayer } from '../../src/host/layer.js';
+import { isLayerArray } from '../../src/host/layer.js';
+import { installArrayMethods } from '../../src/host/arrayApi.js';
 import { ShaderChain, compileShaderOperations } from '../../src/shaders/shaderChain.js';
 import { sceneArrayEntries, moveSceneEntry } from '../../src/language/sourceBlocks.js';
 import { createAppController } from '../../src/app/controller.js';
 import { createTestHost } from './helpers.js';
 
+installArrayMethods();
+
 describe('sketch composition', () => {
   it('branches immutable arrays without wrapping patch lifecycle methods', () => {
     const sketch = { draw() {} };
-    const base = layer(sketch);
+    const base = [sketch];
     const a = base.fx(new ShaderChain().hue(0.3)).opacity(0.5);
     const b = base.rotate(0.2).scale(2).translate(0.1, 0).mute();
     expect(Array.isArray(a)).toBe(true);
-    expect(isLayer(a)).toBe(true);
+    expect(isLayerArray(a)).toBe(true);
     expect(base).toHaveLength(1);
     expect(a).toHaveLength(3);
     expect(b.muted).toBe(true);
     expect(b).toHaveLength(2); // consecutive convenience effects share one chain
-    expect(a.muted).toBe(false);
+    expect(a).not.toHaveProperty('muted');
+    expect(Object.getPrototypeOf(a)).toBe(Array.prototype);
     expect(a[0]).toBe(sketch);
     expect(Object.isFrozen(a)).toBe(true);
-    expect(() => layer({})).toThrow('need a patch');
+    expect(() => [{}].opacity(0.5)).toThrow('need a patch');
     expect(() => base.fx(null)).toThrow('need a patch');
   });
 
@@ -30,8 +34,8 @@ describe('sketch composition', () => {
       const sketch = { state: () => ({ count: 0, enters: 0, beats: 0 }),
         enter({state}) { state.enters++; }, beat({state}) { state.beats++; },
         draw({state}) { state.count++; } };
-      const wrapped = layer(sketch);
-      const show = [wrapped, wrapped]; activate(show);
+      const wrapped = [sketch];
+      const show = [wrapped, wrapped]; show.draw();
     `).ok).toBe(true);
     h.frame(3, { beat: true });
     expect(h.registry.listScenes().map(({name}) => name)).toEqual(['show']);
@@ -47,28 +51,28 @@ describe('sketch composition', () => {
   it('retains mute and group structure through recovery without losing state', () => {
     const h = createTestHost();
     h.evaluator.evaluate(`const sketch = { state: () => ({count:0}), draw({state}) { state.count++; } };
-      const show = [layer(sketch).mute()]; activate(show);`);
+      const show = [[sketch].mute()]; show.draw();`);
     h.frame(3);
     expect(h.stateStore.get('sketch').count).toBe(0);
     const snapshot = h.registry.snapshotConfiguration();
     h.registry.defineScene('other', ['sketch']); h.registry.activate('other');
     h.registry.restoreConfiguration(snapshot);
-    expect(h.registry.activeTree()[0]).toMatchObject({ kind: 'group', layer: true, muted: true });
-    h.evaluator.evaluate('const show = [layer(sketch).mute(false)]; activate(show);');
+    expect(h.registry.activeTree()[0]).toMatchObject({ kind: 'group', muted: true });
+    h.evaluator.evaluate('const show = [[sketch].mute(false)]; show.draw();');
     h.frame(2);
     expect(h.stateStore.get('sketch').count).toBe(1);
   });
 
   it('rolls back a failed inline layer child and keeps later activation safe', () => {
     const h = createTestHost();
-    h.evaluator.evaluate('const show = [layer(() => {})]; activate(show);'); h.frame(3);
-    h.evaluator.evaluate('const show = [layer(() => { throw new Error("bad"); })]; activate(show);');
+    h.evaluator.evaluate('const show = [[() => {}]]; show.draw();'); h.frame(3);
+    h.evaluator.evaluate('const show = [[() => { throw new Error("bad"); }]]; show.draw();');
     h.frame(3);
     expect(h.registry.getStrategy('show[0][0]').version).toBe(1);
-    expect(isLayer(h.evaluator.binding('show')[0])).toBe(true);
-    expect(h.evaluator.evaluate('activate(show);').ok).toBe(true);
+    expect(isLayerArray(h.evaluator.binding('show')[0])).toBe(true);
+    expect(h.evaluator.evaluate('show.draw();').ok).toBe(true);
     h.frame(2);
-    expect(h.registry.activeTree()[0].layer).toBe(true);
+    expect(h.registry.activeTree()[0].kind).toBe('group');
   });
 
   it('reports live groups and effects separately from pending source edits', () => {
@@ -77,8 +81,8 @@ describe('sketch composition', () => {
     let source = `// %% patch sketch
 const sketch = { draw() {} };
 // %% scene show
-const show = [layer(sketch).fx(new ShaderChain().hue(0.3).blur(3)), sketch];
-activate(show);`;
+const show = [[sketch].fx(new ShaderChain().hue(0.3).blur(3)), sketch];
+show.draw();`;
     controller.setSourceProvider(() => source);
     h.evaluator.evaluate(source); h.frame(); // stage only: no WebGL in this fixture
     let scene = controller.snapshot().scene;
@@ -99,7 +103,7 @@ describe('source composition edits', () => {
   it('moves whole expressions without losing nested commas, strings, comments, or Unicode offsets', () => {
     const source = `// ✨ const show = [fake];
 const show = [
-  layer(sketch).fx(new ShaderChain().hue(0.3)), // keep this note
+  [sketch].fx(new ShaderChain().hue(0.3)), // keep this note
   [{ draw() { text("a,b]", 0, 0); } }, effect],
 ];`;
     const entries = sceneArrayEntries(source, 'show');

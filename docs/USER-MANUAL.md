@@ -737,8 +737,8 @@ scene.draw();
 ```
 
 Call `.draw()` on the named array. You can evaluate the definition and its draw
-command together or in separate blocks. Existing `activate(scene)` calls remain
-supported and take the array value.
+command together or in separate blocks. Defining an array prepares it; `.draw()`
+selects it as the active scene.
 
 To change the image, add, remove, duplicate, comment, or reorder array entries and
 evaluate the scene cell. The Library's **Add to scene** action inserts at the cursor
@@ -2009,7 +2009,6 @@ resources on the owning object rather than in `state`.
 | Command | Result |
 | --- | --- |
 | `scene.draw()` | Select the named array for the ongoing frame loop, at a frame boundary |
-| `activate(scene)` | Compatible command with the same activation behavior |
 | `reset(patch)` | Recreate state for every active occurrence of the supplied patch value |
 | `control(name, initial, options)` | Declare or update a project-wide live control; current performer value is preserved on reevaluation |
 

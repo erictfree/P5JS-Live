@@ -29,7 +29,7 @@ const RESERVED_PATCH_NAMES = new Set([
   'var', 'void', 'while', 'with', 'yield',
   // These are evaluator-provided bindings, so declaring one in a cell would collide
   // with the live-coding API even though it is a legal JavaScript identifier.
-  'activate', 'control', 'param', 'reset', 'ShaderChain', 'StreamRoom', 'layer',
+  'control', 'reset', 'ShaderChain', 'StreamRoom',
 ]);
 
 /** VS Code-style movement of the current line or selected consecutive lines. */
@@ -69,7 +69,7 @@ function declaredName(source, name) {
 
 function isPatchBlock(block, name) {
   const label = describeBlock(block.text);
-  return label === `strategy ${name}` || label === `patch ${name}`;
+  return label === `patch ${name}`;
 }
 
 /** `scene[2]` is the scene-local identity of an anonymous array entry. */
@@ -134,7 +134,7 @@ export function createEditor(textarea, handlers) {
     if (currentCellBar) {
       const block = blockAt(textarea.value, textarea.selectionStart);
       const status = block ? feedback.status(block.text) : null;
-      currentCellBar.querySelector('.current-cell-name').textContent = block ? describeBlock(block.text).replace(/^strategy /, 'patch ') : 'Complete editor';
+      currentCellBar.querySelector('.current-cell-name').textContent = block ? describeBlock(block.text) : 'Complete editor';
       currentCellBar.querySelector('.cell-status').textContent = status?.label ?? '';
       currentCellBar.querySelector('.cell-feedback').textContent = status?.message ?? '';
       currentCellBar.dataset.evaluationState = status?.state ?? 'ready';
@@ -236,7 +236,7 @@ export function createEditor(textarea, handlers) {
    */
   function foldPreview(block, firstLine) {
     const lines = block.text.replace(/\n$/, '').split('\n');
-    const description = describeBlock(block.text).replace(/^strategy\s+/, 'patch ');
+    const description = describeBlock(block.text);
     // A marked cell is one source region, so its closed and open presentations must
     // anchor to the same first line. Previously the closed row borrowed a declaration
     // from deep inside the cell (line 112 for Plasma), then opening it jumped back to
@@ -1499,11 +1499,11 @@ export function createEditor(textarea, handlers) {
 
   function replaceNamedBlock(description, source) {
     const target = findBlocks(textarea.value).find((block) => {
-      const label = describeBlock(block.text).replace(/^strategy\s+/, 'patch ');
-      return label === description.replace(/^strategy\s+/, 'patch ');
+      const label = describeBlock(block.text);
+      return label === description;
     });
     if (!target) {
-      if (/^(?:strategy|patch)\s+/.test(description)) insertPatchSource(source);
+      if (/^patch\s+/.test(description)) insertPatchSource(source);
       else appendSource(source);
       return { replaced: false, source };
     }
@@ -1626,7 +1626,7 @@ export function createEditor(textarea, handlers) {
       const at = folded && lastSourceCaret !== null ? lastSourceCaret : textarea.selectionStart;
       const block = blockAt(textarea.value, at);
       const description = block ? describeBlock(block.text) : '';
-      const match = /^(?:strategy|patch)\s+([A-Za-z_$][\w$]*)$/.exec(description);
+      const match = /^patch\s+([A-Za-z_$][\w$]*)$/.exec(description);
       return match ? { name: match[1], source: block.text.trimEnd() } : null;
     },
     /** Focus the binding that defines a strategy without changing source. */

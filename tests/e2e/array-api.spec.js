@@ -61,7 +61,7 @@ test('native effect order, computed methods and factory results use the real sha
   await expect.poll(() => pixel(page)).toEqual([0, 255, 0, 255]);
   await evaluate(page, 'const scene = [red].colorShift(0, 0.2, 0, 0); scene.draw();');
   const shifted = await pixel(page);
-  await evaluate(page, 'const scene = [red, new ShaderChain().shift(0, 0.2, 0, 0)]; activate(scene);');
+  await evaluate(page, 'const scene = [red, new ShaderChain().shift(0, 0.2, 0, 0)]; scene.draw();');
   await expect.poll(() => pixel(page)).toEqual(shifted);
   await evaluate(page, 'const prepared = [blue].opacity(0.5);');
   await evaluate(page, 'prepared.draw();');
