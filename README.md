@@ -17,24 +17,29 @@ A **patch** is a JavaScript function, object, or class instance that draws. A
 **scene** is an array of patches in draw order. A nested array is a transparent,
 isolated render group, so effects inside it apply only to that group.
 
+<!-- example: first-scene -->
 ```js
 const pulse = {
   speed: 2,
 
   draw({ time, audio }) {
+    noStroke();
+    fill("#57dbc8");
     const size = 120 + sin(time * this.speed) * 60 + audio.bass * 140;
     circle(width / 2, height / 2, size);
   },
 };
 
 const scene = [
-  pulse,
-  [asciiNoise, plasma],
-  vignette,
+  () => background(20, 22, 27),
+  [pulse].bloom(0.3, 3, 0.6).opacity(0.85),
 ];
 
 scene.draw();
 ```
+
+This example is complete and animates in silence. Replace the editor contents and
+press `Cmd/Ctrl+Shift+Enter` to run it.
 
 Put the cursor in a patch or scene and press `Cmd/Ctrl+Enter`. p5js live evaluates
 that unit without restarting the host. Syntax, evaluation, and first-frame errors
@@ -43,10 +48,10 @@ leave the last working version running.
 p5js live includes:
 
 - file, microphone, and line-input audio analysis;
-- normalized level, bass, mid, treble, beat, spectrum, and waveform data;
+- normalized audio levels and bands, beat events, and spectrum/waveform arrays;
 - function, object, class, factory, closure, and inline patches;
 - recursive scenes with isolated effect groups and independent state per occurrence;
-- native array effects through `[sketch].rotate(...).opacity(...)` and a Scene
+- array effects through `[sketch].rotate(...).opacity(...)` and a Scene
   inspector that links groups and effects to source, with reviewable reordering;
 - a source-based patch library and community patch catalog;
 - GPU post-processing through standard `ShaderChain` effects, wet/dry mix, blend
@@ -58,17 +63,13 @@ p5js live includes:
 
 ## Documentation
 
-- [Layer composition](docs/COMPOSITION.md) — chain sketch effects and inspect their
-  scope, order, live values, and shader pass counts.
+Start with the [documentation index](docs/README.md), or go directly to:
 
-- [User manual](docs/USER-MANUAL.md) — a progressive guide from the first edit to
-  audio arrays, objects, higher-order functions, MIDI, nested groups, shaders, and
-  live-performance recovery.
-- [Quick guide](docs/GUIDE.md) — the shortest practical route through the instrument.
-- [API reference](docs/API.md) — exact runtime fields, methods, and lifecycle rules.
-- [Nested render groups](docs/NESTED-RENDER-GROUPS.md) — isolated recursive
-  composition in detail.
-- [Architecture](docs/ARCHITECTURE.md) — host, evaluator, persistence, and view design.
+- [Quickstart](docs/GUIDE.md) — a complete first patch and a second sketch.
+- [Data model](docs/DATA-MODEL.md) — arrays, effect scope, and the active scene.
+- [Composition cookbook](docs/COMPOSITION.md) — nesting, chained effects, and Layer Lab.
+- [User manual](docs/USER-MANUAL.md) — the complete learning and performance guide.
+- [API reference](docs/API.md) — exact runtime behavior and methods.
 
 ## Install and run
 
@@ -250,21 +251,6 @@ for the default pulsing-square scene, or import another project.
 Choose a source on the first-run screen, allow microphone access if applicable, and
 check whether the transport says **Play**. Enter with silence to test visuals alone.
 
-## Documentation
-
-| Document | Use it for |
-| --- | --- |
-| [Guide](docs/GUIDE.md) | Patches, scenes, audio, shaders, networking, and recovery |
-| [API](docs/API.md) | Context fields, lifecycle, identity, commands, and exact behavior |
-| [Data model](docs/DATA-MODEL.md) | Arrays, layers, effect scope, and the draw loop |
-| [Layer composition](docs/COMPOSITION.md) | Native array effects and the playable Layer Lab examples |
-| [Nested render groups](docs/NESTED-RENDER-GROUPS.md) | Recursive scene composition, factories, and effect scope |
-| [Networking (disabled)](docs/NETWORKING.md) | Inactive beta implementation and deployment notes |
-| [Architecture](docs/ARCHITECTURE.md) | Runtime design and implementation invariants |
-| [Product](docs/PRODUCT.md) | Purpose, principles, scope, and limits |
-| [Contributing](CONTRIBUTING.md) | Development setup and contribution rules |
-| [Security](SECURITY.md) | Trust boundary and vulnerability reporting |
-
 ## Development
 
 ```sh
@@ -292,7 +278,7 @@ runtime media there; historical artwork stays in the repository without being sh
 
 `dist/` is the Workers static-assets directory. `npm run deploy` builds it and runs
 `wrangler deploy`. The custom domain is configured in Cloudflare, not in this repository.
-Network streaming is currently disabled in the interface. Its beta implementation uses
+The Network tab is unavailable; the experimental source API remains callable. It uses
 local signaling and is not part of the hosted Worker yet.
 
 ## Google Analytics

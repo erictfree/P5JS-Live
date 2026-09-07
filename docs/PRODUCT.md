@@ -20,7 +20,7 @@ running. Live code supplies replaceable patches and scene arrays.
 ### Keep composition in source
 
 The scene is a visible JavaScript array. Nested arrays express isolated effect groups.
-Native array methods chain effects onto each group; `scene.draw()` selects the
+App-provided array methods chain effects onto each group; `scene.draw()` selects the
 composition for the ongoing frame loop.
 Interface actions edit that source instead of maintaining a hidden graph.
 

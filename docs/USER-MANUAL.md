@@ -30,12 +30,14 @@ groups, and shaders. You do not need to understand the advanced sections before 
 start performing.
 
 For exact method and field definitions, see the [API reference](API.md). For the
-implementation model, see [Architecture](ARCHITECTURE.md).
+implementation model, see [Architecture](ARCHITECTURE.md). The shorter
+[quickstart](GUIDE.md), [data model](DATA-MODEL.md), and
+[composition cookbook](COMPOSITION.md) focus on the array authoring workflow.
 
 | Document information | |
 | --- | --- |
-| Manual edition | 1.0 |
-| Updated | August 26, 2026 |
+| Manual edition | 1.1 |
+| Updated | September 7, 2026 |
 | Audience | Students, educators, creative coders, and live visual performers |
 | Prerequisites | Current desktop Google Chrome; basic JavaScript is helpful but not required |
 
@@ -57,7 +59,11 @@ matches your immediate goal:
 
 Each chapter introduces one working idea before adding variations. Code examples are
 intended for the p5js live editor unless a block is explicitly marked as a shell
-command.
+command. The first scene is a complete program. Later snippets illustrate one
+operation: reuse definitions introduced earlier, install named Library patches
+before referencing them, and replace alternative scene declarations rather than
+appending duplicate names. Scene fragments need `scene.draw()` when you run them
+to select the edited array.
 
 ### Contents
 
@@ -237,21 +243,25 @@ them only after you have used the instrument.
 
 Here is a scene containing two patches. You do not need to understand every symbol yet:
 
+<!-- example: first-scene -->
 ```js
-const dot = ({ audio }) => {
-  circle(width / 2, height / 2, 40 + audio.bass * 180);
+const dot = ({ time, audio }) => {
+  noStroke();
+  fill("#57dbc8");
+  circle(width / 2, height / 2, 100 + sin(time * 2) * 30 + audio.bass * 180);
 };
 
 const scene = [
-  solidBackground,
+  () => background(20, 22, 27),
   dot,
 ];
 
 scene.draw();
 ```
 
-Read the `scene` array from top to bottom. `solidBackground` draws the background.
-`dot` adds a circle whose size follows the bass. Earlier entries contribute
+Replace the editor contents with this program and run all with
+`Cmd/Ctrl+Shift+Enter`. Read the array from top to bottom. The first function draws
+the background. `dot` adds a circle that pulses in silence and grows with bass. Earlier entries contribute
 pixels first; later entries draw over them or transform what is already there.
 
 `scene.draw()` selects this array for the ongoing frame loop. When the scene cell
@@ -330,7 +340,8 @@ The stage is both the visual output and the editor background. The main areas ar
 
 - **Code**: editable patch and scene cells over the stage.
 - **Transport**: play, pause, and loop controls.
-- **Tools**: Audio, Library, Controllers, Project, Messages, AI, and other settings.
+- **Tools**: Scene, Library, Controls, Audio, and Performances; Settings, Messages,
+  and AI assistant are below the scrolling panel.
 - **Reference**: a compact view of installed patch interfaces.
 - **Audience window**: a clean output window for a projector or second display.
 
@@ -339,6 +350,8 @@ Useful view keys work after editor focus is released with `Esc`:
 | Key | Action |
 | --- | --- |
 | `e` | Show or hide code |
+| `d` | Dim or restore the performer background; audience output is unchanged |
+| `n` | Hide or restore the top navigation bar |
 | `f` | Enter or leave fullscreen |
 | `p` | Open the audience window |
 | `r` | Show or hide the installed-patch reference |
@@ -437,7 +450,7 @@ selects only the fields it needs.
 | `sceneTime` | Seconds since this scene was activated |
 | `dt` | Seconds since the previous frame, bounded after a stall |
 | `state` | Persistent data unique to this occurrence in the scene |
-| `canvas` | The main p5 renderer; also usable as a shader texture |
+| `canvas` | Current render target: main renderer or nested group; usable as a shader texture |
 | `controls` | Current values declared with `control()` |
 | `keyboard` | Read-only physical keyboard state |
 
@@ -761,7 +774,8 @@ The same named patch may also appear repeatedly:
 const scene = [rings, rings, rings];
 ```
 
-Each occurrence receives independent runtime state. The reference identifies them as
+Each occurrence receives independent `context.state`. The object itself is shared,
+including its own properties and resources. The reference identifies occurrences as
 `rings`, `rings#2`, and `rings#3`.
 
 #### Inline patch
@@ -807,7 +821,7 @@ when you reevaluate its scene.
 #### Function returning an array
 
 ```js
-const withGlow = (patch) => [patch, bloom];
+const withGlow = (patch) => [patch].bloom(0.4, 3, 0.6);
 
 const scene = [
   solidBackground,
@@ -860,7 +874,11 @@ The returned array is a group. If isolation is not wanted, build the selection b
 the scene and spread it into the parent:
 
 ```js
-const selected = chooseTwo();
+const selected = [neonTunnel, asciiNoise, laserFan]
+  .map(patch => ({ patch, order: random() }))
+  .sort((a, b) => a.order - b.order)
+  .slice(0, 2)
+  .map(({ patch }) => patch);
 const scene = [solidBackground, ...selected, plasma];
 ```
 
@@ -987,7 +1005,7 @@ is useful during performance.
 
 ### 14. Create live controls
 
-Open **Tools → Controllers** and select **+ Live parameter**. Choose a continuous
+Open **Tools → Controls** and select **＋ Live control**. Choose a continuous
 control, button, or choice. The UI inserts ordinary source into a `// %% controls`
 cell.
 
@@ -1062,7 +1080,7 @@ Web MIDI lets a physical controller change the same live controls as the onscree
 The patch never needs to know a device name or MIDI message number.
 
 1. Plug in and power on the controller.
-2. Open **Tools → Controllers**.
+2. Open **Tools → Controls**.
 3. Select **Connect MIDI** and permit browser access.
 4. Select **Learn MIDI** beside a control.
 5. Move a knob or fader, press a switch, or strike a drum pad.
@@ -1112,7 +1130,7 @@ const pixelDrift = new ShaderChain()
   .contrast(1.15);
 ```
 
-Every operator argument may be a fixed value or a function of the current context.
+Numeric operator arguments may be numbers or functions of the current context.
 The chain resolves function values every frame. This is behavior injection built
 into the shader API.
 
@@ -1137,10 +1155,14 @@ Common operators include:
   `thresh`, `color`, `saturate`, `hue`, `colorama`, `sum`, and `rgba`.
 
 These operators are also array methods, with `colorShift()` in place of the shader's
-`shift()`; native array `shift()` still removes an entry. Wet/dry mix, blend mode,
-and bypass belong to the explicit ShaderChain and apply to the whole chain. Append
-one with `[waveLine].fx(pixelDrift)`. Blend modes include alpha, add, multiply,
-screen, overlay, difference, subtract, lighten, and darken. Operator order matters
+`shift()`; JavaScript's `shift()` retains its normal behavior, including throwing
+on frozen arrays. p5js live installs the effect methods on `Array.prototype`;
+they are not built into JavaScript. Wet/dry mix, blend mode, and bypass belong to
+the explicit ShaderChain and apply to the whole chain. Place one directly in an
+array, as in `[waveLine, pixelDrift]`, or append it with `.add(pixelDrift)` or
+`.fx(pixelDrift)`. Those two methods perform the same append operation. Blend modes
+include alpha, add, multiply, screen, overlay, difference, subtract, lighten, and
+darken. Operator order matters
 because each step receives the previous step's pixels.
 
 Place a chain inside a nested group to limit its input:
@@ -1276,7 +1298,10 @@ Available → Installed → Active → Running
 Installing never silently changes the live image. Adding to scene edits source but
 also does not run it. Evaluate the scene array to activate the edit.
 
-Use the All, Installed, and Active filters to answer different questions. Categories
+Use **Browse**, **In project**, and **In scene** to filter the Library.
+Rows say **Available**, **In project**, **Not run**, or **In scene**; **Not run**
+means a prepared scene addition has not been evaluated. The Project patches
+reference retains the Installed → Active → Running lifecycle detail. Categories
 separate utilities, sources/drawing patches, effects/shaders, student/community work,
 and other groups without changing lifecycle meaning.
 
@@ -1301,7 +1326,7 @@ normally restores the last editor source and project settings.
 A named performance is a recallable snapshot of the current window, including source,
 the active scene, controls and mappings, audio-analysis settings, and view settings.
 
-Open **Tools → Project**, enter a name, and select **Save current**. Each row can be:
+Open **Tools → Performances**, enter a name, and select **Save current**. Each row can be:
 
 - recalled;
 - updated from the current window;
@@ -1323,8 +1348,8 @@ performance does not delete named performances or stop the current music.
 
 #### Project export and import
 
-**Export project** creates a portable JSON file containing the working project and
-all named performances. **Import project** first validates and runs the working source,
+Under **Tools → Performances → Project files**, **Export project** creates a
+portable JSON file containing the working project and all named performances. **Import project** first validates and runs the working source,
 then merges valid named performances by identity. It does not delete unrelated
 performances already in the browser.
 
@@ -1337,7 +1362,7 @@ current project is known to work. The snapshot records the source, installed pat
 versions, active scene, live values and mappings, compatible runtime state, and other
 settings required to recover.
 
-The Project panel shows when the snapshot was created and whether the current project
+The Performances panel shows when the snapshot was created and whether the current project
 differs from it. Select **Restore**, press `0`, or use the panic control to recover.
 Restoration reports success and any parts that could not be restored.
 
@@ -1808,14 +1833,14 @@ The function captures a compositional rule while leaving the ingredients open.
 | Stage | The current visual output and background behind the editor |
 | Folded cells | Compact overview of patch and scene units |
 | Expanded editor | Editable source, line numbers, selection, and fold controls |
-| Runtime bar | FPS, Running/Active/Installed counts, and the latest status message |
+| Live bar | Active scene name, occurrence count, Safe State status, and restore action; FPS and detailed counts are in Messages |
 | Transport | File playback and looping controls that remain available during editing |
 
 Line numbers always refer to the complete source buffer. When cells are folded, the
 hidden lines still exist, so the next visible cell may begin at a much larger number.
 This is intentional: an error line and an editor line always refer to the same source.
 
-The status counts answer different questions:
+The detailed counts in **Tools → Messages** answer different questions:
 
 - **Installed**: how many patch sources are in the project.
 - **Active**: how many patch occurrences are in the evaluated scene.
@@ -1828,20 +1853,22 @@ Open or close Tools with `Cmd/Ctrl+\`.
 | Panel | Main tasks |
 | --- | --- |
 | **Audio** | Inspect the source and playback position, choose an input device, loop, adjust smoothing, and enable or disable auto-gain |
-| **Library** | Browse Available/Installed/Active patches, install source, add to scene, insert the demo, share a patch, and view shader names |
+| **Scene** | Inspect the live tree and shader order, open source, and prepare top-level reorder edits for review and Run |
+| **Library** | Browse catalog patches, install source, prepare scene additions, and share a patch |
 | **Messages** | Read diagnostics and revert to a successful patch version from Evaluation history |
-| **Project** | Save and recall performances, set or restore Safe State, import/export/reset a project, set the FPS warning, and tune drawer opacity and code size |
-| **AI** | Configure the optional staged source assistant, inspect its proposal, and accept or cancel it |
-| **Controllers** | Declare live controls, operate them onscreen, connect MIDI, learn or remove mappings, and see connected devices |
+| **Performances** | Save and recall performances, set or restore Safe State, and import/export/reset project files |
+| **Settings** | Set FPS warnings, code size, panel opacity, and audience layout |
+| **AI assistant** | Configure the optional staged source assistant, inspect its proposal, and accept or cancel it |
+| **Controls** | Declare live controls, operate them onscreen, connect MIDI, learn or remove mappings, and see connected devices |
 
-The Network implementation is beta and the current interface reports network
-streaming as temporarily unavailable. Treat [Networking](NETWORKING.md) as developer
-documentation rather than a dependable performance workflow in this release.
+The Network tab is unavailable. The experimental `StreamRoom` source API remains
+callable; [Networking](NETWORKING.md) documents local testing and deployment.
 
 #### Library filters and groups
 
-The **All**, **Installed**, and **Active** filters select lifecycle views; they do not
-change source or runtime state. Library groups describe purpose or origin:
+The **Browse**, **In project**, and **In scene** filters select catalog views;
+they do not change source or runtime state. **Project patches** also lists custom
+project bindings. Library groups describe purpose or origin:
 
 - Utilities
 - Sources / drawing patches
@@ -1850,8 +1877,9 @@ change source or runtime state. Library groups describe purpose or origin:
 - Shared patches
 
 Each patch row includes an explicit lifecycle label and action. **Install source**
-adds source. **Add to scene** edits the scene array. **In active scene** is read-only
-confirmation, not an install action.
+adds source. **Add to scene** edits the scene array. **In scene** confirms an active
+patch and offers **Edit source**. **Not run** marks a scene addition waiting for
+review and evaluation.
 
 #### Reference drawer
 
@@ -1911,6 +1939,8 @@ The `Cmd/Ctrl+Shift+Up/Down` form is the portable choice.
 | `s` | Capture the current confirmed project as Safe State |
 | `r` | Show or hide the installed-patch Reference drawer |
 | `e` | Show or hide code |
+| `d` | Dim or restore the performer background; audience output is unchanged |
+| `n` | Hide or restore the top navigation bar |
 | `f` | Enter or leave fullscreen |
 | `p` | Open or close the audience window |
 | `l` | Toggle audio-file looping |
@@ -2050,8 +2080,8 @@ control("mode", "rings", {
 
 #### ShaderChain methods
 
-Every operator argument, `.mix(amount)`, and most numeric options may be either a
-fixed value or a function receiving current context.
+Numeric operator arguments and `.mix(amount)` accept numbers or functions of the
+current context. `.blend(mode)` takes a string; `.bypass(enabled)` takes a boolean.
 
 Chain-level methods:
 
@@ -2227,16 +2257,14 @@ by the evaluator. Safe State is recovery, not isolation from hostile code.
 - `ShaderChain` processes one current canvas texture; arbitrary multi-source routing
   needs custom WebGL code.
 - Audio and local media are not included in project exports.
-- Network streaming code is beta and the current interface marks it temporarily
-  unavailable.
+- The Network tab is unavailable; the experimental source API remains callable.
 - The included networking architecture is intended for small peer groups, not a large
   broadcast audience.
 
 #### Network developer API (beta)
 
 `StreamRoom` remains available to expert projects and development deployments even
-though the current interface marks network streaming temporarily unavailable. Treat
-it as an experimental API, configure the required signaling infrastructure, and do
+though the Network tab is unavailable. Treat it as an experimental API, configure the required signaling infrastructure, and do
 not depend on it for a set without testing the exact deployment.
 
 ```js
@@ -2274,7 +2302,7 @@ allocation, deeply nested full-resolution groups, expensive raymarching, too man
 full-canvas effects, and high pixel density.
 
 Use `dt` for frame-rate-independent motion, keep histories bounded, allocate durable
-resources once, release them in `dispose()`, and use the Project panel's FPS threshold
+resources once, release them in `dispose()`, and use the Settings panel's FPS warning threshold
 as an early warning rather than a guarantee.
 
 #### AI and secret handling
@@ -2293,10 +2321,10 @@ See [Security](../SECURITY.md) for the full trust boundary.
 - Open Messages and look for an evaluation or first-frame error.
 - Confirm the scene cell was evaluated.
 - Confirm the Library marks expected patches Active or Running.
-- Add an explicit `solidBackground` while diagnosing.
+- Add `() => background(20, 22, 27)` first in the scene while diagnosing.
 - Remember that an isolated shader group cannot see pixels outside the group.
 
-If the runtime bar reports `0 running`, evaluate the scene cell. If it reports active
+If **Tools → Messages** reports `0 running`, evaluate the scene cell. If it reports active
 patches but fewer Running patches, open Messages to find the patch that failed.
 
 #### A patch is Installed but not visible
@@ -2352,9 +2380,10 @@ class MyEffect {
 const myEffect = new MyEffect();
 ```
 
-Evaluate that cell as a unit. Current full-buffer evaluation repairs accidental
-duplicate explicit patch cells by keeping the newest source. If an older project has
-unmarked duplicate declarations, remove the older copy.
+Evaluate that cell as a unit. Keep one declaration of each name in the full source
+buffer. Re-running a cell updates its retained binding, but two declarations in
+one full-buffer evaluation are a JavaScript error. Remove the duplicate yourself;
+the evaluator does not rewrite or repair source.
 
 #### MIDI does not connect
 
@@ -2418,7 +2447,7 @@ version from Messages.
 An infinite loop or blocking operation cannot be caught while it is still running.
 Reload the tab. If startup recovery can isolate the failed source, repair or remove
 the offending cell before evaluating it again. Otherwise export any recoverable work
-and use Project reset only as a last resort.
+and use **Performances → Project files → Reset project** only as a last resort.
 
 #### A performance will not recall
 
@@ -2466,7 +2495,10 @@ helper it requires.
 - **Rollback**: automatic restoration after a candidate fails its first active frame.
 - **Running**: an active patch has evaluated and rendered successfully.
 - **Safe State**: the explicit known-good recovery snapshot.
-- **Scene**: an array of patches and nested groups in render order.
+- **Layer**: an array of patches and nested groups in render order; nesting isolates
+  its image.
+- **Scene**: a named layer selected for rendering with `.draw()`. Only one scene
+  is active at a time; the host renders it every frame.
 - **ShaderChain**: a configurable GPU post-processing patch.
 - **Strategy pattern**: choosing interchangeable behavior through a common contract;
   a patch is the product-level name for such visual behavior.
@@ -2482,4 +2514,6 @@ helper it requires.
   error behavior.
 - [Architecture](ARCHITECTURE.md): how editor, evaluator, registry, host, persistence,
   and views are separated.
-- [Networking](NETWORKING.md): optional peer-to-peer canvas sharing.
+- [Composition cookbook](COMPOSITION.md): complete examples of array effects and nesting.
+- [Data model](DATA-MODEL.md): arrays, patch state, and active-scene selection.
+- [Networking](NETWORKING.md): experimental source-based canvas sharing; no Network tab.

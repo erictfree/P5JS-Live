@@ -79,7 +79,7 @@ a staging environment, and captures declarations.
   array's `.draw()` command.
 
 Bindings persist between evaluations, so a later array contains the actual values
-declared earlier. Native `scene.draw()` stages activation through the current
+declared earlier. The array method `scene.draw()` stages activation through the current
 evaluation transaction. It can select a layer prepared in an earlier block, keeping
 its original source for navigation. Defining an array does not select it.
 

@@ -1,154 +1,235 @@
-# Compose sketches and effects
+# Composition cookbook
 
-Sketches and shaders share the same scene model. A patch is an ordinary function or
-object with `draw()`. An array describes a layer; a nested array isolates a group.
-Native array methods apply effects while the host owns each patch's state and lifecycle.
+An array describes a layer. Its patches draw in order; a nested array isolates
+its image. p5js live's array methods add effects to the pixels already drawn in
+that layer. See the [data model](DATA-MODEL.md) for the underlying rules.
 
-For a short conceptual overview and the method protection rules, see
-[Arrays, layers, and the draw loop](DATA-MODEL.md).
+## Two sketches, one layer
 
-## Try Layer Lab
+This complete example runs in a fresh project with **Start silent**. Replace the
+editor contents and run all with `Cmd/Ctrl+Shift+Enter`:
 
-Import [layer-lab.json](../starter/layer-lab.json) from **Tools → Performances →
-Project files → import**. Save your current performance first. Choose **Start
-silent** if asked; the example animates without audio and includes all its patches.
-The import also adds **Layer Lab** and **Layer Lab — effect order** recall slots.
-The editable source is [layer-lab.js](../starter/layer-lab.js).
+<!-- example: together -->
+```js
+// %% patch backdrop
+const backdrop = () => background(20, 22, 27);
 
-1. In **Controls**, lower `labOpacity` to zero: the grid and caption remain sharp.
-2. Adjust `labZoom`, `labHue`, and `labBlur`: both p5 sketches change together.
-3. In **Scene**, select `labRings`, change a stroke colour, and run just that patch.
-4. Edit `.mute(false)` to `.mute(true)` in `layerLab`, then run that scene. Only the
-   group disappears. Change it back to resume.
-5. Recall **Layer Lab — effect order** and lower `labPixels` to around 30. The left
-   image has rotated pixel blocks; the right image has screen-aligned blocks.
-   Both use the same sketch and values, with `pixelate` and `rotate` reversed.
-6. Recall **Layer Lab** to return. Recall restores the saved parameter values too.
+// %% patch bars
+const bars = {
+  draw({ time }) {
+    noStroke();
+    fill("#57dbc8");
+    rectMode(CENTER);
+    for (let i = -2; i <= 2; i += 1) {
+      const size = 100 + sin(time * 2 + i) * 60;
+      rect(width / 2 + i * 45, height / 2, 24, size);
+    }
+  },
+};
 
-## Start with an installed sketch
+// %% patch rings
+const rings = {
+  draw({ time }) {
+    noFill();
+    stroke("#ffb45b");
+    strokeWeight(3);
+    for (let i = 1; i <= 4; i += 1) {
+      circle(width / 2, height / 2, i * 70 + sin(time) * 20);
+    }
+  },
+};
 
+// %% scene scene
+const scene = [
+  backdrop,
+  [bars, rings].rotate(0, 0.2).opacity(0.85),
+];
+scene.draw();
+```
+
+The inner array combines the two sketches before rotating and fading their image.
+The background is outside that group. Later examples reuse `backdrop`, `bars`, and
+`rings` from this program; replace the existing scene cell instead of appending
+another `const scene` declaration.
+
+## Separate effects
+
+Replace and run the scene cell:
+
+<!-- example: separate -->
 ```js
 // %% scene scene
 const scene = [
-  solidBackground,
-  [waveScope]
-    .kaleid(6)
-    .hue(0.1)
-    .opacity(({ audio }) => 0.4 + audio.bass * 0.6),
+  backdrop,
+  [bars].rotate(0, 0.2),
+  [rings].opacity(0.6),
 ];
 scene.draw();
 ```
 
-Install `solidBackground` and `waveScope` first. Evaluate the scene cell to activate
-the composition. The effects see only `waveScope`; the completed layer is composited
-over `solidBackground`. Combine two sketches in one array to process them together:
+Now rotation affects only the bars, and opacity affects only the rings.
 
+## Nest another level
+
+Replace and run the scene cell:
+
+<!-- example: nested -->
 ```js
+// %% scene scene
 const scene = [
-  solidBackground,
-  [waveScope, laserFan]
-    .rotate(({ time }) => time * 0.1)
-    .scale(1.1)
-    .bloom(0.4, 3, 0.6),
+  backdrop,
+  [
+    [bars].rotate(0, 0.2),
+    rings,
+  ].blur(2).opacity(0.8),
 ];
 scene.draw();
 ```
 
-Ordinary arrays still work: `[waveScope, effect]` is an isolated group when nested
-inside a scene. Factories can still return patches or arrays. There is no separate
-composition graph to maintain.
+Bars rotate first. Their image joins the rings, then blur and opacity process both.
+The backdrop stays sharp. To process the backdrop too, put the effect on the outer
+scene array: `[backdrop, [bars, rings]].blur(2)`.
 
-## Native array methods
+## Append patches and explicit shaders
+
+These expressions illustrate the order; `bars` and `rings` are the patches above:
 
 ```js
-const pair = [waveScope, laserFan].rotate(0, 0.2);
-const scene = [solidBackground, pair].opacity(0.8);
-scene.draw();
+const before = [bars].blur(3).add(rings);
+const after = [bars].add(rings).blur(3);
 ```
 
-Rotation affects the pair; opacity affects the whole scene. The expression is
-built when the code runs, and the host renders it each frame. `scene.draw()` stages
-activation through the current evaluation transaction. Use a named array and call
-it from evaluated code. It never replaces p5's `window.draw()` callback.
+In `before`, the rings draw after the blur. In `after`, the blur sees both sketches.
+Neither expression adds an extra group. `.add([rings])` would append a nested group;
+`.add(rings)` appends the patch directly.
 
-All direct ShaderChain operators are supported on arrays, except the shader's
-`shift()` is named `colorShift()`; native `.shift()` still removes the first entry.
-For example, `[waveScope].hue(0.2).blur(3)` processes hue before blur. Use an explicit
-ShaderChain through `.fx()` for wet/dry mix, blend mode, and bypass settings.
+**`.fx()` and `.add()` perform the same append operation.** The spelling `fx` says
+that you intend to append effects. It does not turn a drawing patch into a shader
+or isolate it. You can also place the effect directly in an array.
 
+Use an explicit `ShaderChain` for chain-wide wet/dry mix, blend, bypass, or a reusable
+effect patch. Replace the scene cell with this effect definition and scene:
+
+<!-- example: explicit-shader -->
 ```js
+// %% patch softFocus
 const softFocus = new ShaderChain().blur(3).mix(0.4);
-const scene = [solidBackground, [waveScope].fx(softFocus)];
+
+// %% scene scene
+const scene = [backdrop, [bars, rings, softFocus]];
 scene.draw();
 ```
 
-These methods live on `Array.prototype`. They are non-enumerable and protected:
-reassigning an installed method throws even in non-strict code, and its prototype
-property cannot be redefined. Installation refuses occupied names and never
-replaces native methods. No source translation is used.
+`[bars, rings, softFocus]`, `[bars, rings].add(softFocus)`, and
+`[bars, rings].fx(softFocus)` have the same scope and order. The chain processes the
+preceding image and mixes 40% of its blurred result with that input. Its explicit
+configuration remains separate from any subsequent chained array effects.
 
-## Composition methods
+## Pass configuration to patches
+
+Use a factory, constructor, or ordinary object properties. The host supplies one
+live context argument each frame; the factory receives your configuration once
+when its code is evaluated. Add this cell before the scene, then replace the scene:
+
+<!-- example: configured -->
+```js
+// %% patch makeDisk
+function makeDisk({ x = 0.5, size = 80, color = "#57dbc8" } = {}) {
+  return {
+    draw({ time }) {
+      noStroke();
+      fill(color);
+      circle(width * x, height / 2, size + sin(time * 2) * 20);
+    },
+  };
+}
+
+// %% scene scene
+const scene = [
+  backdrop,
+  [
+    makeDisk({ x: 0.35, color: "#57dbc8" }),
+    makeDisk({ x: 0.65, size: 120, color: "#ffb45b" }),
+  ].opacity(0.8),
+];
+scene.draw();
+```
+
+For a live effect value, use a context function, for example
+`[bars, rings].opacity(({ audio }) => 0.4 + audio.bass * 0.6)`.
+Controls created with `control()` are available through the same context.
+
+## Method behavior
 
 | Method | Behavior |
 | --- | --- |
-| `[patch1, patch2]` | Describe one layer; nest the array to isolate its image from its parent. |
-| `.add(...patches)` | Append patches or nested arrays without flattening or changing effect scope. |
-| `.draw()` | Replace the active scene with this named array at the next frame boundary. Only one scene is active at a time. |
-| `.fx(...effects)` | Append patches that process the layer's current image, in order. |
-| `.rotate(angle = 0, speed = 0)` | Rotate the rendered image in radians; speed is radians per second. |
-| `.scale(amount = 1)` | Scale the rendered image around its center. |
-| `.translate(x = 0, y = 0)` | Move the rendered image in normalized canvas units. Positive X moves right; positive Y moves down. |
-| `.opacity(amount = 1)` | Multiply the layer's alpha, normally with an amount between 0 and 1. |
-| `.mute(enabled = true)` | Pause this group's draw/beat calls while retaining instance state. Use `.mute(false)` to resume. |
+| `.add(...patches)` / `.fx(...patches)` | Append entries without flattening or changing effect scope. |
+| `.draw()` | Select this named array as the active scene at the next frame boundary; return the array. |
+| `.rotate(angle = 0, speed = 0)` | Rotate pixels in radians; speed is radians per second. |
+| `.scale(amount = 1)` | Scale pixels around the center. |
+| `.translate(x = 0, y = 0)` | Move pixels in normalized canvas units; positive X goes right and positive Y goes down. |
+| `.opacity(amount = 1)` | Multiply alpha, normally by a value between 0 and 1. |
+| `.mute(enabled = true)` | Pause this group's draw/beat calls while retaining state; reevaluate with `.mute(false)` to resume. |
 
-Numeric arguments can be numbers or functions of the live context, including
-`audio`, `time`, and `controls`. Mute takes a boolean. Transforms operate on pixels,
-using ShaderChain's wrapping behavior; they do not change the sketch's p5 drawing
-coordinates. Put p5 `translate`, `rotate`, or styles inside the sketch when you want
-draw-time changes. Drawing state does not carry from one patch to its next sibling.
+Numeric effect arguments accept numbers or live context functions. Mute takes a
+boolean. Array `.rotate()` and `.opacity()` use GPU shaders. p5's global `rotate()`
+inside a patch changes that patch's drawing coordinates instead. Transforms and
+styles do not carry into the next sibling patch. Pixel transforms use ShaderChain's
+wrapping behavior.
 
-Effect and composition methods return new frozen arrays, so branching a builder does not change its
-parent. Consecutive shader helpers share a generated ShaderChain.
-Explicit `.fx()` chains retain their own mix, blend, bypass, and feedback boundaries.
-Child patch objects remain ordinary references; use separate patch objects or
-`ShaderChain.clone()` when you need independent object-owned resources/feedback.
+See the [API reference](API.md#shaderchain) for the full operator vocabulary.
+The shader's `shift()` is spelled `colorShift()` on arrays to preserve JavaScript's
+existing `shift()` method.
 
-Build layer arrays outside patch `draw()` methods, not once per frame. Named
-compositions become active when you run `scene.draw()`. Changing
-a layer's structure requires reevaluating the scene that uses it. Replacing a named sketch's
-implementation updates its existing instances without rebuilding the layer. The
-host preserves occurrence state and handles failed first-frame replacement.
+Effect, append, and mute methods return new frozen arrays. They do not freeze or
+mutate their input array or clone its patch objects. Build them outside patch
+`draw()` methods. Replacing a named sketch updates its existing occurrences;
+changing a group's structure requires rerunning the scene expression that uses it.
+A shared patch object still shares its own properties and resources; only host
+`state` is independent per occurrence. Use separate objects or `ShaderChain.clone()`
+for independent object-owned resources or feedback.
 
 ## Inspect and edit
 
-Open **Tools → Scene** to see the live scene's sources, groups, and effects. Group
-borders show isolated scope. Shader operations appear in written order, with their
-pass count underneath. Select a patch, group binding, or operator to open its code.
+Open **Tools → Scene** to inspect the live sources, groups, effects, and shader pass
+counts. Select a patch, group binding, or operator to open its code.
 
-The up/down arrows reorder top-level array expressions in the editor. Formatting
-and surrounding comments stay in place. The change is undoable and does not execute
-automatically. **Review scene & run** opens the edited scene; select its Run button
-or press Cmd/Ctrl+Enter. Until then, the inspector continues showing the live tree.
+The up/down arrows edit top-level array expressions in source. The change is
+undoable and does not execute automatically. **Review scene & run** opens the edited
+scene; use Run or `Cmd/Ctrl+Enter` to apply it. Until then, the inspector shows the
+live tree. Arrows are unavailable for pending edits or expressions that cannot be
+reliably matched to rows, such as spread and generated root structure.
 
-Reorder buttons are unavailable while scene edits are pending, or when spread,
-appended root effects, or generated root structure prevents a reliable source-to-row match. Edit nested group
-order, mute, and shader bypass in source. The inspector displays muted groups and
-bypassed ShaderChains. MIDI mapping and live controls remain in **Tools → Controls**.
+Edit nested order, mute, and shader bypass in source. Live controls and MIDI remain
+in **Tools → Controls**.
 
-## Shader order and resource use
+## Try Layer Lab
 
-Each ShaderChain operator processes its predecessor's output. For example,
-`.hue(0.3).blur(3)` blurs the hue-adjusted pixels, while `.blur(3).hue(0.3)` changes
-the hue after blurring. Coordinate operations also keep their written position.
+Import [layer-lab.json](../starter/layer-lab.json) through **Tools → Performances →
+Project files**. Save your current performance first. Choose **Start silent** if
+asked; it includes every patch and animates without audio. The source is
+[layer-lab.js](../starter/layer-lab.js).
 
+1. In **Controls**, lower `labOpacity` to zero: the grid and caption remain sharp.
+2. Adjust `labZoom`, `labHue`, and `labBlur`: both p5 sketches change together.
+3. In **Scene**, select `labRings`, change a stroke color, and run that patch.
+4. Change `.mute(false)` to `.mute(true)` in `layerLab`, then run the scene. Only
+   that group disappears. Change it back and run to resume.
+5. Recall **Layer Lab — effect order** and lower `labPixels` to around 30. One image
+   has rotated pixel blocks; the other has screen-aligned blocks. The sketches and
+   values are the same, with `pixelate` and `rotate` reversed.
+6. Recall **Layer Lab** to return, including its saved control values.
+
+## Shader order and resources
+
+Every operator processes its predecessor's output, including coordinate operations.
 Compatible operations share a pass. Neighborhood filters materialize their input
-when needed, using at most two reusable WebGL targets per chain. This prevents
-repeated blur/bloom from expanding into exponentially more texture samples.
-Feedback storage is created only for chains containing `.feedback()` and records
-the preceding frame's final chain output. Wet/dry and blend apply once at the end,
-against the original input. Texture orientation and premultiplied alpha are handled
-at pass boundaries so transparent sketch layers composite correctly.
+when needed, using at most two reusable WebGL targets per chain. Consecutive array
+effect helpers may share a generated ShaderChain; an explicit chain keeps its own
+configuration boundary.
 
-The corrected order and alpha handling can change the appearance of saved chains
-that depended on the previous coordinate regrouping, discarded color operations,
-vertical flips, or forced opaque output. Review such performances before use.
+Feedback storage exists only for chains containing `.feedback()` and records the
+preceding frame's final chain output. Wet/dry mix and blend apply once at the end,
+against the original input. Texture orientation and premultiplied alpha are handled
+at pass boundaries so transparent groups composite correctly. Every nested group
+also needs a render target; use the inspector and FPS readings to assess cost.

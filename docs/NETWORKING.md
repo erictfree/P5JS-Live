@@ -1,14 +1,16 @@
 # Networked visual streams (beta)
 
-Status: **disabled**. The beta implementation remains in the codebase for development
-and local testing, but the Network panel is not currently available to users.
+Status: **experimental source API; Network tab unavailable**. `StreamRoom` remains
+callable from live code. The local development server includes signaling; a hosted
+deployment needs its own signaling and WebRTC configuration. There is no current
+Network-panel workflow.
 
 p5js live shares canvas video, not source code or local audio. Each performer keeps an
 independent editor, scene, audio input, and patch state.
 
 ## Quick test on one computer
 
-Start p5js live:
+Start the local app and its signaling service:
 
 ```sh
 npm run dev
@@ -16,79 +18,64 @@ npm run dev
 
 Open two independent browser origins so each gets separate local project storage:
 
-- `http://localhost:5173/live/`
-- `http://127.0.0.1:5173/live/`
+- [Publisher](http://localhost:5173/live/)
+- [Receiver](http://127.0.0.1:5173/live/)
 
-Use the same room name and a different performer name in each window.
+In each window choose **Start silent**. Save any current performance, replace the
+editor contents with the corresponding complete program below, and run all with
+`Cmd/Ctrl+Shift+Enter`. Use the same room name and different performer names.
+These examples need no Library installs or external media.
 
-## Publish the canvas
+### Publisher window
 
-Create a room and a publisher patch:
-
+<!-- example: publisher -->
 ```js
 // %% patch publishMain
 const room = new StreamRoom({
   name: "AudioPixel-Thursday",
   performer: "Eric",
 });
+const publishMain = room.publish({ name: "main-output", fps: 30 });
 
-const publishMain = room.publish({
-  name: "main-output",
-  fps: 30,
-});
-```
+// %% patch pulse
+const pulse = ({ time }) => {
+  noStroke();
+  fill("#57dbc8");
+  circle(width / 2, height / 2, 180 + sin(time * 2) * 60);
+};
 
-Place the publisher after the output it should capture:
-
-```js
-const scene = [
-  waveScope,
-  laserFan,
-  plasma,
-  publishMain,
-];
-
+// %% scene scene
+const scene = [() => background(20, 22, 27), pulse, publishMain];
 scene.draw();
 ```
 
-With no `source` option, the publisher captures the final p5js live canvas. It starts
-only while `publishMain` is active. The Network panel lists it as
-`Eric/main-output`.
+At the scene root, this publisher captures the final main canvas. It starts
+only while `publishMain` is active. Its stream label is `Eric/main-output`.
 
-## Receive a stream
+### Receiver window
 
-### From the Network panel
-
-1. Open **Network**.
-2. Enter the same room name and your own performer name.
-3. Select **Join for discovery**.
-4. Select **Add receiver** beside the remote stream.
-
-p5js live inserts a configured receiver patch, adds it to the scene, and activates the
-updated scene. A repeated click reuses the existing receiver source.
-
-Joining for discovery does not publish your canvas.
-
-### From editable source
-
-Install `networkReceiver` from **Library → Utilities**, then edit its room, local
-performer, and remote stream:
-
+<!-- example: receiver -->
 ```js
 // %% patch networkReceiver
 const receiverRoom = new StreamRoom({
   name: "AudioPixel-Thursday",
   performer: "Maya",
 });
-
 const networkReceiver = receiverRoom.receive({
   stream: "Eric/main-output",
-  fit: "cover",
+  fit: "contain",
   opacity: 1,
 });
+
+// %% scene scene
+const scene = [() => background(20, 22, 27), networkReceiver];
+scene.draw();
 ```
 
-Add `networkReceiver` to the scene and evaluate its patch and scene cells.
+The receiver waits until that stream appears, then shows the animated circle.
+A receiver does not publish its own canvas. Read `networkReceiver.status` in live
+code to inspect its connection. A `networkReceiver` template is also available in
+**Library → Utilities**.
 
 ## `StreamRoom` API
 
@@ -102,8 +89,7 @@ const room = new StreamRoom({
 ```
 
 Constructing `StreamRoom` does not connect. A socket is retained while one of its
-publisher or receiver patches is active. The Network panel can also retain a room
-for discovery until **Leave** is selected.
+publisher or receiver patches is active.
 
 ### `room.publish(options)`
 
@@ -115,9 +101,13 @@ const output = room.publish({
 });
 ```
 
-`source` is optional. It may return the main p5 renderer, an `HTMLCanvasElement`, or
-another surface with `captureStream()`. p5js live cannot isolate pixels from an
-arbitrary global-mode patch unless that patch owns a render surface.
+`source` is optional. It may return a p5 renderer, an `HTMLCanvasElement`, or another
+surface with `captureStream()`. The callback receives the current draw context.
+Without `source`, capture uses the publisher's current target when it acquires the
+stream: the main canvas at the scene root, or the group target when nested.
+`source: ({ canvas }) => canvas` makes that same choice explicit. The source is
+chosen on acquisition, not on every frame; reevaluate the publisher definition
+and scene together when changing its capture scope.
 
 Publisher status is `idle`, `connecting`, `publishing`, or `error`.
 
@@ -137,7 +127,9 @@ The receiver exposes:
 - `video`: the acquired `HTMLVideoElement`;
 - `texture`: a stable p5 media source, or the video element when p5 is unavailable.
 
-Use the texture in a custom WebGL patch without drawing the receiver itself:
+While the receiver is active, a custom WebGL patch can also sample its texture.
+This fragment belongs inside a patch that owns a WebGL target and `myShader`;
+it is not a standalone scene:
 
 ```js
 const remoteLens = {
@@ -243,6 +235,6 @@ The current peer mesh is for small rooms. Each publisher uploads one encoded str
 per receiver. Larger audiences need an SFU, simulcast, congestion controls, and
 operational monitoring.
 
-The panel does not yet report bitrate, packet loss, round-trip time, subscriber
+There is no current UI for bitrate, packet loss, round-trip time, subscriber
 counts, or codec details. Network audio, recording, multi-source `ShaderChain`
 operators, and hosted discovery/TURN are not included.

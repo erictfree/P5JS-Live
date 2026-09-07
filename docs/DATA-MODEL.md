@@ -1,7 +1,8 @@
 # Arrays, layers, and the draw loop
 
-The authoring model uses ordinary JavaScript arrays with native effect methods.
-An array describes a layer; `.draw()` selects it for the host's frame loop.
+The authoring model uses ordinary JavaScript arrays with effect methods installed by
+p5js live. These extensions are available inside the instrument, not built into
+JavaScript itself. An array describes a layer; `.draw()` selects it for the host's frame loop.
 
 ## The model
 
@@ -9,6 +10,9 @@ An array describes a layer; `.draw()` selects it for the host's frame loop.
 describes an isolated transparent layer whose completed image composites into its
 parent. A patch is an ordinary function or object with `draw(context)`: it can
 draw p5 geometry or process the pixels already drawn in its layer.
+
+The names below stand for patches you have already defined. For a complete runnable
+program, use the [composition cookbook](COMPOSITION.md).
 
 ```js
 const scene = [
@@ -32,7 +36,7 @@ the expression builds the description when its code is evaluated.
 | ShaderChain | An effect patch containing ordered GPU operations. |
 | Scene | A named layer selected for the ongoing draw loop. |
 
-## Native methods, normal JavaScript
+## Array methods, normal JavaScript
 
 Effect methods live on `Array.prototype`; there is no source translator or custom
 array syntax. Array literals, variables, factory results, computed method names,
@@ -46,14 +50,17 @@ const scene = [backdrop, faint, patch3];
 scene.draw();
 ```
 
-Effect and composition methods return new frozen arrays. They do not mutate `pair`, add an extra nested
-layer, clone patch definitions, or execute a patch during construction. Existing
-patch references retain their identity. The array can still be used as a child of
-another array.
+Effect, append, and mute methods return new frozen arrays. They do not mutate
+`pair`, add an extra nested layer, clone patch definitions, or execute a patch
+during construction. The literal `pair` remains mutable; `faint` and `bright` are
+frozen. Native reads such as `.map()` still work, but mutating methods such as
+`.push()` or `.shift()` throw on a frozen result. Existing patch references retain
+their identity. Any of these arrays can be nested inside another array.
 
-`.add(...patches)` appends entries to the current layer, preserving any nested
-arrays. `.fx(...effects)` also appends entries and remains useful for explicit
-`ShaderChain` objects. Neither changes which layer later methods affect.
+`.add(...patches)` and `.fx(...effects)` are the same append operation. They
+preserve nested arrays and do not change which layer later methods affect. `fx`
+expresses an intention to append effects; it does not convert a patch into a
+shader. An explicit ShaderChain can also be placed directly in an array.
 
 ```js
 const before = [patch1, patch2].blur(3).add(patch3);
@@ -62,7 +69,7 @@ const after = [patch1, patch2].add(patch3).blur(3);
 
 In `before`, patch 3 draws after the blur. In `after`, all three patches contribute
 to the image being blurred. Consecutive shader helpers may share a generated
-ShaderChain. An explicit `.fx()` boundary keeps its own shader configuration.
+ShaderChain. An explicit ShaderChain keeps its own shader configuration.
 Numeric effect arguments may be constants or functions of the live context.
 
 The direct shader vocabulary follows ShaderChain, with `colorShift()` replacing
@@ -71,17 +78,24 @@ and `.opacity()` provide convenient transform and alpha operations. Explicit Sha
 objects remain available for wet/dry mix, blending, and bypass configuration.
 `.mute(boolean)` pauses a group's draw and beat calls while retaining state.
 
+Array `.rotate()` and `.opacity()` process rendered pixels with GPU shaders. p5
+global `rotate()` inside a patch changes drawing coordinates for that patch. The
+array method and the p5 function belong to different objects.
+
 ## Scene activation and namespaces
 
 Only one scene is active at a time. `scene.draw()` selects a named array for
 rendering at the next frame boundary, replacing the active scene. Calling
 `otherScene.draw()` switches to that scene. If several draw commands are applied
 at the same boundary, the last one wins. To render multiple layers together,
-include them in one scene array.
+include them in one scene array. Defining a new array alone does not switch scenes.
+After changing a helper or group variable, reevaluate the scene expression that
+uses it to rebuild the structure. Replacing a named patch updates its existing
+occurrences without rebuilding the scene.
 
-The command returns that array, so `const scene = [...].draw()` can also capture the name. A
-scene must have a named binding. Call `.draw()`
-while evaluating live code; the host owns subsequent frames. The array definition
+The command returns that array, so `const scene = [...].draw()` can also capture
+the name. A scene must have a named binding. Call `.draw()` while evaluating live
+code; the host owns subsequent frames. The array definition
 and its `.draw()` command can be evaluated together or in separate blocks.
 
 `Array.prototype.draw`, `patch.draw`, and p5's `window.draw` belong to different
@@ -100,6 +114,14 @@ on reassignment even in non-strict code. This protects the extensions on
 `Array.prototype`. Native methods retain their existing descriptors and behavior;
 the installer rejects attempts to register over them. This does not prohibit
 deliberate own-property definitions on individual arrays.
+
+## Configuration and state
+
+Pass configuration through a factory, constructor, or object properties. The host
+still supplies one context argument per frame. A patch object used twice shares
+its own properties and resources; the host gives each occurrence independent
+`context.state`. Use separate objects for independent object-owned configuration
+or GPU resources.
 
 ## Runtime responsibilities
 

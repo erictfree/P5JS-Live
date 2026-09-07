@@ -4,6 +4,11 @@ p5js live code is JavaScript. The instrument keeps the canvas, animation clock, 
 analysis, and active performance running; live code provides replaceable patches and
 scene arrays.
 
+For complete runnable programs, begin with the [quickstart](GUIDE.md) or
+[composition cookbook](COMPOSITION.md). Reference snippets below illustrate
+individual operations. Define their patch names first or install the named Library
+patches; replace alternative declarations instead of pasting them all together.
+
 ## Patch states
 
 - **Available:** listed in the Library.
@@ -76,7 +81,7 @@ supplies the object on each frame.
 | Field | Meaning |
 | --- | --- |
 | `audio` | Shared audio analysis for this draw |
-| `canvas` | Main p5 renderer; usable as a shader texture source |
+| `canvas` | Current render target: main renderer or nested group; usable as a shader texture source |
 | `state` | Persistent data for this scene occurrence |
 | `dt` | Seconds since the previous draw, bounded after stalls |
 | `time` | Seconds since the host started |
@@ -168,7 +173,7 @@ look very dark because Plasma transforms the group's existing pixels and preserv
 its transparency.
 
 ```js
-const withGlow = (patch) => [patch, bloom];
+const withGlow = (patch) => [patch].bloom(0.4, 3, 0.6);
 const scene = [solidBackground, withGlow(waveScope), vignette];
 ```
 
@@ -260,7 +265,7 @@ Editor behavior:
 - `Cmd/Ctrl+Alt+[` folds all; `Cmd/Ctrl+Alt+]` unfolds all.
 - `Cmd/Ctrl+Alt+/` opens the command sheet.
 - `Cmd/Ctrl+Option/Alt+A` opens the AI source editor.
-- The Project panel's **code size** setting also changes folded and projected code.
+- The Settings panel's **code size** setting also changes folded and projected code.
 
 Named performances keep stable insertion-order slots: new saves appear at the
 bottom, while updates remain in place. `Cmd/Ctrl+Option/Alt+1…9` recalls the
@@ -366,8 +371,8 @@ const checkerZoom = ({ time, controls }) => {
 Re-evaluating `control()` keeps the performer's current value instead of restoring the
 source default.
 
-Live controls are project-wide named values. Open **Controllers** to create one
-without writing the declaration by hand: **+ Live parameter** asks for the name,
+Live controls are project-wide named values. Open **Controls** to create one
+without writing the declaration by hand: **＋ Live control** asks for the name,
 type and its settings, then adds the declaration to a dedicated `// %% controls` code
 cell. The generated declaration is evaluated by itself, so a half-finished patch
 elsewhere in the editor is not run.
@@ -391,7 +396,7 @@ control("shape", "circle", {
 });
 ```
 
-Older declarations without `type` remain valid. Numbers infer Continuous, booleans
+The `type` setting is optional. Numbers infer Continuous, booleans
 infer Button, and values with a `choices` array infer Choice.
 
 In browsers with Web MIDI support, choose **Connect MIDI**, choose **Learn MIDI**, and
@@ -417,26 +422,30 @@ const clubLens = new ShaderChain()
   .mix(0.75);
 ```
 
-Every argument may be a number or a function receiving the live context. Functions
-are evaluated each frame. Operators process the preceding result in written order.
+Numeric operator arguments may be numbers or functions receiving the live context;
+functions are evaluated each frame. Blend takes a mode string and bypass takes a
+boolean. Operators process the preceding result in written order.
 Compatible operations share a shader pass; neighborhood filters materialize their
 input when necessary. Wet/dry mix and blend apply once, against the original input.
 For example, `.hue(0.3).blur(3)` blurs the hue-adjusted image. Alpha and coordinate
 orientation are preserved across pass boundaries.
 
-Arrays have native effect methods. `[a, b].rotate(0, 0.2).opacity(0.6)` processes
-both patches together. Nest it in another array to isolate those effects. Methods
+p5js live installs effect methods on `Array.prototype`.
+`[a, b].rotate(0, 0.2).opacity(0.6)` processes both patches together. Nest it in another array to isolate those effects. Methods
 return new frozen arrays, preserve nesting, and do not mutate the original array.
-`.add(...patches)` and `.fx(...effects)` append entries in order without flattening.
+`.add(...patches)` and `.fx(...effects)` are the same append operation: they add
+entries in order without flattening or converting them into shaders.
 `.mute(boolean)` pauses the group while preserving its state.
 
 The shader operators below are also array methods, except `shift()` is exposed as
 `colorShift()` to preserve native `Array.shift()`. Arrays also support
 `.translate(x, y)` and `.opacity(amount)`. Use an explicit
-`.fx(new ShaderChain()...)` for the mix, blend, and bypass settings described below.
+ShaderChain for the mix, blend, and bypass settings described below. Place it in
+the array or append it with `.add(chain)` or `.fx(chain)`.
 
 See [Layer composition](COMPOSITION.md) for units, examples, method protection, and
-source editing. These are native JavaScript methods, not a source transformation.
+source editing. These are app-provided prototype methods, with no source
+transformation. They are not available on arrays outside p5js live.
 
 Every effect chain also supports:
 
@@ -472,8 +481,8 @@ Color operators:
 `posterize`, `shift`, `invert`, `contrast`, `brightness`, `luma`, `thresh`, `color`,
 `saturate`, `hue`, `colorama`, `sum`, and `rgba`.
 
-These operate on the current scene. `feedback` also samples the chain's previous
-output frame. Use a custom WebGL patch for arbitrary multiple textures.
+These operate on the current layer's rendered image. `feedback` also samples the
+chain's previous output frame. Use a custom WebGL patch for arbitrary multiple textures.
 The library's `Plasma` class shows how to own an offscreen WebGL buffer, pass `canvas`
 to a sampler, update uniforms, and release resources.
 
@@ -501,28 +510,34 @@ const publishMain = room.publish({
 });
 ```
 
-The publisher uses the main canvas unless `source` returns another canvas or render
-surface. `fps` is clamped to 1–60.
+The publisher captures its current render target when it acquires the stream:
+the main canvas at the scene root or its group target when nested. `source` can
+select a different canvas or render surface. Reevaluating the publisher definition
+and scene together changes that capture scope. `fps` is clamped to 1–60.
 
 Receiver `fit` is `cover`, `contain`, or `stretch`; `opacity` is 0–1. Its read-only
 `texture` becomes a stable p5 media source after the remote track arrives. Status
 moves through `waiting`, `connecting`, `live`, and `stalled` without throwing when a
 peer leaves.
 
-Publishing is explicit and video-only. The Network panel can join for discovery and
-add a configured receiver. An editable `networkReceiver` template is under
-**Library → Utilities**. See [NETWORKING.md](NETWORKING.md).
+Publishing is explicit and video-only. The Network tab is currently unavailable;
+the experimental source API remains callable. An editable `networkReceiver`
+template is under **Library → Utilities**. See the complete two-browser
+[local test and deployment notes](NETWORKING.md).
 
 ## Evaluation and recovery
 
-- Compile, execution, or validation failure changes nothing.
+- Compile, execution, or validation failure prevents the staged patch/scene changes
+  from being applied. Arbitrary JavaScript side effects outside that transaction
+  cannot be undone.
 - Replacements are queued for a frame boundary.
 - Active copies must survive their first draw before a replacement is confirmed.
 - First-draw failure restores the previous implementation, binding, version, and
   clone-compatible state.
 - Successful versions appear in History.
-- Duplicate named patch cells are collapsed to the newest source before full-buffer
-  evaluation.
+- Source is evaluated as written. Duplicate declarations in a full buffer are
+  JavaScript errors; keep one declaration of each name. Re-running the same cell
+  updates its retained binding without requiring a new declaration elsewhere.
 - **Set safe** captures source, implementations, versions, scene, parameters, and
   clone-compatible state.
 - **Restore safe state** reports any state it could not restore.

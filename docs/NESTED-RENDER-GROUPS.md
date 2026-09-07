@@ -1,6 +1,9 @@
-# Design note: recursive render groups
+# Recursive render groups
 
-Status: implemented.
+This is the runtime reference for nested arrays. Start with the runnable
+[composition cookbook](COMPOSITION.md) for authoring examples. Snippets below
+illustrate structure: Library names must be installed first, and names such as
+`localVideo`, `colours`, and `useVideo` stand for values configured in your project.
 
 ## Core syntax
 
@@ -81,7 +84,7 @@ Spread array                  -> members inserted into the parent scope
 Functions can accept a patch and return a processed group:
 
 ```js
-const withGlow = (patch) => [patch, bloom];
+const withGlow = (patch) => [patch].bloom(0.4, 3, 0.6);
 
 const process = (source, ...effects) => [source, ...effects];
 
@@ -116,13 +119,14 @@ Nesting versus spreading has deliberate visual meaning:
 
 ```js
 const isolated = [
-  circles, // one isolated group
-  plasma,
+  solidBackground,
+  [...circles, plasma], // Plasma samples only the circles
 ];
 
 const ungrouped = [
+  solidBackground,
   ...circles, // sibling patches in the parent scope
-  plasma,
+  plasma,    // Plasma samples the background and circles
 ];
 ```
 
@@ -146,9 +150,11 @@ Scene item = Patch | Group
 Group      = Array<Scene item>
 ```
 
-Each nested occurrence has its own rendering scope. Patch identity, state, and
-lifecycle remain independent per occurrence even when the same patch appears more
-than once.
+Each nested occurrence has its own rendering scope. The host gives each patch
+occurrence independent `context.state` and lifecycle calls. Reusing a patch value
+does not clone it: its own properties, private fields, and GPU resources are shared
+by every occurrence of that object. Create separate objects for independent
+object-owned resources.
 
 ## Engine behavior
 
@@ -173,7 +179,7 @@ It makes closures, factories, first-class functions, higher-order functions, rec
 data, `map`, spread, state identity, evaluation timing and visual scope observable
 through immediate graphics.
 
-Nested arrays are the core composition syntax. Native [array effect methods](COMPOSITION.md)
+Nested arrays are the core composition syntax. App-provided [array effect methods](COMPOSITION.md)
 add chaining directly: `[patch1, patch2].rotate(0, 0.2).opacity(0.6)` processes both
 patches together. Nest that array to isolate its effects. The host retains each
 patch's lifecycle and state; `scene.draw()` selects the scene for ongoing rendering.

@@ -75,6 +75,19 @@ Open a GitHub issue with:
 For vulnerabilities, follow [SECURITY.md](SECURITY.md) instead of opening a public
 issue.
 
+## Documentation changes
+
+Start at the [documentation index](docs/README.md). Keep authoring changes aligned
+across the API, data model, starter, and composition examples; use the current
+interface labels in workflows. Mark complete runnable programs with an
+`<!-- example: name -->` comment above their JavaScript fence and cover them in
+[documentation.spec.js](tests/e2e/documentation.spec.js). The browser tests read
+those fences directly and check real rendering, including the local network example.
+
+```sh
+npx playwright test tests/e2e/documentation.spec.js
+```
+
 ## License
 
 By contributing, you agree that your contribution may be distributed under the
