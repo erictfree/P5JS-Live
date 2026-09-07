@@ -18,7 +18,8 @@ The complete source is [starter/motion-lab.js](../starter/motion-lab.js).
 
 **Tap** is always visible in the top navigation, including when timing is Off.
 Press **Esc** to release editor focus, then tap **Space** or **T**, or click **Tap**.
-Each press registers on keydown and briefly lights the Tap buttons.
+Each press registers on keydown and briefly lights the Tap buttons. While the clock
+is running, both Tap buttons also flash amber for 80 milliseconds on each beat.
 In **Tools → Audio → Rhythm**, you can also choose Manual or enter a BPM. Tapping or
 entering BPM selects Manual. Two taps give an estimate; further consistent taps
 stabilize it. A gap longer than 2.5 seconds starts a new tap sequence. Key repeat and

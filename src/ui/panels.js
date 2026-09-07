@@ -1044,6 +1044,7 @@ export function createPanels({
     renderAll,
     selectToolView,
     tapTempo: rhythmPanel.tapTempo,
+    renderBeat: rhythmPanel.renderBeat,
     stop() {
       unsubscribe();
       clearInterval(timer);

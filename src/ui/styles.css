@@ -2642,5 +2642,6 @@ button.glyph.danger { color: #ffb3bb; }
 .toolbar-rhythm { display: inline-flex; align-items: center; gap: 6px; font: 11px ui-monospace, monospace; white-space: nowrap; }
 #toolbar-tap, #rhythm-tap { font-variant-numeric: tabular-nums; }
 #toolbar-tap kbd, #rhythm-tap kbd { font: 10px var(--mono); opacity: .7; }
-#toolbar-tap.is-tapping, #side #rhythm-tap.is-tapping { color: #242521; background: #ffb45e; border-color: #ffb45e; }
+#toolbar-tap.is-tapping, #toolbar-tap.is-beating,
+#side #rhythm-tap.is-tapping, #side #rhythm-tap.is-beating { color: #242521; background: #ffb45e; border-color: #ffb45e; }
 @media (max-width: 700px) { .toolbar-rhythm output { display: none; } }

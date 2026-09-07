@@ -1,4 +1,4 @@
-// Rhythm UI only receives controller snapshots and actions.
+// Rhythm UI receives clock snapshots and controller actions.
 export function createRhythmPanel(controller) {
   const el = id => document.getElementById(id);
   const preview = new URLSearchParams(location.search).get('tempoPreview') === '1';
@@ -6,7 +6,19 @@ export function createRhythmPanel(controller) {
   const autoOption = sourceSelect.querySelector('[value="auto"]');
   let localError = '';
   const tapButtons = ['rhythm-tap', 'toolbar-tap'].map(el);
+  const clockDot = el('rhythm-clock-dot');
+  const flashMs = 80;
   let tapFlashTimer;
+  let beatLit = false;
+  function renderBeat(clock) {
+    // Read the visual engine's phase each frame so the light stays aligned with
+    // tempo changes and beat alignment, without starting another metronome timer.
+    const lit = Boolean(clock?.running && clock.bpm > 0 && clock.phase * 60000 / clock.bpm < flashMs);
+    if (lit === beatLit) return;
+    beatLit = lit;
+    for (const button of tapButtons) button.classList.toggle('is-beating', lit);
+    clockDot.classList.toggle('lit', lit);
+  }
   function action(fn) {
     try { fn(); localError = ''; }
     catch (error) { localError = error.message; }
@@ -21,7 +33,7 @@ export function createRhythmPanel(controller) {
     for (const button of tapButtons) button.classList.add('is-tapping');
     tapFlashTimer = setTimeout(() => {
       for (const button of tapButtons) button.classList.remove('is-tapping');
-    }, 120);
+    }, flashMs);
   }
   for (const button of tapButtons) {
     button.addEventListener('click', tapTempo);
@@ -52,7 +64,6 @@ export function createRhythmPanel(controller) {
     if (el('rhythm-status').textContent !== label) el('rhythm-status').textContent = label;
     el('rhythm-quality').hidden = settings.source !== 'auto';
     el('rhythm-quality').value = clock.confidence ?? 0;
-    el('rhythm-clock-dot').classList.toggle('lit', clock.running && clock.phase < 0.18);
     if (live.audio?.onset) lastHitAt = performance.now();
     el('rhythm-onset-dot').classList.toggle('lit', performance.now() - lastHitAt < 110);
     el('rhythm-phase').value = clock.phase;
@@ -63,5 +74,5 @@ export function createRhythmPanel(controller) {
     el('toolbar-bpm').textContent = clock.bpm ? `${clock.bpm.toFixed(1)} BPM` : label;
     el('rhythm-multiplier').textContent = settings.source === 'auto' && settings.multiplier !== 1 ? `×${settings.multiplier}` : '';
   }
-  return { render, tapTempo, stop() { clearTimeout(tapFlashTimer); } };
+  return { render, renderBeat, tapTempo, stop() { clearTimeout(tapFlashTimer); } };
 }

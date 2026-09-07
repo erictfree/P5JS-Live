@@ -584,6 +584,7 @@ window.setup = function setup() {
 window.draw = function draw() {
   const snapshot = audio.readFrame(); // once per frame, shared by every strategy
   const drawInputs = host.beginFrame(snapshot, stageCanvas);
+  panels.renderBeat(drawInputs.clock);
 
   // The live coder configures the scene as an ordered array of strategy values.
   // Each function or object exposes the current drawing behavior.

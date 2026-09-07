@@ -202,6 +202,55 @@ test('Space taps on keydown, Shift+Space controls playback, and navigation keeps
   await page.screenshot({ path: '/tmp/astra-tap-navigation.png' });
 });
 
+test('Tap flashes briefly on each clock beat at slow and fast tempos, then stops with timing Off', async ({ page }) => {
+  await openAudio(page);
+  for (const bpm of [60, 240]) {
+    const pulses = await page.evaluate(bpm => new Promise(resolve => {
+      const nav = document.getElementById('toolbar-tap');
+      const panel = document.getElementById('rhythm-tap');
+      const dot = document.getElementById('rhythm-clock-dot');
+      const pulses = []; let started = null;
+      const observer = new MutationObserver(() => {
+        const lit = nav.classList.contains('is-beating');
+        if (lit && started === null) {
+          const clock = p5jsLive.rhythm.snapshot();
+          started = performance.now();
+          pulses.push({ start: started, phase: clock.phase,
+            panelLit: panel.classList.contains('is-beating'), dotLit: dot.classList.contains('lit'),
+            navColor: getComputedStyle(nav).backgroundColor, panelColor: getComputedStyle(panel).backgroundColor });
+        } else if (!lit && started !== null) {
+          pulses.at(-1).duration = performance.now() - started;
+          started = null;
+          if (pulses.length === 3) { observer.disconnect(); resolve(pulses); }
+        }
+      });
+      observer.observe(nav, { attributes: true, attributeFilter: ['class'] });
+      p5jsLive.rhythm.configure({ source: 'manual', bpm });
+      p5jsLive.rhythm.align();
+    }), bpm);
+    for (const [index, pulse] of pulses.entries()) {
+      expect(pulse.phase).toBeLessThan(0.2);
+      expect(pulse.panelLit && pulse.dotLit).toBe(true);
+      expect(pulse.navColor).toBe('rgb(255, 180, 94)');
+      expect(pulse.panelColor).toBe(pulse.navColor);
+      expect(pulse.duration).toBeGreaterThan(40);
+      expect(pulse.duration).toBeLessThan(140);
+      if (index) expect(Math.abs(pulse.start - pulses[index - 1].start - 60000 / bpm)).toBeLessThan(70);
+    }
+  }
+  await page.locator('#rhythm-source').selectOption('off');
+  await expect(page.locator('#rhythm-status')).toHaveText('Off');
+  expect(await page.evaluate(() => new Promise(resolve => {
+    const until = performance.now() + 600; let lit = false;
+    function sample() {
+      lit ||= Boolean(document.querySelector('#toolbar-tap.is-beating, #rhythm-tap.is-beating'));
+      if (performance.now() < until) requestAnimationFrame(sample);
+      else resolve(lit);
+    }
+    sample();
+  }))).toBe(false);
+});
+
 test('discarded signal definitions can be collected after repeated live edits', async ({ page, context }) => {
   await openAudio(page);
   await page.evaluate(() => {
