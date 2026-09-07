@@ -785,7 +785,7 @@ button.folded-new-patch-button:focus-visible::after {
 
 #audio-transport {
   display: flex;
-  overflow: hidden;
+  /* Let keyboard focus outlines extend past the transport's border. */
   margin-right: 4px;
   background: rgba(10, 10, 13, 0.72);
   border: 1px solid rgba(124, 124, 138, 0.42);
