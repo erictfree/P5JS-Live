@@ -16,6 +16,7 @@ import { createHostLoop } from './host/hostLoop.js';
 import { createAudioEngine } from './audio/audioEngine.js';
 import { createControlManager } from './control/controlManager.js';
 import { createEditor } from './ui/editor.js';
+import { createCodeViewFactory } from './visuals/codeView.js';
 import { setDrawerHidden } from './ui/drawers.js';
 import { createPanels } from './ui/panels.js';
 import { createProjection } from './ui/projection.js';
@@ -76,7 +77,10 @@ const PATCH_LIBRARY = [...BUILT_IN_PATCH_LIBRARY, ...patchStore.list()]
 const diagnostics = createDiagnostics();
 const registry = createRegistry();
 const stateStore = createStateStore({ diagnostics });
-const evaluator = createEvaluator({ registry, stateStore, diagnostics });
+const evaluator = createEvaluator({
+  registry, stateStore, diagnostics,
+  codeView: createCodeViewFactory({ readView: options => editor.codeViewSnapshot(options) }),
+});
 const audio = createAudioEngine({ diagnostics });
 const network = getDefaultNetworkManager();
 const controlManager = createControlManager({ registry, diagnostics });
@@ -198,6 +202,7 @@ let startupSourceToConfirm = null;
 let offerFirstEdit = false;
 
 const editor = createEditor(document.getElementById('code'), {
+  lastRunSource: () => evaluator.lastRunSource(),
   onEvaluate: (source, label) => {
     const result = evaluator.evaluate(source, { label });
     // The projection's code layout shows the block that was actually accepted,
@@ -1465,6 +1470,8 @@ connectExample('run-motion-lab', 'motion-lab.js', 'motionLab', 'Motion Lab',
   'Press Esc, then hold and release H for the ADSR; tap Space for tempo. The Lag cell compares raw steps with smooth motion. Your existing source remains in the project.');
 connectExample('run-image-modulation', 'image-modulation.js', 'imageModulation', 'Image Modulation',
   'Press Esc, then hold H to compare the undistorted image. Controls has Modulation depth. The rings are a private image input; edit modRings to change the distortion. Your existing source remains in the project.');
+connectExample('run-code-scene', 'code-scene.js', 'codeScene', 'Code Scene',
+  'Type in an open cell to change the code image. Press Esc, then E to hide the editor; the scene keeps its code. Hold H outside the editor for the undistorted image.');
 
 // --- project export / import -----------------------------------------------------
 

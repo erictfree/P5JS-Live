@@ -20,7 +20,7 @@ import { createSignalRuntime } from '../signals/signals.js';
 const TARGETED_OPS = new Set(['reset']);
 const DECLARATION = /^\s*(?:const|let|var|class|function)\s+([A-Za-z_$][\w$]*)\b/;
 
-export function createEvaluator({ registry, stateStore, diagnostics, signals = createSignalRuntime() }) {
+export function createEvaluator({ registry, stateStore, diagnostics, signals = createSignalRuntime(), codeView }) {
   installArrayMethods();
   /** @type {Array<{transaction: object, label: string}>} */
   const queue = [];
@@ -30,6 +30,7 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
   const sceneSources = new WeakMap();
   /** Reverse lookup from first-class values to their JavaScript binding names. */
   let namesByObject = new WeakMap();
+  let lastRunSource = '';
 
   function knownNameOf(value) {
     if ((typeof value === 'object' && value !== null) || typeof value === 'function') {
@@ -74,6 +75,7 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
       nameOf: knownNameOf,
       definitionOf: name => registry.getStrategy(name)?.definition,
       signalApi: signalScope.api,
+      codeView,
     });
     transaction.signalScope = signalScope;
     let captured = {};
@@ -108,6 +110,7 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
       // execution without pretending the registry had to change.
       diagnostics?.success(`${label} evaluated`);
       signalScope.commit();
+      lastRunSource = source;
       return { ok: true, phase: 'executed', staged: [], operations: 0 };
     }
 
@@ -268,6 +271,7 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
         applyOperation(op, label);
       }
       completion.status = 'applied';
+      lastRunSource = transaction.source;
     }
 
     queue.length = 0;
@@ -358,6 +362,7 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
 
   function clearBindings({ forgetNames = true } = {}) {
     bindings.clear();
+    if (forgetNames) lastRunSource = '';
     if (forgetNames) namesByObject = new WeakMap();
   }
 
@@ -386,6 +391,7 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
   }
 
   return {
+    lastRunSource: () => lastRunSource,
     signals,
     evaluate,
     applyPending,

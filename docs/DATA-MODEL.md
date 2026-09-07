@@ -34,6 +34,7 @@ the expression builds the description when its code is evaluated.
 | Patch occurrence | A position in a scene, with host-managed state and lifecycle. |
 | Array / layer | An ordered sequence of patches and nested layers. |
 | ShaderChain | An effect patch containing ordered GPU operations. |
+| Code view | An ordinary drawing patch created by `codeView()`. It reads editor source and paints transparent text pixels. |
 | Scene | A named layer selected for the ongoing draw loop. |
 
 ## Array methods, normal JavaScript

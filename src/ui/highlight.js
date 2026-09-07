@@ -22,7 +22,7 @@ const KEYWORDS = new Set([
  * p5js live's own vocabulary. Coloured apart from every other call because these
  * are the small command vocabulary around otherwise ordinary JavaScript objects.
  */
-const HOST_API = new Set(['reset', 'control', 'StreamRoom', 'ShaderChain', ...SIGNAL_NAMES]);
+const HOST_API = new Set(['reset', 'control', 'StreamRoom', 'ShaderChain', 'codeView', ...SIGNAL_NAMES]);
 
 /**
  * @typedef {'comment' | 'string' | 'number' | 'keyword' | 'host' | 'call' | 'text'} TokenKind

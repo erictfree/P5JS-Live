@@ -427,6 +427,48 @@ with projects, safe states and named performances but remains separate from patc
 source, so shared patches do not assume another performer's controller. Standard MIDI
 CC and note messages are supported; System Exclusive access is never requested.
 
+## codeView
+
+`codeView(options = {})` returns an ordinary drawing patch whose pixels are
+syntax-coloured source text on transparency. It can appear in a scene, a nested
+array, or a shader image input. It follows text without evaluating it.
+
+```js
+const liveCode = codeView();
+const scene = [backdrop, [liveCode].modulate([rings], 0.025).opacity(0.85)];
+scene.draw();
+```
+
+Define `backdrop` and `rings` first, or launch **Tools → Scene → Put your code
+inside the scene → Run Code Scene** for a complete example.
+
+| Option | Behavior |
+| --- | --- |
+| `source: 'editor'` | Default. Follow the visible editor text, folding, font, and scrolling, including unrun edits. |
+| `patch: 'myPatch'` | Show that named patch's current editor source from its first line. Also accepts a named top-level declaration. Missing names produce a transparent image. |
+| `source: 'lastRun'` | Show the most recent source accepted by the evaluator. Queued code appears when applied at a frame boundary; rejected or discarded evaluations leave this view unchanged. |
+| `fontSize: 24` | Optional font size in pixels, from 6 to 160. Scales the text layout; longer content clips to the canvas. Defaults to the editor font size. |
+| `cursor: true` | Include the blinking caret for the focused editor textarea. Default false; applies only to the editor view. Selection ranges are not painted. |
+
+Use either `source` or `patch`. Options are fixed when the patch is created;
+rerun its declaration to change them. Hiding the editor with E preserves its
+code image, and hiding Tools or the navbar has no effect on what it captures.
+Editor controls, line numbers, selection backgrounds, and text backing boxes are
+excluded. Folded source uses the same condensed previews as the editor.
+
+The last-run view is a record of accepted evaluation, not Safe State: code can
+still fail later while drawing. It is runtime information, initialized by project
+evaluation after reload. Named-patch and editor views read the current document,
+including incomplete edits; they do not read an object's `toString()` output.
+
+The text renderer reuses the syntax highlighter's tokens and palette. Glyphs are
+cached in a transparent canvas and repainted when text, layout, style, or size
+changes; shader effects still run each frame. Disposal frees the raster cache,
+which is recreated if a historical patch is restored. The image becomes part of
+the stage output, including projection and published canvas streams. Reading
+source does not sample the stage, so showing the scene's own code creates no
+recursive image dependency.
+
 ## ShaderChain
 
 `ShaderChain` is a patch that transforms the pixels drawn by earlier scene entries.

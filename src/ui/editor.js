@@ -17,6 +17,7 @@ import { tokenizeLines } from './highlight.js';
 import { tidySource } from './tidy.js';
 import { changedLineNumbers } from './sourceDiff.js';
 import { createCellFeedback } from './cellFeedback.js';
+import { createEditorCodeSource } from './codeViewSource.js';
 
 const INDENT = '  ';
 const PAIRS = { '{': '}', '[': ']', '(': ')' };
@@ -30,7 +31,7 @@ const RESERVED_PATCH_NAMES = new Set([
   'var', 'void', 'while', 'with', 'yield',
   // These are evaluator-provided bindings, so declaring one in a cell would collide
   // with the live-coding API even though it is a legal JavaScript identifier.
-  'control', 'reset', 'ShaderChain', 'StreamRoom', ...SIGNAL_NAMES,
+  'control', 'reset', 'ShaderChain', 'StreamRoom', 'codeView', ...SIGNAL_NAMES,
 ]);
 
 /** VS Code-style movement of the current line or selected consecutive lines. */
@@ -95,6 +96,10 @@ export function createEditor(textarea, handlers) {
   let numberedLines = 0;
   let foldedSource = null;
   let folded = false;
+  const codeViewSnapshot = createEditorCodeSource({
+    textarea, mirror, foldedView, isFolded: () => folded,
+    lastRunSource: () => handlers.lastRunSource?.() ?? '',
+  });
   let staged = null;
   let suppressChangeNotifications = 0;
   const openFolds = new Set();
@@ -1565,6 +1570,7 @@ export function createEditor(textarea, handlers) {
   }
 
   return {
+    codeViewSnapshot,
     get value() {
       return textarea.value;
     },

@@ -15,6 +15,8 @@ src/host/liveApi.js         live commands and validation
 src/host/evaluator.js       binding capture and atomic staging
 src/host/hostLoop.js        lifecycle calls, frame boundaries, and rollback
 src/shaders/shaderChain.js  GPU operator compiler with managed image inputs
+src/visuals/codeView.js     transparent source-image patch and raster cache
+src/ui/codeViewSource.js    editor glyph/layout snapshots for code images
 src/language/sourceBlocks.js statement and // %% cell discovery
 src/audio/                  audio graph and feature processing
 src/rhythm/                 shared clock, tap estimation, and causal tempo tracker
@@ -31,6 +33,14 @@ scripts/signaling-server.mjs discovery and WebRTC signaling
 
 Host and audio feature modules do not depend on DOM or p5, so identity, rollback,
 state, and analysis run in Node unit tests.
+
+`codeView()` is an injected patch factory. Main supplies an editor snapshot
+provider; the renderer does not query the DOM or evaluate source. The provider
+reads syntax tokens and viewport geometry for the editor view, or tokenizes a
+named declaration / the evaluator's last applied source. Only glyphs enter the
+transparent canvas. The patch caches that raster and composites it into its
+current drawing group, so ordinary array effects, image inputs, history, and
+projection work without a separate composition path.
 
 `scripts/build-patch-library.mjs` validates metadata in `community-patches/*.js` and
 generates a browser module containing metadata and source text. It does not execute

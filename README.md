@@ -16,6 +16,11 @@ Image modulation is available as `[picture].modulate([mapPatch], amount)`. Use
 patch-driven distortion with a depth control and smoothed bass response. See the
 [composition cookbook](docs/COMPOSITION.md#use-one-layer-to-distort-another).
 
+`codeView()` makes the live editor a transparent, syntax-coloured patch. Apply
+effects to your own code, or use it as an image input. Try **Tools → Scene → Put
+your code inside the scene → Run Code Scene**; press Esc, then E to hide the editor
+and see its image in the scene. See the [code image API](docs/API.md#codeview).
+
 ## How it works
 
 A **patch** is a JavaScript function, object, or class instance that draws. A

@@ -52,6 +52,31 @@ The background is outside that group. Later examples reuse `backdrop`, `bars`, a
 `rings` from this program; replace the existing scene cell instead of appending
 another `const scene` declaration.
 
+## Make your code part of the picture
+
+After the first example, replace the scene cell with this code:
+
+<!-- example: code-image -->
+```js
+// %% patch liveCode
+const liveCode = codeView({ patch: 'bars', fontSize: 22 });
+
+// %% scene scene
+const scene = [
+  backdrop,
+  [bars, rings].opacity(0.3),
+  [liveCode].rotate(0, 0.03),
+];
+scene.draw();
+```
+
+The bars' source becomes transparent text pixels, with its own effects. Editing
+that source changes the text immediately; Run changes the bars' behavior. Use
+`codeView()` to follow the visible editor instead, or `codeView({source:'lastRun'})`
+to show the latest accepted evaluation. Press Esc, then E to hide the editor while
+keeping the code image in the scene. You can also use `[liveCode]` as a
+`.modulate()` input. See the [code image reference](API.md#codeview).
+
 ## Separate effects
 
 Replace and run the scene cell:

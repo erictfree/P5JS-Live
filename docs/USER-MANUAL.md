@@ -36,7 +36,7 @@ implementation model, see [Architecture](ARCHITECTURE.md). The shorter
 
 | Document information | |
 | --- | --- |
-| Manual edition | 1.2 |
+| Manual edition | 1.3 |
 | Updated | September 7, 2026 |
 | Audience | Students, educators, creative coders, and live visual performers |
 | Prerequisites | Current desktop Google Chrome; basic JavaScript is helpful but not required |
@@ -1232,6 +1232,57 @@ pauses its patches and makes the map transparent. Editing a named patch updates
 its live occurrences; changing a helper array requires rerunning its consumer
 scene. Each additional input and shader pass has a rendering cost.
 
+#### Put your code inside the scene
+
+The code can be part of the picture. `codeView()` makes an ordinary patch that
+draws the editor's syntax-coloured text on transparency. It follows typing,
+scrolling, and open or folded cells. The code image updates before you run an edit;
+the behavior you are editing changes only when you run it.
+
+With existing `backdrop` and `rings` patches:
+
+```js
+const liveCode = codeView();
+const scene = [
+  backdrop,
+  [liveCode].modulate([rings], 0.025).opacity(0.85),
+];
+scene.draw();
+```
+
+For the complete example, open **Tools → Scene → Put your code inside the scene →
+Run Code Scene**. Open a code cell and type. Press Esc, then E to hide the editor:
+its text remains in the scene, bending through the animated image input. Hold H
+outside the editor to compare the undistorted text. Press E again to resume editing.
+
+Choose what the patch shows by replacing its declaration:
+
+```js
+const liveCode = codeView({ patch: 'myPatch', fontSize: 24 });
+```
+
+This shows `myPatch`'s current source from the top, independently of editor
+scrolling. If that name is missing, the image is transparent. A large patch clips
+at the canvas edge; reduce the font size to fit more lines.
+
+```js
+const liveCode = codeView({ source: 'lastRun' });
+```
+
+This shows the latest code accepted by the evaluator, updating when queued work
+is applied. It ignores unrun drafts and rejected evaluations. It is not a Safe
+State snapshot: accepted code can still fail when it later draws.
+
+`codeView({ cursor: true })` includes the blinking caret while an editor field is
+focused. The default omits it. Font size defaults to the editor setting; an
+explicit `fontSize` accepts 6–160 pixels and scales the text layout.
+
+The image contains text, with transparent space between glyphs. It excludes
+buttons, line numbers, selection fills, and backing boxes. It works with the usual
+array effects and can itself be a `.modulate()` image input. The scene's own code
+can appear in its output: the patch reads text rather than capturing the stage.
+Projection and published canvas streams include the result as part of the scene.
+
 #### Build a custom shader patch
 
 Use a class when the visual needs its own GLSL program or offscreen WebGL target. A
@@ -2310,8 +2361,8 @@ by the evaluator. Safe State is recovery, not isolation from hostile code.
 
 - OSC is not implemented.
 - Recording and deterministic event replay are not implemented.
-- `ShaderChain` processes one current canvas texture; arbitrary multi-source routing
-  needs custom WebGL code.
+- `ShaderChain` supports array image inputs through `.modulate()`. Other custom
+  operations that combine several textures still need custom WebGL code.
 - Audio and local media are not included in project exports.
 - The Network tab is unavailable; the experimental source API remains callable.
 - The included networking architecture is intended for small peer groups, not a large

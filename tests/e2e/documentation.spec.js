@@ -93,7 +93,7 @@ test('cookbook: nested groups, image modulation, explicit shaders and configured
   const file = 'docs/COMPOSITION.md';
   await boot(page, example(file, 'together'));
   await visiblyAnimating(page);
-  for (const name of ['separate', 'nested', 'modulation', 'explicit-shader', 'configured']) {
+  for (const name of ['code-image', 'separate', 'nested', 'modulation', 'explicit-shader', 'configured']) {
     await run(page, example(file, name));
     await visiblyAnimating(page);
   }
