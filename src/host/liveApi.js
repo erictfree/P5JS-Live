@@ -15,7 +15,7 @@
 
 import { ShaderChain } from '../shaders/shaderChain.js';
 import { StreamRoom } from '../network/streamRoom.js';
-import { layer, isLayer } from './layer.js';
+import { layer, isLayer, assertPatch } from './layer.js';
 
 export const LIVE_API_NAMES = [
   'activate',
@@ -53,7 +53,7 @@ export function validateStrategy(value, suggestedName) {
     assertName('Strategy', name);
     return { name, implementation: value };
   }
-  if (value === null || typeof value !== 'object') {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     throw new TypeError('A strategy must be a function or an object with draw()');
   }
   if (typeof value.draw !== 'function') {
@@ -122,11 +122,12 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
   function defineScene(name, entries, localNameOf = nameOf, sceneSource = source) {
     assertName('Scene', name);
     if (!Array.isArray(entries)) throw new TypeError(`Scene "${name}" must be an array`);
+    assertPatch(entries, new Set(), name);
     operations.push({
       type: 'scene',
       name,
       source: sceneSource,
-      entries: (isLayer(entries) ? [entries] : entries).map((entry, index) =>
+      entries: (isLayer(entries) && entries.rootGroup ? [entries] : entries).map((entry, index) =>
         normalizeSceneEntry(name, [index], entry, localNameOf, sceneSource)),
     });
     return name;

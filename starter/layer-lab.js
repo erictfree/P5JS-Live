@@ -1,5 +1,5 @@
 // %% controls labControls
-// LAYER LAB — a self-contained p5 + ShaderChain playground.
+// LAYER LAB — a self-contained p5 + native array effects playground.
 // Start silent works. Optional audio adds movement; no library installs needed.
 // Tools > Controls: try opacity, zoom, hue, blur, and pixel size.
 control("labOpacity", 0.85, { min: 0, max: 1, step: 0.01 });
@@ -75,17 +75,16 @@ const labCaption = {
 // Change the scene structure here; patch-only edits update the live sketches.
 const layerLab = [
   labGrid,
-  layer([labRings, labSignal])
+  [labRings, labSignal]
     .rotate(({ time }) => sin(time * 0.2) * 0.3)
     .scale(({ controls }) => controls.labZoom)
-    .fx(new ShaderChain()
-      .hue(({ controls }) => controls.labHue)
-      .blur(({ controls }) => controls.labBlur))
+    .hue(({ controls }) => controls.labHue)
+    .blur(({ controls }) => controls.labBlur)
     .opacity(({ controls }) => controls.labOpacity)
     .mute(false),
   labCaption,
 ];
-activate(layerLab);
+layerLab.draw();
 
 // %% patch labOrderCaption
 const labOrderCaption = {
@@ -106,19 +105,19 @@ const labOrderCaption = {
 // %% scene orderLab
 // Same sketch and settings, different order. Left blocks rotate with the image;
 // right blocks stay aligned to the screen. Set labPixels around 30 to exaggerate.
-// Uncomment activate(orderLab) and run this cell. To return, run layerLab above.
+// Uncomment orderLab.draw() and run this cell. To return, run layerLab above.
 const orderLab = [
   labGrid,
-  layer(labSignal).fx(new ShaderChain()
+  [labSignal]
     .pixelate(({ controls }) => controls.labPixels, ({ controls }) => controls.labPixels)
     .rotate(0.6)
     .transform(-0.25, 0, 0.65, 0.65)
-    .crop(0.02, 0.48, 0.12, 0.88)),
-  layer(labSignal).fx(new ShaderChain()
+    .crop(0.02, 0.48, 0.12, 0.88),
+  [labSignal]
     .rotate(0.6)
     .pixelate(({ controls }) => controls.labPixels, ({ controls }) => controls.labPixels)
     .transform(0.25, 0, 0.65, 0.65)
-    .crop(0.52, 0.98, 0.12, 0.88)),
+    .crop(0.52, 0.98, 0.12, 0.88),
   labOrderCaption,
 ];
-// activate(orderLab);
+// orderLab.draw();

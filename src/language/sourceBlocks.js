@@ -96,7 +96,7 @@ export function findStatements(source) {
     if (ch === '\n') {
       // Newline ends a top-level statement only when everything is balanced —
       // the "automatic semicolon" case: `activate(scene)` on its own line.
-      if (depth === 0 && start !== -1 && endsStatement(prev)) push(i + 1);
+      if (depth === 0 && start !== -1 && endsStatement(prev) && !continuesMethodChain(source, i + 1)) push(i + 1);
       i++;
       continue;
     }
@@ -309,6 +309,26 @@ export function sceneMemberNames(source, sceneName) {
   const close = matchingSquareBracket(source, open);
   if (close === -1) return [];
 
+  const collectCalls = (tail) => {
+    const names = [];
+    let cursor = 0;
+    while (cursor < tail.length) {
+      const call = /^\s*(?:\?\.|\.)\s*([A-Za-z_$][\w$]*)\s*\(/.exec(tail.slice(cursor));
+      if (!call) break;
+      const open = cursor + call[0].lastIndexOf('(');
+      let depth = 1;
+      let close = open + 1;
+      for (; close < tail.length; close++) {
+        if (tail[close] === '(') depth++;
+        if (tail[close] === ')' && --depth === 0) break;
+      }
+      if (depth !== 0) break;
+      if (call[1] === 'add' || call[1] === 'fx') names.push(...collect(tail.slice(open + 1, close)));
+      cursor = close + 1;
+    }
+    return names;
+  };
+
   const collect = (body) => {
     const names = [];
     const masked = maskCommentsAndStrings(body);
@@ -339,14 +359,15 @@ export function sceneMemberNames(source, sceneName) {
       }
       if (!trimmed.startsWith('[')) continue;
       const nestedClose = matchingSquareBracket(trimmed, 0);
-      if (nestedClose === trimmed.length - 1) {
+      if (nestedClose > 0 && (nestedClose === trimmed.length - 1 || /^\s*\./.test(trimmed.slice(nestedClose + 1)))) {
         names.push(...collect(trimmed.slice(1, nestedClose)));
+        names.push(...collectCalls(trimmed.slice(nestedClose + 1)));
       }
     }
     return names;
   };
 
-  return collect(source.slice(open + 1, close));
+  return [...collect(source.slice(open + 1, close)), ...collectCalls(maskCommentsAndStrings(source.slice(close + 1)))];
 }
 
 /** Exact expression ranges for direct array entries; never execute authored code. */
@@ -557,6 +578,26 @@ function endsStatement(prev) {
   return prev !== '' && !'+-*/%<>=&|^,.?:!~('.includes(prev);
 }
 
+/** A leading member access continues an ordinary JavaScript expression across lines. */
+function continuesMethodChain(source, from) {
+  let index = from;
+  while (index < source.length) {
+    if (/\s/.test(source[index])) { index++; continue; }
+    if (source.startsWith('//', index)) {
+      const end = source.indexOf('\n', index + 2);
+      if (end === -1) return false;
+      index = end + 1; continue;
+    }
+    if (source.startsWith('/*', index)) {
+      const end = source.indexOf('*/', index + 2);
+      if (end === -1) return false;
+      index = end + 2; continue;
+    }
+    return source[index] === '.' || source.startsWith('?.', index);
+  }
+  return false;
+}
+
 function regexCanStartAfter(prev) {
   return prev === '' || '(,=:[!&|?{};+-*%<>~^'.includes(prev);
 }
@@ -653,6 +694,9 @@ export function describeBlock(text) {
 
   const activateCommand = /\bactivate\s*\(\s*([A-Za-z_$][\w$]*)/.exec(text);
   if (activateCommand) return `activate ${activateCommand[1]}`;
+
+  const drawCommand = /^\s*([A-Za-z_$][\w$]*)\s*\.\s*draw\s*\(/.exec(text);
+  if (drawCommand) return `draw ${drawCommand[1]}`;
 
   const namedCommand = /\b(?:control|param)\s*\(\s*["'`]([^"'`]+)["'`]/.exec(text);
   if (namedCommand) return `control ${namedCommand[1]}`;

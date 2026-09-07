@@ -12,7 +12,8 @@
 // strategies become scenes. All registry changes still land only at a frame boundary.
 
 import { createTransaction, LIVE_API_NAMES } from './liveApi.js';
-import { isLayer } from './layer.js';
+import { isLayer, assertPatch } from './layer.js';
+import { installArrayMethods, withArrayDrawing } from './arrayApi.js';
 import { strategyOf } from './stateStore.js';
 import { findCells, findStatements } from '../language/sourceBlocks.js';
 
@@ -20,10 +21,13 @@ const TARGETED_OPS = new Set(['reset']);
 const DECLARATION = /^\s*(?:const|let|var|class|function)\s+([A-Za-z_$][\w$]*)\b/;
 
 export function createEvaluator({ registry, stateStore, diagnostics }) {
+  installArrayMethods();
   /** @type {Array<{transaction: object, label: string}>} */
   const queue = [];
   /** Successful top-level declarations available to later block evaluations. */
   const bindings = new Map();
+  /** Keep a prepared layer's source when its draw command runs in a later block. */
+  const sceneSources = new WeakMap();
   /** Reverse lookup from first-class values to their JavaScript binding names. */
   let namesByObject = new WeakMap();
 
@@ -81,10 +85,10 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
     let captured = {};
     try {
       captured =
-        compiled(
+        withArrayDrawing(transaction.api.activate, () => compiled(
           ...transaction.args(),
           ...availableBindings.map(([, value]) => value),
-        ) ?? {};
+        )) ?? {};
       const localNameOf = captureDeclarations(transaction, declarations, captured);
       transaction.resolveCommandTargets(localNameOf);
       promoteNewReferences(transaction);
@@ -129,9 +133,10 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
   function captureDeclarations(transaction, declarations, captured) {
     const localNames = new WeakMap();
 
-    for (const { name } of declarations) {
+    for (const { name, source } of declarations) {
       const value = captured[name];
       transaction.bindingUpdates.set(name, value);
+      if (Array.isArray(value) && !sceneSources.has(value)) sceneSources.set(value, source);
       if ((typeof value === 'object' && value !== null) || typeof value === 'function') {
         localNames.set(value, name);
       }
@@ -170,6 +175,21 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
       ) {
         transaction.defineScene(declaration.name, value, localNameOf, declaration.source);
       }
+    }
+
+    // A fluent layer can be prepared in one block and selected in another. Only
+    // promote it to a scene when requested, retaining the original definition for
+    // source navigation and later scene edits.
+    const sceneNames = new Set([
+      ...registry.listScenes().map(scene => scene.name),
+      ...transaction.operations.filter(op => op.type === 'scene').map(op => op.name),
+    ]);
+    for (const op of [...transaction.operations]) {
+      if (op.type !== 'activate') continue;
+      const name = localNameOf(op.target);
+      if (!name || sceneNames.has(name)) continue;
+      transaction.defineScene(name, op.target, localNameOf, sceneSources.get(op.target));
+      sceneNames.add(name);
     }
 
     // A function mentioned by a scene becomes a strategy at that point.
@@ -413,17 +433,13 @@ function collapseDuplicatePatchCells(source) {
 }
 
 function isObjectStrategy(value) {
-  return value !== null && typeof value === 'object' && typeof value.draw === 'function';
-}
-
-function canBeStrategy(value) {
-  return typeof value === 'function' || isObjectStrategy(value);
+  return value !== null && typeof value === 'object' && !Array.isArray(value) && typeof value.draw === 'function';
 }
 
 function isStrategyArray(value) {
-  const isSceneEntry = (entry) =>
-    canBeStrategy(entry) || (Array.isArray(entry) && entry.every(isSceneEntry));
-  return Array.isArray(value) && value.length > 0 && value.every(isSceneEntry);
+  if (!Array.isArray(value) || value.length === 0) return false;
+  try { assertPatch(value); return true; }
+  catch { return false; }
 }
 
 function flattenSceneEntries(entries, result = []) {

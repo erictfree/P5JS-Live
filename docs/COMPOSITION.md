@@ -1,11 +1,11 @@
 # Compose sketches and effects
 
 Sketches and shaders share the same scene model. A patch is an ordinary function or
-object with `draw()`. A nested array isolates a group. `layer()` adds fluent methods
-around that group while the host continues to own every patch's state and lifecycle.
+object with `draw()`. An array describes a layer; a nested array isolates a group.
+Native array methods apply effects while the host owns each patch's state and lifecycle.
 
-For a short conceptual overview and the proposed fluent API, see
-[Sketches, layers, and scenes](DATA-MODEL.md).
+For a short conceptual overview and the method protection rules, see
+[Arrays, layers, and the draw loop](DATA-MODEL.md).
 
 ## Try Layer Lab
 
@@ -31,37 +31,63 @@ The editable source is [layer-lab.js](../starter/layer-lab.js).
 // %% scene scene
 const scene = [
   solidBackground,
-  layer(waveScope)
+  [waveScope]
     .fx(new ShaderChain().kaleid(6).hue(0.1))
     .opacity(({ audio }) => 0.4 + audio.bass * 0.6),
 ];
-activate(scene);
+scene.draw();
 ```
 
 Install `solidBackground` and `waveScope` first. Evaluate the scene cell to activate
 the composition. The effects see only `waveScope`; the completed layer is composited
-over `solidBackground`. You can also wrap an existing group:
+over `solidBackground`. Combine two sketches in one array to process them together:
 
 ```js
 const scene = [
   solidBackground,
-  layer([waveScope, laserFan])
+  [waveScope, laserFan]
     .rotate(({ time }) => time * 0.1)
     .scale(1.1)
     .fx(new ShaderChain().bloom(0.4, 3, 0.6)),
 ];
-activate(scene);
+scene.draw();
 ```
 
 Ordinary arrays still work: `[waveScope, effect]` is an isolated group when nested
 inside a scene. Factories can still return patches or arrays. There is no separate
 composition graph to maintain.
 
-## Layer methods
+## Native array methods
+
+```js
+const pair = [waveScope, laserFan].rotate(0, 0.2);
+const scene = [solidBackground, pair].opacity(0.8);
+scene.draw();
+```
+
+Rotation affects the pair; opacity affects the whole scene. The expression is
+built when the code runs, and the host renders it each frame. `scene.draw()` stages
+activation through the current evaluation transaction. Use a named array and call
+it from evaluated code. It never replaces p5's `window.draw()` callback.
+
+All direct ShaderChain operators are supported on arrays, except the shader's
+`shift()` is named `colorShift()`; native `.shift()` still removes the first entry.
+For example, `[waveScope].hue(0.2).blur(3)` processes hue before blur. Use an explicit
+ShaderChain through `.fx()` for wet/dry mix, blend mode, and bypass settings.
+
+These methods live on `Array.prototype`. They are non-enumerable and protected:
+reassigning an installed method throws even in non-strict code, and its prototype
+property cannot be redefined. Installation refuses occupied names and never
+replaces native methods. No source translation is used. `layer(sketch)` and
+`activate(scene)` remain supported for existing performances.
+
+## Composition methods
 
 | Method | Behavior |
 | --- | --- |
-| `layer(sketchOrGroup)` | Start an isolated transparent group around a patch or array. |
+| `[patch1, patch2]` | Describe one layer; nest the array to isolate its image from its parent. |
+| `.add(...patches)` | Append patches or nested arrays without flattening or changing effect scope. |
+| `.draw()` | Select this named scene for the ongoing draw loop, at the next frame boundary. |
 | `.fx(...effects)` | Append patches that process the layer's current image, in order. |
 | `.rotate(angle = 0, speed = 0)` | Rotate the rendered image in radians; speed is radians per second. |
 | `.scale(amount = 1)` | Scale the rendered image around its center. |
@@ -75,15 +101,15 @@ using ShaderChain's wrapping behavior; they do not change the sketch's p5 drawin
 coordinates. Put p5 `translate`, `rotate`, or styles inside the sketch when you want
 draw-time changes. Drawing state does not carry from one patch to its next sibling.
 
-Layer methods return new frozen arrays, so branching a builder does not change its
-parent. Consecutive transform/opacity conveniences share a generated ShaderChain.
+Effect and composition methods return new frozen arrays, so branching a builder does not change its
+parent. Consecutive shader helpers share a generated ShaderChain.
 Explicit `.fx()` chains retain their own mix, blend, bypass, and feedback boundaries.
 Child patch objects remain ordinary references; use separate patch objects or
 `ShaderChain.clone()` when you need independent object-owned resources/feedback.
 
-Build layers outside `draw()`, not once per frame. Named layers are group values,
-not automatically activated scenes. As with any array or factory, changing a layer's
-structure requires reevaluating the scene that uses it. Replacing a named sketch's
+Build layer arrays outside patch `draw()` methods, not once per frame. Named
+compositions become active when you run `scene.draw()` or `activate(scene)`. Changing
+a layer's structure requires reevaluating the scene that uses it. Replacing a named sketch's
 implementation updates its existing instances without rebuilding the layer. The
 host preserves occurrence state and handles failed first-frame replacement.
 
@@ -98,8 +124,8 @@ and surrounding comments stay in place. The change is undoable and does not exec
 automatically. **Review scene & run** opens the edited scene; select its Run button
 or press Cmd/Ctrl+Enter. Until then, the inspector continues showing the live tree.
 
-Reorder buttons are unavailable while scene edits are pending, or when spread or
-generated root structure prevents a reliable source-to-row match. Edit nested group
+Reorder buttons are unavailable while scene edits are pending, or when spread,
+appended root effects, or generated root structure prevents a reliable source-to-row match. Edit nested group
 order, mute, and shader bypass in source. The inspector displays muted groups and
 bypassed ShaderChains. MIDI mapping and live controls remain in **Tools → Controls**.
 

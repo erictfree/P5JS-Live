@@ -131,10 +131,13 @@ const scene = [
   plasma,
 ];
 
-activate(scene);
+scene.draw();
 ```
 
-Earlier entries draw first. `activate()` accepts the array, not its name as a string.
+Earlier entries draw first. `scene.draw()` selects the named array for the host's
+ongoing frame loop. It is an array method and does not replace p5's `window.draw`.
+Call it while evaluating live code. `activate(scene)` remains a compatible command
+that accepts the array, not its name as a string.
 Re-evaluating a scene changes its order without replacing unchanged patch
 implementations or their state.
 
@@ -213,6 +216,7 @@ The copies share one implementation but have separate state. They appear as
 
 ```js
 activate(scene);     // activate at the next frame boundary
+scene.draw();        // the same activation through the array's native method
 reset(laserFan);     // recreate state for every active copy
 control("trail", 0.08, { type: "continuous", min: 0, max: 0.3 });
 ```
@@ -419,10 +423,20 @@ input when necessary. Wet/dry mix and blend apply once, against the original inp
 For example, `.hue(0.3).blur(3)` blurs the hue-adjusted image. Alpha and coordinate
 orientation are preserved across pass boundaries.
 
-`layer(sketch)` is an optional fluent builder around an isolated group. It supports
-`.fx(...effects)`, `.rotate(angle, speed)`, `.scale(amount)`, `.translate(x, y)`,
-`.opacity(amount)`, and `.mute(enabled)`. See [Layer composition](COMPOSITION.md)
-for argument units, examples, state behavior, and source editing.
+Arrays have native effect methods. `[a, b].rotate(0, 0.2).opacity(0.6)` processes
+both patches together. Nest it in another array to isolate those effects. Methods
+return new frozen arrays, preserve nesting, and do not mutate the original array.
+`.add(...patches)` and `.fx(...effects)` append entries in order without flattening.
+`.mute(boolean)` pauses the group while preserving its state.
+
+The shader operators below are also array methods, except `shift()` is exposed as
+`colorShift()` to preserve native `Array.shift()`. Arrays also support
+`.translate(x, y)` and `.opacity(amount)`. Use an explicit
+`.fx(new ShaderChain()...)` for the mix, blend, and bypass settings described below.
+
+`layer(sketch)` remains a compatible builder around an isolated group. See
+[Layer composition](COMPOSITION.md) for units, examples, method protection, and
+source editing. These are native JavaScript methods, not a source transformation.
 
 Every effect chain also supports:
 

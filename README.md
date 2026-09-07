@@ -33,7 +33,7 @@ const scene = [
   vignette,
 ];
 
-activate(scene);
+scene.draw();
 ```
 
 Put the cursor in a patch or scene and press `Cmd/Ctrl+Enter`. p5js live evaluates
@@ -46,7 +46,7 @@ p5js live includes:
 - normalized level, bass, mid, treble, beat, spectrum, and waveform data;
 - function, object, class, factory, closure, and inline patches;
 - recursive scenes with isolated effect groups and independent state per occurrence;
-- fluent sketch layers through `layer(sketch).fx(...).opacity(...)` and a Scene
+- native array effects through `[sketch].rotate(...).opacity(...)` and a Scene
   inspector that links groups and effects to source, with reviewable reordering;
 - a source-based patch library and community patch catalog;
 - GPU post-processing through standard `ShaderChain` effects, wet/dry mix, blend
@@ -138,10 +138,10 @@ with a small rotation and opacity chain:
 ```js
 const scene = [
   () => background(20, 22, 27),
-  layer(myPatch).rotate(0, 0.2).opacity(0.85),
+  [myPatch].rotate(0, 0.2).opacity(0.85),
 ];
 
-activate(scene);
+scene.draw();
 ```
 
 Open `myPatch` and change its fill colour or the `120` in its size calculation.

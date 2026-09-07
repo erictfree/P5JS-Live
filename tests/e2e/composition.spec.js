@@ -128,7 +128,7 @@ test('Layer Lab imports, animates silently, isolates opacity, and recalls its or
   const source = readFileSync(new URL('../../starter/layer-lab.js', import.meta.url), 'utf8');
   expect(project.source.join('\n')).toBe(source);
   expect(project.performances[0].source).toBe(source);
-  expect(project.performances[1].source).toBe(source.replace('// activate(orderLab);', 'activate(orderLab);'));
+  expect(project.performances[1].source).toBe(source.replace('// orderLab.draw();', 'orderLab.draw();'));
   await boot(page, 'blue');
   await page.locator('#import-file').setInputFiles({ name: 'layer-lab.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
   await page.getByRole('button', { name: 'Import and run', exact: true }).click();

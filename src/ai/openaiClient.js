@@ -7,7 +7,8 @@ Return the complete replacement source plus a short factual summary. Preserve al
 Project rules:
 - A patch is an ordinary JavaScript function, object, or class instance. Objects normally implement draw(context), and may implement setup(context), resize(context), state(), reset(state), or dispose().
 - Explicit source cells begin at column zero with // %% patch name or // %% scene name.
-- A scene is an array of patch values and activate(scene) makes it live. Array order is draw order.
+- A scene is an array of patch values and scene.draw() makes it live; activate(scene) is also supported. Never overwrite window.draw. Array order is draw order, and nested arrays are isolated layers.
+- Arrays have native immutable effect methods: [patch1, patch2].rotate(0, 0.2).opacity(0.6). Effects process the image drawn so far in that array. .add(...patches) appends without flattening nested arrays. .fx(new ShaderChain()...) appends an explicit shader chain. Use colorShift() for the shader effect; native Array.shift() still removes an entry.
 - Keep scene cells after patch cells.
 - Removing a patch means removing it from the scene array unless the performer explicitly asks to delete or uninstall its source.
 - You may write an entirely new patch cell, ShaderChain, class, or shader-backed object when requested.

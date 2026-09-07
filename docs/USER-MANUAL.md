@@ -254,8 +254,10 @@ Read the `scene` array from top to bottom. `solidBackground` establishes the fir
 layer. `dot` adds a circle whose size follows the bass. Earlier entries contribute
 pixels first; later entries draw over them or transform what is already there.
 
-`activate(scene)` identifies this array as the composition to run. When the scene cell
-is evaluated, p5js live updates the active composition at a frame boundary.
+`activate(scene)` identifies this array as the composition to run. You can also
+write `scene.draw()`, the native array method used by the starter. When the scene
+cell is evaluated, p5js live updates the active composition at a frame boundary.
+This array method does not replace p5's global `draw()` callback.
 
 #### Source and the running performance
 
@@ -363,7 +365,7 @@ Use the starter project for the first edit:
 Change the value again and repeat. Try a large change so the relationship between
 source and image is obvious. Then restore a value you like.
 
-The starter scene uses `layer(myPatch).rotate(0, 0.2).opacity(0.85)` over a separate
+The starter scene uses `[myPatch].rotate(0, 0.2).opacity(0.85)` over a separate
 dark background. Edit and run the scene to change those effects. New and reset
 performances use this pulsing-square starter; saved projects retain their source.
 The original `asciiNoise` and `plasma` patches are still available in the Library.
@@ -1614,8 +1616,8 @@ operator transforms coordinates, samples pixels, or changes color; operator orde
 function composition over an image.
 
 Compatible operators share a pass; neighborhood filters materialize their input when
-needed. Every operation receives its predecessor's result. The optional
-[layer() builder](COMPOSITION.md) adds fluent composition around ordinary sketches,
+needed. Every operation receives its predecessor's result. Native
+[array effect methods](COMPOSITION.md) add fluent composition around ordinary sketches,
 and **Tools → Scene** shows the running groups, effects, and shader pass counts.
 
 Nested arrays introduce texture scope. An effect inside a group samples that group's

@@ -1527,7 +1527,7 @@ export function createEditor(textarea, handlers) {
     );
 
     if (!target) {
-      const source = `// %% scene ${sceneName}\n${declaration}\nactivate(${sceneName});`;
+      const source = `// %% scene ${sceneName}\n${declaration}\n${sceneName}.draw();`;
       appendSource(source);
     } else {
       const caret = Number.isInteger(lastSourceCaret) &&

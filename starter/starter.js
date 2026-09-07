@@ -1,4 +1,4 @@
-// The default testing scene: an ordinary p5 patch with a small fluent layer chain.
+// The default testing scene: an ordinary p5 patch with native array effects.
 // Existing saved projects retain their source; this is used for fresh/new/reset projects.
 export { upgradeLegacyPlasma } from './ascii-plasma.js';
 
@@ -21,9 +21,9 @@ const myPatch = {
 // Change rotation speed or opacity, then run this scene.
 const scene = [
   () => background(20, 22, 27),
-  layer(myPatch)
+  [myPatch]
     .rotate(0, 0.2)
     .opacity(0.85),
 ];
-activate(scene);
+scene.draw();
 `;

@@ -2197,8 +2197,9 @@ test.describe('named Performance recall', () => {
       .poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder()))
       .toEqual(['scene[0]', 'myPatch', 'scene[1][1]']);
     await expect(page.locator('#code')).toHaveValue(
-      /layer\(myPatch\)/,
+      /\[myPatch\]\s*\.rotate\(0, 0\.2\)\s*\.opacity\(0\.85\)/,
     );
+    await expect(page.locator('#code')).toHaveValue(/scene\.draw\(\)/);
     await expect(page.locator('#code')).not.toHaveValue(/\/\/ %% patch effects/);
     await expect(page.locator('#performance-name')).toHaveValue('');
     await expect(page.locator('#performance-name')).toBeFocused();

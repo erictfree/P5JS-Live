@@ -1,8 +1,7 @@
 # Arrays, layers, and the draw loop
 
-Implementation plan approved for the native array API. The examples below become
-available when that implementation lands; existing `layer()` and `activate()`
-remain compatible.
+The native array API uses ordinary JavaScript methods. Existing `layer()` and
+`activate()` remain compatible.
 
 ## The model
 
@@ -47,7 +46,7 @@ const scene = [backdrop, faint, patch3];
 scene.draw();
 ```
 
-Methods return new frozen arrays. They do not mutate `pair`, add an extra nested
+Effect and composition methods return new frozen arrays. They do not mutate `pair`, add an extra nested
 layer, clone patch definitions, or execute a patch during construction. Existing
 patch references retain their identity. The array can still be used as a child of
 another array.
@@ -77,7 +76,8 @@ objects remain available for wet/dry mix, blending, and bypass configuration.
 `scene.draw()` selects a named array for rendering at the next frame boundary. It
 returns that array, so `const scene = [...].draw()` can also capture the name. A
 scene must have a named binding, as with `activate(scene)` today. Call activation
-while evaluating live code; the host owns subsequent frames.
+while evaluating live code; the host owns subsequent frames. The array definition
+and its `.draw()` command can be evaluated together or in separate blocks.
 
 `Array.prototype.draw`, `patch.draw`, and p5's `window.draw` belong to different
 objects. The array command stages activation through the existing evaluation
@@ -96,17 +96,13 @@ on reassignment even in non-strict code. This protects the extensions on
 the installer rejects attempts to register over them. This does not prohibit
 deliberate own-property definitions on individual arrays.
 
-## Compatibility and implementation sequence
+## Compatibility
 
-1. Reuse the existing immutable layer builder and shader operations, preserving
-   array nesting and shader order. Validate malformed, sparse, and cyclic groups.
-2. Install protected array methods; wire `scene.draw()` to the existing transaction
-   without rewriting user source or assigning to `window.draw`.
-3. Update the starter, authoring documentation, and scene source helpers. Keep
-   `layer(sketch)`, `activate(scene)`, and existing saved projects working.
-4. Verify native method protection, array/patch classification, nested scopes,
-   shader order, branch independence, live replacement, recovery, and browser
-   rendering. Check source editing and the Scene inspector with array effects.
+The immutable layer builder and ShaderChain implement the operations. Array
+methods preserve existing nested groups and named patch references. Malformed,
+sparse, and cyclic patch groups are rejected before activation. The starter uses
+array effects; existing saved projects keep their source. The `layer(sketch)`
+builder and `activate(scene)` command remain available.
 
 Source remains the composition authority. Editing prepares a change; Run applies
 it. Projects store source and performer settings. GPU buffers remain runtime
