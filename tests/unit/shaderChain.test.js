@@ -2,12 +2,23 @@ import { describe, expect, it } from 'vitest';
 import {
   ShaderChain,
   SHADER_BLEND_MODES,
-  SHADER_COLOR_OPERATORS,
-  SHADER_TRANSFORM_OPERATORS,
   compileShaderOperations,
   resolveShaderUniform,
 } from '../../src/shaders/shaderChain.js';
 import { createTestHost } from './helpers.js';
+
+const SHADER_TRANSFORM_OPERATORS = Object.freeze([
+  'transform', 'mirror', 'crop', 'noiseWarp',
+  'rotate', 'scale', 'pixelate', 'repeat', 'repeatX', 'repeatY',
+  'kaleid', 'scroll', 'scrollX', 'scrollY',
+]);
+
+const SHADER_COLOR_OPERATORS = Object.freeze([
+  'blur', 'sharpen', 'edgeDetect', 'bloom', 'vignette', 'rgbSplit',
+  'feedback', 'lumaMask',
+  'posterize', 'shift', 'invert', 'contrast', 'brightness', 'luma', 'thresh',
+  'color', 'saturate', 'hue', 'colorama', 'sum', 'rgba',
+]);
 
 describe('ShaderChain', () => {
   it('is a fluent first-class patch with the documented single-input operators', () => {

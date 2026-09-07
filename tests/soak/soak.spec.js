@@ -23,7 +23,8 @@ import { fileURLToPath } from 'node:url';
 const TONE = fileURLToPath(new URL('../fixtures/test-tone.wav', import.meta.url));
 const MINUTES = Number(process.env.SOAK_MINUTES ?? 3);
 const DURATION_MS = MINUTES * 60_000;
-const SAMPLE_MS = 10_000;
+const EDIT_INTERVAL_MS = 250;
+const EDITS_PER_SAMPLE = 40;
 
 // A rotating set of edits, so the run exercises the paths a real set does rather than
 // evaluating the same text over and over: a good replacement, a stateful one, a
@@ -46,7 +47,7 @@ const EDITS = [
   };`,
   () => 'const rings = { draw({ audio }) { this is not javascript ((( } };',
   () => 'const rings = { draw({ audio }) { definitelyNotDefined.boom(); } };',
-  () => 'tunnel.draw();',
+  () => 'soakScene.draw();',
 ];
 
 test(`soak — ${MINUTES} minutes of continuous render, analysis, and evaluation`, async ({
@@ -66,11 +67,20 @@ test(`soak — ${MINUTES} minutes of continuous render, analysis, and evaluation
   await page.evaluate(() => window.p5jsLive.audio.setLoop(true));
   await expect.poll(() => page.evaluate(() => window.p5jsLive.audio.status().playing)).toBe(true);
 
+  // Supply the patches this test replaces and explicitly select a scene. Keep a
+  // nested array effect active so the soak exercises both p5 and shader resources.
+  const source = `${EDITS[0](0)}\n${EDITS[1](0)}
+const backdrop = () => background(20, 22, 27);
+const soakScene = [backdrop, [rings, motes].rotate(0, 0.03).opacity(0.9)];
+soakScene.draw();`;
+  expect(await page.evaluate(source => window.p5jsLive.evaluator.evaluate(source).ok, source)).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeSceneName())).toBe('soakScene');
+
   // Identity probes: if any of these change, something was rebuilt underneath the
   // running sketch, which would violate audio and host continuity.
   await page.evaluate(() => {
     document.querySelector('#stage canvas').dataset.probe = 'original';
-    window.__probe = { context: getAudioContext(), draw: window.draw, setup: window.setup };
+    window.__probe = { context: p5.prototype.getAudioContext(), draw: window.draw, setup: window.setup };
   });
 
   const sample = () =>
@@ -84,11 +94,14 @@ test(`soak — ${MINUTES} minutes of continuous render, analysis, and evaluation
         audioPosition: R.audio.status().position,
         audioPlaying: R.audio.status().playing,
         sameCanvas: document.querySelector('#stage canvas')?.dataset.probe === 'original',
-        sameAudioContext: window.__probe.context === getAudioContext(),
+        sameAudioContext: window.__probe.context === p5.prototype.getAudioContext(),
         sameDraw: window.__probe.draw === window.draw,
-        contextState: getAudioContext().state,
+        sameSetup: window.__probe.setup === window.setup,
+        contextState: p5.prototype.getAudioContext().state,
         strategyCount: R.registry.listStrategies().length,
+        sceneName: R.registry.activeSceneName(),
         sceneSize: R.registry.activeOrder().length,
+        ringsHealthy: R.registry.getStrategy('rings')?.status === 'ok',
         // Bounded structures prevent unbounded per-frame growth.
         diagnostics: R.diagnostics.list().length,
         maxHistory: Math.max(...R.registry.listStrategies().map((p) => p.history.length)),
@@ -100,6 +113,7 @@ test(`soak — ${MINUTES} minutes of continuous render, analysis, and evaluation
   await page.waitForTimeout(5_000);
   const baseline = await sample();
   expect(baseline.audioPlaying).toBe(true);
+  expect(baseline.motesTrail).toBeGreaterThan(0);
 
   const samples = [baseline];
   let evaluations = 0;
@@ -108,14 +122,14 @@ test(`soak — ${MINUTES} minutes of continuous render, analysis, and evaluation
   while (Date.now() - started < DURATION_MS) {
     // Roughly four evaluations per second, which is faster than any human performs —
     // the point is to accumulate thousands of them, including the failing ones.
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < EDITS_PER_SAMPLE; i++) {
       const edit = EDITS[evaluations % EDITS.length];
       await page.evaluate(
         (source) => window.p5jsLive.evaluator.evaluate(source, { label: 'soak' }),
         edit(evaluations),
       );
       evaluations++;
-      await page.waitForTimeout(250);
+      await page.waitForTimeout(EDIT_INTERVAL_MS);
     }
     samples.push(await sample());
   }
@@ -127,6 +141,7 @@ test(`soak — ${MINUTES} minutes of continuous render, analysis, and evaluation
   expect(last.sameCanvas).toBe(true);
   expect(last.sameAudioContext).toBe(true);
   expect(last.sameDraw).toBe(true);
+  expect(last.sameSetup).toBe(true);
   expect(last.contextState).toBe('running');
   expect(last.audioPlaying).toBe(true);
 
@@ -134,6 +149,8 @@ test(`soak — ${MINUTES} minutes of continuous render, analysis, and evaluation
   expect(last.frameCount).toBeGreaterThan(baseline.frameCount);
   expect(last.hostTime).toBeGreaterThan(baseline.hostTime + elapsedSeconds * 0.9);
   expect(samples.every((s) => s.audioPlaying)).toBe(true);
+  expect(samples.every((s) => s.sceneName === 'soakScene' && s.sceneSize === 4)).toBe(true);
+  expect(samples.every((s) => s.ringsHealthy && s.motesTrail > 0)).toBe(true);
   expect(evaluations).toBeGreaterThan(100);
 
   // --- bounded structures ---------------------------------------------------------

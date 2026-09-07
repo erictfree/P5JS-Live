@@ -233,7 +233,5 @@ export function createProjection({ controller, onBlocked, onOpened }) {
     setLayout,
     setActiveCode,
     setCodeFontSize,
-    layout: () => layout,
-    LAYOUTS,
   };
 }

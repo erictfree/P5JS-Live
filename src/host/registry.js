@@ -267,10 +267,6 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     return name;
   }
 
-  function panic() {
-    return safeSceneName !== null && scenes.has(safeSceneName) ? activate(safeSceneName) : null;
-  }
-
   // --- snapshots ---------------------------------------------------------------
 
   function snapshotConfiguration() {
@@ -427,7 +423,6 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     activeSceneName: () => activeSceneName,
     sceneSource: (name) => sceneSources.get(name) ?? '',
     setSafeScene,
-    panic,
     safeSceneName: () => safeSceneName,
     snapshotConfiguration,
     restoreConfiguration,

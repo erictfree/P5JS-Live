@@ -2421,36 +2421,6 @@ export const RAVE_PATCH_NAMES = [
   'strobe',
 ];
 
-export const MODULAR_PATCH_NAMES = [
-  'roseWindow',
-  'waveTerrain',
-  'moireField',
-  'prismMirror',
-  'slowRotate',
-  'bassZoom',
-  'pixelDrift',
-  'neonInk',
-];
-
-export const STANDARD_EFFECT_NAMES = [
-  'transformFx',
-  'softBlur',
-  'edgeDetect',
-  'bloom',
-  'vignette',
-  'noiseWarp',
-  'rgbSplit',
-  'feedbackEcho',
-  'lumaMask',
-  'mirror',
-];
-
-export const DIAGNOSTIC_PATCH_NAMES = [
-  'waveform',
-  'frequencyBars',
-  'audioMeters',
-];
-
 /** Ready-made source that mixes all ten system library patches. */
 export const libraryDemoSource = () => `// %% scene stacked
 // Ten independently configurable patches, composited in array order.

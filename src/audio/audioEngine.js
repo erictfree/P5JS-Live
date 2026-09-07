@@ -26,7 +26,7 @@ function finiteUnit(value) {
   return Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
 }
 
-/** Preserve the legacy 0..255 FFT contract exposed to patches. */
+/** Scale normalized FFT values to the 0..255 spectrum exposed to patches. */
 function scaledSpectrum(values) {
   return Array.from(values ?? [], (value) => finiteUnit(value) * SPECTRUM_SCALE);
 }
@@ -61,8 +61,8 @@ function spectralCentroid(spectrum, sampleRate) {
 export function createAudioEngine({ diagnostics, platform = {} } = {}) {
   const features = createFeatureExtractor();
   const runtime = {
-    // p5.sound 0.4 installs these helpers on p5.prototype. Unlike the legacy
-    // bundle, p5 2 global mode does not also publish them as window globals.
+    // p5.sound installs these helpers on p5.prototype; p5 2 global mode does
+    // not publish them as window globals.
     audioContext: platform.audioContext ?? (() => p5.prototype.getAudioContext()),
     createAmplitude: platform.createAmplitude ?? (() => new p5.Amplitude()),
     createFFT: platform.createFFT ?? ((size) => new p5.FFT(size)),
@@ -126,14 +126,9 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
     // p5.sound 0.4's analyzer setInput() currently connects a native AudioNode
     // directly to a Tone.js object, which Chrome rejects. Every p5 sound source
     // and analyzer also exposes native output/input GainNodes, so use those as
-    // the stable interop boundary. Keep setInput for injected/legacy adapters.
-    if (node?.output?.connect && amplitude.input && fft.input) {
-      node.output.connect(amplitude.input);
-      node.output.connect(fft.input);
-      return;
-    }
-    amplitude.setInput(node);
-    fft.setInput(node);
+    // the stable interop boundary.
+    node.output.connect(amplitude.input);
+    node.output.connect(fft.input);
   }
 
   function discardSoundFile() {
@@ -229,26 +224,13 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
   async function loadFile(file, { onProgress } = {}) {
     const url = runtime.createObjectURL(file);
     try {
-      return await loadSource(url, file.name, { onProgress, performerLoop: true });
+      return await loadSource(url, file.name, onProgress);
     } finally {
       runtime.revokeObjectURL(url);
     }
   }
 
-  /**
-   * Load an audio asset shipped with the app. It uses the same analyzer path as a
-   * performer-selected file, so the welcome-loop can drive the visuals behind the
-   * source picker. The loop option belongs only to this asset and does not change the
-   * performer's transport preference for the next file they choose.
-   *
-   * @param {string} url
-   * @param {{ label?: string, loop?: boolean }} [options]
-   */
-  function loadUrl(url, { label = url, loop = false } = {}) {
-    return loadSource(url, label, { loop, performerLoop: false });
-  }
-
-  async function loadSource(url, label, { onProgress, loop = looping, performerLoop = false } = {}) {
+  async function loadSource(url, label, onProgress) {
     const request = ++sourceRequest;
     const report = () => onProgress?.(status());
     stopMic();
@@ -274,9 +256,9 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
         throw abortError();
       }
       soundFile = loaded;
-      applyLoop(soundFile, loop);
+      applyLoop(soundFile, looping);
       soundFile.onended?.(() => {
-        if (soundFile !== loaded || loop) return;
+        if (soundFile !== loaded || looping) return;
         playbackOffset = 0;
         playbackStartedAt = null;
         loaded.playing = false;
@@ -290,16 +272,14 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
       playbackStartedAt = null;
       route(loaded);
       features.reset();
-      if (performerLoop) {
-        diagnostics?.info(`Loaded ${label}`, `${loaded.duration().toFixed(1)}s`);
-      }
+      diagnostics?.info(`Loaded ${label}`, `${loaded.duration().toFixed(1)}s`);
       report();
       return loaded;
     } catch (error) {
       if (request !== sourceRequest || error?.name === 'AbortError') throw error;
       sourceKind = 'none';
       sourceLabel = 'none';
-      sourceError = performerLoop ? `Could not decode ${label}` : `Could not load ${label}`;
+      sourceError = `Could not decode ${label}`;
       loadPhase = null;
       loadProgress = null;
       diagnostics?.error(
@@ -487,12 +467,10 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
   return {
     init,
     loadFile,
-    loadUrl,
     unlock,
     useMicrophone,
     useSilence,
     listInputs,
-    stopMic,
     start,
     pause,
     toggle,

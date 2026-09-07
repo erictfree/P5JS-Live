@@ -433,19 +433,6 @@ const SPECS = Object.freeze({
   },
 });
 
-export const SHADER_TRANSFORM_OPERATORS = Object.freeze([
-  'transform', 'mirror', 'crop', 'noiseWarp',
-  'rotate', 'scale', 'pixelate', 'repeat', 'repeatX', 'repeatY',
-  'kaleid', 'scroll', 'scrollX', 'scrollY',
-]);
-
-export const SHADER_COLOR_OPERATORS = Object.freeze([
-  'blur', 'sharpen', 'edgeDetect', 'bloom', 'vignette', 'rgbSplit',
-  'feedback', 'lumaMask',
-  'posterize', 'shift', 'invert', 'contrast', 'brightness', 'luma', 'thresh',
-  'color', 'saturate', 'hue', 'colorama', 'sum', 'rgba',
-]);
-
 export const SHADER_BLEND_MODES = Object.freeze([
   'alpha', 'add', 'multiply', 'screen', 'overlay',
   'difference', 'subtract', 'lighten', 'darken',

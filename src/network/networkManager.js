@@ -678,8 +678,3 @@ export function getDefaultNetworkManager() {
   if (!defaultManager) defaultManager = createNetworkManager();
   return defaultManager;
 }
-
-export function setDefaultNetworkManager(manager) {
-  defaultManager?.dispose?.();
-  defaultManager = manager;
-}

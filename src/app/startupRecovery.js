@@ -38,18 +38,9 @@ export function evaluateStartupProject({
 
   let fallback = null;
   if (registry.activeSceneName() === null) {
-    if (registry.hasStrategy('plasma')) {
-      fallback = 'recovery';
-      const recoveryScene = `// %% scene recovery
-const recovery = [plasma];
-recovery.draw();`;
-      const recoveryResult = evaluator.evaluate(recoveryScene, { label: 'recovery scene' });
-      if (recoveryResult.ok) evaluator.applyPending();
-    } else {
-      fallback = 'starter';
-      const starterResult = evaluator.evaluate(starterSource, { label: 'recovery starter' });
-      if (starterResult.ok) evaluator.applyPending();
-    }
+    fallback = 'starter';
+    const starterResult = evaluator.evaluate(starterSource, { label: 'recovery starter' });
+    if (starterResult.ok) evaluator.applyPending();
   }
 
   return {

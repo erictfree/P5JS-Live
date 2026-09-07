@@ -11,65 +11,22 @@ const TWO_SCENES = `
   calm.draw();
 `;
 
-describe('safe scene and recovery', () => {
-  it('returns to the designated scene in one action', () => {
+describe('safe scene designation', () => {
+  it('records the active scene and refuses an unknown scene', () => {
     const h = createTestHost();
     h.evaluator.evaluate(TWO_SCENES);
     h.frame(3);
-
-    h.registry.setSafeScene(); // marks "calm", the active scene
-    h.evaluator.evaluate('chaos.draw();');
-    h.frame(3);
-    expect(h.registry.activeOrder()).toEqual(['safe', 'wild']);
-
-    expect(h.registry.panic()).toBe('calm');
-    h.frame(2);
-    expect(h.registry.activeOrder()).toEqual(['safe']);
-  });
-
-  it('does nothing at all beyond changing scene', () => {
-    const h = createTestHost();
-    h.evaluator.evaluate(TWO_SCENES);
-    h.frame(20);
-    h.registry.setSafeScene();
-    h.evaluator.evaluate('chaos.draw();');
-    h.frame(20);
-
-    const safeState = h.stateStore.get('safe');
-    const wildCount = h.stateStore.get('wild').n;
-    const safeVersion = h.registry.getStrategy('safe').version;
-
-    h.registry.panic();
-    h.frame(5);
-
-    // Panic must not reset state, bump versions, or re-evaluate anything — the
-    // performer has to be able to predict exactly what it does mid-show.
-    expect(h.stateStore.get('safe')).toBe(safeState);
-    expect(h.stateStore.get('wild').n).toBe(wildCount);
-    expect(h.registry.getStrategy('safe').version).toBe(safeVersion);
-  });
-
-  it('reports rather than throws when no safe scene has been set', () => {
-    const h = createTestHost();
-    h.evaluator.evaluate(TWO_SCENES);
-    h.frame(3);
-    expect(h.registry.safeSceneName()).toBe(null);
-    expect(h.registry.panic()).toBe(null);
-  });
-
-  it('refuses to designate a scene that does not exist', () => {
-    const h = createTestHost();
-    h.evaluator.evaluate(TWO_SCENES);
-    h.frame(3);
-    expect(h.registry.setSafeScene('nope')).toBe(null);
-    expect(h.registry.safeSceneName()).toBe(null);
+    expect(h.registry.safeSceneName()).toBeNull();
+    expect(h.registry.setSafeScene()).toBe('calm');
+    expect(h.registry.setSafeScene('nope')).toBeNull();
+    expect(h.registry.safeSceneName()).toBe('calm');
   });
 });
 
 describe('frame rate warning', () => {
   it('warns only after the frame rate stays low for five seconds', () => {
     const h = createTestHost({ fpsThreshold: 30 });
-    h.evaluator.evaluate('const a = { draw() {} };');
+    h.evaluator.evaluate('const a = { draw() {} }; const scene = [a]; scene.draw();');
 
     // 10 FPS. The window has to fill before any judgment is made.
     h.frame(60, { beat: false }, 1 / 10);
@@ -87,14 +44,14 @@ describe('frame rate warning', () => {
 
   it('warns once per episode, not once per frame', () => {
     const h = createTestHost({ fpsThreshold: 30 });
-    h.evaluator.evaluate('const a = { draw() {} };');
+    h.evaluator.evaluate('const a = { draw() {} }; const scene = [a]; scene.draw();');
     h.frame(600, { beat: false }, 1 / 10);
     expect(warnings(h)).toHaveLength(1);
   });
 
   it('says so when the frame rate recovers', () => {
     const h = createTestHost({ fpsThreshold: 30 });
-    h.evaluator.evaluate('const a = { draw() {} };');
+    h.evaluator.evaluate('const a = { draw() {} }; const scene = [a]; scene.draw();');
     h.frame(200, { beat: false }, 1 / 10);
     expect(warnings(h)).toHaveLength(1);
 
@@ -105,14 +62,14 @@ describe('frame rate warning', () => {
 
   it('never warns at a healthy frame rate', () => {
     const h = createTestHost({ fpsThreshold: 30 });
-    h.evaluator.evaluate('const a = { draw() {} };');
+    h.evaluator.evaluate('const a = { draw() {} }; const scene = [a]; scene.draw();');
     h.frame(1200);
     expect(warnings(h)).toHaveLength(0);
   });
 
   it('honours a changed threshold', () => {
     const h = createTestHost({ fpsThreshold: 30 });
-    h.evaluator.evaluate('const a = { draw() {} };');
+    h.evaluator.evaluate('const a = { draw() {} }; const scene = [a]; scene.draw();');
     h.host.setFpsThreshold(120); // now 60 FPS counts as slow
     h.frame(500);
     expect(warnings(h)).toHaveLength(1);
@@ -124,9 +81,12 @@ describe('dt is capped after a stall', () => {
     const h = createTestHost();
     const seen = [];
     globalThis.__dt = seen;
-    h.evaluator.evaluate('const a = { draw({ dt }) { __dt.push(dt); } };');
+    h.evaluator.evaluate('const a = { draw({ dt }) { __dt.push(dt); } }; const scene = [a]; scene.draw();');
     h.frame(2);
+    expect(seen).toHaveLength(1);
     h.frame(1, { beat: false }, 30); // a thirty-second stall
+    expect(seen).toHaveLength(2);
+    expect(seen.at(-1)).toBe(0.1);
     expect(Math.max(...seen)).toBeLessThanOrEqual(0.1);
     delete globalThis.__dt;
   });

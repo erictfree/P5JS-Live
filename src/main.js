@@ -784,7 +784,6 @@ document.getElementById('loop-performance-toggle').addEventListener('click', tog
 const deviceSelect = document.getElementById('input-device');
 
 async function startMicrophone(deviceId) {
-  const fromWelcome = !overlay.hidden;
   const ok = await audio.useMicrophone(deviceId);
   if (!ok) return false;
   finishEntry();

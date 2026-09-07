@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DIAGNOSTIC_PATCH_NAMES,
   LIBRARY,
-  MODULAR_PATCH_NAMES,
   RAVE_PATCH_NAMES,
-  STANDARD_EFFECT_NAMES,
   libraryDemoSource,
 } from '../../starter/library.js';
 import { ASCII_PLASMA_SOURCE } from '../../starter/ascii-plasma.js';
@@ -134,7 +131,7 @@ describe('the system patch library', () => {
   });
 
   it('ships eight small transparent remix layers that evaluate independently', () => {
-    expect(MODULAR_PATCH_NAMES).toEqual([
+    const MODULAR_PATCH_NAMES = [
       'roseWindow',
       'waveTerrain',
       'moireField',
@@ -143,7 +140,7 @@ describe('the system patch library', () => {
       'bassZoom',
       'pixelDrift',
       'neonInk',
-    ]);
+    ];
 
     const entries = new Map(LIBRARY.map((entry) => [entry.name, entry]));
     const drawings = MODULAR_PATCH_NAMES.slice(0, 3).map((name) => entries.get(name));
@@ -207,7 +204,7 @@ describe('the system patch library', () => {
 
   it('ships independently installable waveform, spectrum and feature diagnostics', () => {
     const entries = new Map(LIBRARY.map((entry) => [entry.name, entry]));
-    expect(DIAGNOSTIC_PATCH_NAMES).toEqual(['waveform', 'frequencyBars', 'audioMeters']);
+    const DIAGNOSTIC_PATCH_NAMES = ['waveform', 'frequencyBars', 'audioMeters'];
 
     for (const name of DIAGNOSTIC_PATCH_NAMES) {
       const entry = entries.get(name);
@@ -363,10 +360,10 @@ describe('the system patch library', () => {
   });
 
   it('ships ten installable standard effects with live controls and no backgrounds', () => {
-    expect(STANDARD_EFFECT_NAMES).toEqual([
+    const STANDARD_EFFECT_NAMES = [
       'transformFx', 'softBlur', 'edgeDetect', 'bloom', 'vignette',
       'noiseWarp', 'rgbSplit', 'feedbackEcho', 'lumaMask', 'mirror',
-    ]);
+    ];
     const entries = new Map(LIBRARY.map((entry) => [entry.name, entry]));
     const h = createTestHost();
 

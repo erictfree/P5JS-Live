@@ -100,7 +100,7 @@ export function createHostLoop({
         visit(node.children);
       }
     };
-    visit(registry.activeTree?.());
+    visit(registry.activeTree());
     return ids;
   }
 
@@ -233,7 +233,7 @@ export function createHostLoop({
         }
       }
     };
-    visit(registry.activeTree?.() ?? registry.activeStrategies());
+    visit(registry.activeTree());
   }
 
   /** A committed strategy that throws every frame must not flood history or memory. */
@@ -380,7 +380,6 @@ export function createHostLoop({
   return {
     beginFrame,
     drawScene,
-    drawStrategy,
     commitPendingChanges,
     reset,
     fps,

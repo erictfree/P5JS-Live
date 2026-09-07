@@ -165,10 +165,7 @@ export function createStateStore({ diagnostics } = {}) {
     resetStrategy,
     snapshotAll,
     restoreAll,
-    instancesOf,
     get: (id) => states.get(id),
-    has: (id) => states.has(id),
-    remove: (id) => states.delete(id),
     clear: () => states.clear(),
     names: () => [...states.keys()],
   };

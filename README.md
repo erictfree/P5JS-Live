@@ -287,6 +287,9 @@ npm run build
 npm run preview
 ```
 
+`scripts/build-hosted.mjs` lists the media files included in a deployment. Add new
+runtime media there; historical artwork stays in the repository without being shipped.
+
 `dist/` is the Workers static-assets directory. `npm run deploy` builds it and runs
 `wrangler deploy`. The custom domain is configured in Cloudflare, not in this repository.
 Network streaming is currently disabled in the interface. Its beta implementation uses

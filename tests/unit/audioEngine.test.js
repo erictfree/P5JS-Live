@@ -14,6 +14,7 @@ function deferred() {
 function mockSoundFile(duration = 10) {
   let playing = false;
   return {
+    output: { connect: vi.fn() },
     speed: 1,
     paused: false,
     playing: false,
@@ -67,10 +68,10 @@ function testPlatform(overrides = {}) {
       createObjectURL: vi.fn(() => 'blob:test-audio'),
       revokeObjectURL: vi.fn(),
       startAudio: vi.fn(async () => {}),
-      createAmplitude: vi.fn(() => ({ setInput: vi.fn(), getLevel: () => 0 })),
+      createAmplitude: vi.fn(() => ({ input: {}, getLevel: () => 0 })),
       createFFT: vi.fn(() => ({
         analyzer: { smoothing: 0 },
-        setInput: vi.fn(),
+        input: {},
         analyze: () => new Float32Array(1024),
         waveform: () => new Float32Array(1024),
       })),
@@ -100,10 +101,10 @@ describe('p5.sound 0.4 audio integration', () => {
   it('preserves the patch-facing 0..255 spectrum and named FFT bands', async () => {
     const { platform } = testPlatform({
       platform: {
-        createAmplitude: vi.fn(() => ({ setInput: vi.fn(), getLevel: () => 0.25 })),
+        createAmplitude: vi.fn(() => ({ input: {}, getLevel: () => 0.25 })),
         createFFT: vi.fn(() => ({
           analyzer: { smoothing: 0 },
-          setInput: vi.fn(),
+          input: {},
           analyze: () => new Float32Array(1024).fill(0.5),
           waveform: () => new Float32Array([-1, 0, 1]),
         })),
@@ -111,7 +112,7 @@ describe('p5.sound 0.4 audio integration', () => {
     });
     const engine = createAudioEngine({ platform });
     engine.init();
-    await engine.loadUrl('/assets/sounds/intro.mp3');
+    await engine.loadFile(namedFile('set.mp3'));
 
     const snapshot = engine.readFrame();
 
@@ -138,13 +139,11 @@ describe('p5.sound 0.4 audio integration', () => {
       platform: {
         createAmplitude: vi.fn(() => ({
           input: amplitudeInput,
-          setInput: vi.fn(),
           getLevel: () => 0,
         })),
         createFFT: vi.fn(() => ({
           input: fftInput,
           analyzer: { smoothing: 0 },
-          setInput: vi.fn(),
           analyze: () => new Float32Array(1024),
           waveform: () => new Float32Array(1024),
         })),
@@ -153,7 +152,7 @@ describe('p5.sound 0.4 audio integration', () => {
     const engine = createAudioEngine({ platform });
 
     engine.init();
-    await engine.loadUrl('/audio.wav');
+    await engine.loadFile(namedFile('audio.wav'));
 
     expect(sourceOutput.connect).toHaveBeenNthCalledWith(1, amplitudeInput);
     expect(sourceOutput.connect).toHaveBeenNthCalledWith(2, fftInput);
@@ -225,28 +224,29 @@ describe('audio file loading status', () => {
   });
 });
 
-describe('built-in audio sources', () => {
-  it('loads a looping preview without changing the performer loop preference', async () => {
-    const { platform, loaded } = testPlatform({ loaded: mockSoundFile(8) });
+describe('audio source replacement', () => {
+  it('uses the current loop setting after decoding and when playback ends', async () => {
+    const decoding = deferred();
+    const { platform, context, loaded } = testPlatform();
+    context.decodeAudioData = vi.fn(() => decoding.promise);
     const engine = createAudioEngine({ platform });
 
-    await expect(engine.loadUrl('/assets/sounds/intro.mp3', {
-      label: 'intro loop',
-      loop: true,
-    })).resolves.toBe(loaded);
+    const pending = engine.loadFile(namedFile('set.mp3'));
+    await vi.waitFor(() => expect(context.decodeAudioData).toHaveBeenCalledOnce());
+    engine.setLoop(true);
+    decoding.resolve({ decoded: true });
+    await pending;
+    expect(loaded.loop).toHaveBeenLastCalledWith(true);
 
-    expect(platform.fetch).toHaveBeenCalledWith('/assets/sounds/intro.mp3');
-    expect(loaded.loop).toHaveBeenCalledWith(true);
-    expect(engine.status()).toMatchObject({
-      source: 'intro loop',
-      loaded: true,
-      looping: false,
-    });
-
-    engine.useSilence();
-    expect(loaded.stop).not.toHaveBeenCalled();
-    expect(loaded.dispose).toHaveBeenCalledOnce();
-    expect(engine.status()).toMatchObject({ source: 'none', loaded: false, playing: false });
+    await engine.start();
+    context.currentTime = 4;
+    engine.pause();
+    const ended = loaded.onended.mock.calls[0][0];
+    ended();
+    expect(engine.status().position).toBe(4);
+    engine.setLoop(false);
+    ended();
+    expect(engine.status().position).toBe(0);
   });
 
   it('cannot overwrite a later source when decoding finishes late', async () => {
@@ -255,7 +255,7 @@ describe('built-in audio sources', () => {
     context.decodeAudioData = vi.fn(() => decoding.promise);
     const engine = createAudioEngine({ platform });
 
-    const pending = engine.loadUrl('/assets/sounds/intro.mp3');
+    const pending = engine.loadFile(namedFile('set.mp3'));
     await vi.waitFor(() => expect(context.decodeAudioData).toHaveBeenCalledOnce());
     engine.useSilence();
     decoding.resolve({ decoded: true });

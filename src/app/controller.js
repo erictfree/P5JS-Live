@@ -468,11 +468,6 @@ export function createAppController({
     restoreSafeState() {
       return restoreSafeSnapshot();
     },
-
-    panic() {
-      const result = restoreSafeSnapshot();
-      return result.ok ? result.sceneName : null;
-    },
   });
 
   return {

@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { evaluateStartupProject } from '../../src/app/startupRecovery.js';
 import { createTestHost } from './helpers.js';
 
-const STARTER = `// %% patch plasma
-const plasma = { draw() {} };
+const STARTER = `// %% patch myPatch
+const myPatch = { draw() {} };
 
 // %% scene scene
-const scene = [plasma];
+const scene = [myPatch];
 scene.draw();`;
 
 describe('startup project recovery', () => {
@@ -20,7 +20,7 @@ describe('startup project recovery', () => {
     });
 
     expect(result).toMatchObject({ ok: true, recovered: false });
-    expect(h.registry.activeOrder()).toEqual(['plasma']);
+    expect(h.registry.activeOrder()).toEqual(['myPatch']);
   });
 
   it('recovers valid installed cells and supplies a visible fallback scene', () => {
@@ -44,10 +44,10 @@ show.draw();`;
     expect(result).toMatchObject({ ok: true, recovered: true, fallback: 'starter' });
     expect(result.failedBlocks).toContain('patch broken');
     expect(h.registry.hasStrategy('valid')).toBe(true);
-    expect(h.registry.activeOrder()).toEqual(['plasma']);
+    expect(h.registry.activeOrder()).toEqual(['myPatch']);
   });
 
-  it('uses a recovered plasma binding without replacing other valid patches', () => {
+  it('uses the current starter even when a recovered patch has the old demo name', () => {
     const h = createTestHost();
     const source = `// %% patch plasma
 const plasma = { draw() {} };
@@ -68,8 +68,9 @@ show.draw();`;
       ...h,
     });
 
-    expect(result).toMatchObject({ ok: true, recovered: true, fallback: 'recovery' });
+    expect(result).toMatchObject({ ok: true, recovered: true, fallback: 'starter' });
     expect(h.registry.hasStrategy('another')).toBe(true);
-    expect(h.registry.activeOrder()).toEqual(['plasma']);
+    expect(h.registry.hasStrategy('plasma')).toBe(true);
+    expect(h.registry.activeOrder()).toEqual(['myPatch']);
   });
 });

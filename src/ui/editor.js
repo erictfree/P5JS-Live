@@ -1569,7 +1569,6 @@ export function createEditor(textarea, handlers) {
     set value(next) {
       replaceProjectSource(next);
     },
-    replaceProjectSource,
     focus: () => textarea.focus(),
     setFolded,
     foldAll,
@@ -1580,21 +1579,18 @@ export function createEditor(textarea, handlers) {
     stageSource,
     cancelStagedSource,
     acceptStagedSource,
-    evaluateCursorBlock,
     evaluateBuffer,
     hasPendingEvaluation: feedback.hasPending,
     evaluationFrame(snapshot) { feedback.frame(snapshot); refreshFeedback(); },
     evaluationError(name, error) { feedback.error(name, error); },
     rememberAppliedSource(source) { feedback.remember(source); refreshFeedback(); },
     updateRuntime(snapshot) { feedback.updateRuntime(snapshot); refreshFeedback(); },
-    tidyCursorBlock,
     refreshLayout() {
       foldControlSignature = '';
       foldedSource = null;
       syncMirror();
     },
     flashCodeError,
-    appendSource,
     insertPatchSource,
     insertControlDeclaration,
     replaceNamedBlock,
@@ -1628,17 +1624,6 @@ export function createEditor(textarea, handlers) {
       const description = block ? describeBlock(block.text) : '';
       const match = /^patch\s+([A-Za-z_$][\w$]*)$/.exec(description);
       return match ? { name: match[1], source: block.text.trimEnd() } : null;
-    },
-    /** Focus the binding that defines a strategy without changing source. */
-    revealProperty(name, property) {
-      const target = findBlocks(textarea.value).find((block) => isPatchBlock(block, name));
-      if (!target) return false;
-      const escaped = property.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const match = new RegExp(`^[ \\t]*${escaped}\\s*[:=]\\s*([-+]?\\d+(?:\\.\\d+)?)`, 'm').exec(target.text);
-      if (!match) return false;
-      const start = target.start + match.index + match[0].lastIndexOf(match[1]);
-      revealRange(start, start + match[1].length);
-      return true;
     },
     revealStrategy(name) {
       const sceneName = inlineSceneName(name);

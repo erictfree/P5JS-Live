@@ -174,6 +174,10 @@ bindings, active scene and order, parameters, controller mappings, and clone-com
 The first successful starter or saved scene becomes the initial checkpoint. **Set
 safe** replaces it only after success. Restore reports state it could not clone.
 
+On startup, failed saved source is recovered cell by cell. If no scene can be
+selected, recovery evaluates the configured starter through the same evaluator.
+Recovery does not reserve or recognize particular patch names.
+
 ## External controllers
 
 The host-level `controlManager` requests Web MIDI only after an explicit user action.

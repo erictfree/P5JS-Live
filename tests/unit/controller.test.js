@@ -127,7 +127,7 @@ const broken = { draw() { ((( } };`);
     h.controller.dispose();
   });
 
-  it('dispatches reset, parameter, safe-state, and panic actions', () => {
+  it('dispatches reset, parameter, and safe-state recovery actions', () => {
     const h = setup();
     h.evaluator.evaluate(`
       const counter = {
@@ -150,7 +150,7 @@ const broken = { draw() { ((( } };`);
     h.evaluator.evaluate('empty.draw();');
     h.frame(2);
     expect(h.registry.activeSceneName()).toBe('empty');
-    expect(h.controller.actions.panic()).toBe('safe');
+    expect(h.controller.actions.restoreSafeState()).toMatchObject({ ok: true, sceneName: 'safe' });
     // Recovery now restores the parameter value captured with the safe state,
     // rather than only switching back to a scene name.
     expect(h.controller.snapshot().params[0].value).toBe(1);
