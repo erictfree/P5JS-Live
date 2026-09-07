@@ -7,6 +7,71 @@ async function openAudio(page) {
   await page.keyboard.press('Control+Backslash');
   await page.locator('#tools-tab-audio').click();
 }
+
+test('timing menu stays stable during meter updates and dismisses on outside click', async ({ page }) => {
+  await openAudio(page);
+  await page.locator('#rhythm-tap').click();
+  const source = page.locator('#rhythm-source');
+  await expect(source).toHaveValue('manual');
+  await source.click();
+  await expect.poll(() => source.evaluate(select => select.matches(':open'))).toBe(true);
+  // Observe several real meter ticks with the native menu open. Rewriting even
+  // unchanged option text/attributes can keep macOS rebuilding the popup.
+  const mutations = await page.evaluate(() => new Promise(resolve => {
+    const select = document.getElementById('rhythm-source');
+    const phase = document.getElementById('rhythm-phase');
+    let ticks = 0, menuChanges = 0;
+    const observer = new MutationObserver(records => {
+      for (const record of records) {
+        if (record.target === phase) ticks++;
+        else menuChanges++;
+      }
+      if (ticks >= 8) { observer.disconnect(); resolve(menuChanges); }
+    });
+    observer.observe(select, { subtree: true, childList: true, attributes: true, characterData: true });
+    observer.observe(phase, { attributes: true, attributeFilter: ['value'] });
+  }));
+  expect(mutations).toBe(0);
+  await page.locator('#rhythm-bpm').click();
+  await expect.poll(() => source.evaluate(select => select.matches(':open'))).toBe(false);
+  await expect(page.locator('#rhythm-bpm')).toBeFocused();
+  await expect(page.locator('#side')).not.toHaveClass(/is-hidden/);
+  await expect(source).toHaveValue('manual');
+  // macOS native menus do not receive Playwright's synthetic key events (also
+  // verified on a plain select). Check that Astra leaves Escape's default action
+  // intact if it reaches the page, and verify choices through selectOption.
+  await source.focus();
+  expect(await source.evaluate(select => select.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'Escape', bubbles: true, cancelable: true,
+  })))).toBe(true);
+  await expect(page.locator('#side')).not.toHaveClass(/is-hidden/);
+  await source.selectOption('off');
+  await expect.poll(() => page.evaluate(() => p5jsLive.rhythm.settings().source)).toBe('off');
+  await source.selectOption('manual');
+  await expect.poll(() => page.evaluate(() => p5jsLive.rhythm.settings().source)).toBe('manual');
+});
+
+test('timing menu applies a changed Auto gate after focus leaves', async ({ page }) => {
+  await page.goto('/live/');
+  await page.getByRole('button', { name: 'Start silent' }).click();
+  await page.keyboard.press('Control+Backslash'); await page.locator('#tools-tab-audio').click();
+  // Model recalling a previously saved Auto performance, then Manual, while
+  // timing has focus. Deferred rendering must not leave the old choice behind.
+  await page.evaluate(() => p5jsLive.rhythm.configure({ source: 'auto' }));
+  const source = page.locator('#rhythm-source');
+  const auto = source.locator('option[value="auto"]');
+  await expect(source).toHaveValue('auto');
+  await expect(auto).toHaveJSProperty('disabled', false);
+  await source.focus();
+  await page.evaluate(() => p5jsLive.rhythm.configure({ source: 'manual' }));
+  await expect(page.locator('#rhythm-status')).toHaveText('Manual');
+  await expect(auto).toHaveJSProperty('disabled', false);
+  await source.press('Tab');
+  await expect(source).toHaveValue('manual');
+  await expect(auto).toHaveJSProperty('disabled', true);
+  await expect(auto).toHaveText('Auto · in validation');
+});
+
 test('manual timing, editor focus, Motion Lab, and settings survive reload', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await openAudio(page);

@@ -1007,6 +1007,8 @@ function toggleVisualDimmer(force) {
 for (const drawer of [side, referenceSide]) {
   drawer.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    // Let a native select dismiss its own popup before closing the drawer.
+    if (event.target.tagName === 'SELECT') return;
     event.preventDefault();
     event.stopPropagation();
     if (drawer === side) toggleTools(true);

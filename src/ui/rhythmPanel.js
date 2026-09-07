@@ -2,13 +2,16 @@
 export function createRhythmPanel(controller) {
   const el = id => document.getElementById(id);
   const preview = new URLSearchParams(location.search).get('tempoPreview') === '1';
+  const sourceSelect = el('rhythm-source');
+  const autoOption = sourceSelect.querySelector('[value="auto"]');
   let localError = '';
   function action(fn) {
     try { fn(); localError = ''; }
     catch (error) { localError = error.message; }
     render(controller.performanceSnapshot());
   }
-  el('rhythm-source').addEventListener('change', event => action(() => controller.actions.setRhythm({ source: event.target.value })));
+  sourceSelect.addEventListener('change', event => action(() => controller.actions.setRhythm({ source: event.target.value })));
+  sourceSelect.addEventListener('blur', () => render(controller.performanceSnapshot()));
   el('rhythm-bpm').addEventListener('change', event => action(() => controller.actions.setRhythm({ source: 'manual', bpm: Number(event.target.value) })));
   for (const id of ['rhythm-tap', 'toolbar-tap']) el(id).addEventListener('click', () => action(() => controller.actions.tapTempo()));
   el('rhythm-half').addEventListener('click', () => action(() => controller.actions.multiplyTempo(0.5)));
@@ -18,10 +21,15 @@ export function createRhythmPanel(controller) {
   function render(live) {
     if (!live.clock || !live.rhythmSettings) return;
     const clock = live.clock, settings = live.rhythmSettings;
-    const autoOption = el('rhythm-source').querySelector('[value="auto"]');
-    autoOption.disabled = !preview && settings.source !== 'auto';
-    autoOption.textContent = preview || settings.source === 'auto' ? 'Auto · experimental' : 'Auto · in validation';
-    if (document.activeElement !== el('rhythm-source')) el('rhythm-source').value = settings.source;
+    // Native menus can rebuild while open when their options are mutated. Meter
+    // ticks must leave the menu alone; apply deferred settings when focus leaves.
+    if (document.activeElement !== sourceSelect) {
+      const disabled = !preview && settings.source !== 'auto';
+      const label = disabled ? 'Auto · in validation' : 'Auto · experimental';
+      if (autoOption.disabled !== disabled) autoOption.disabled = disabled;
+      if (autoOption.textContent !== label) autoOption.textContent = label;
+      if (sourceSelect.value !== settings.source) sourceSelect.value = settings.source;
+    }
     if (document.activeElement !== el('rhythm-bpm')) el('rhythm-bpm').value = settings.source === 'auto' ? (clock.bpm?.toFixed(1) ?? '') : settings.bpm.toFixed(1);
     el('rhythm-bpm').placeholder = 'Listening';
     const labels = { off: 'Off', listening: 'Listening', running: settings.source === 'auto' ? 'Tracking' : 'Manual', holding: 'Holding', lost: 'Lost' };
