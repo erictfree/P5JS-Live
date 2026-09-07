@@ -1,9 +1,8 @@
 // Rhythm UI receives clock snapshots and controller actions.
 export function createRhythmPanel(controller) {
   const el = id => document.getElementById(id);
-  const preview = new URLSearchParams(location.search).get('tempoPreview') === '1';
   const sourceSelect = el('rhythm-source');
-  const autoOption = sourceSelect.querySelector('[value="auto"]');
+  const algorithmSelect = el('rhythm-algorithm');
   let localError = '';
   const tapButtons = ['rhythm-tap', 'toolbar-tap'].map(el);
   const clockDot = el('rhythm-clock-dot');
@@ -26,6 +25,8 @@ export function createRhythmPanel(controller) {
   }
   sourceSelect.addEventListener('change', event => action(() => controller.actions.setRhythm({ source: event.target.value })));
   sourceSelect.addEventListener('blur', () => render(controller.performanceSnapshot()));
+  algorithmSelect.addEventListener('change', event => action(() => controller.actions.setRhythm({ algorithm: event.target.value })));
+  algorithmSelect.addEventListener('blur', () => render(controller.performanceSnapshot()));
   el('rhythm-bpm').addEventListener('change', event => action(() => controller.actions.setRhythm({ source: 'manual', bpm: Number(event.target.value) })));
   function tapTempo() {
     action(() => controller.actions.tapTempo());
@@ -51,12 +52,14 @@ export function createRhythmPanel(controller) {
     // Native menus can rebuild while open when their options are mutated. Meter
     // ticks must leave the menu alone; apply deferred settings when focus leaves.
     if (document.activeElement !== sourceSelect) {
-      const disabled = !preview && settings.source !== 'auto';
-      const label = disabled ? 'Auto · in validation' : 'Auto · experimental';
-      if (autoOption.disabled !== disabled) autoOption.disabled = disabled;
-      if (autoOption.textContent !== label) autoOption.textContent = label;
       if (sourceSelect.value !== settings.source) sourceSelect.value = settings.source;
     }
+    el('rhythm-auto-options').hidden = settings.source !== 'auto';
+    if (document.activeElement !== algorithmSelect && algorithmSelect.value !== settings.algorithm) algorithmSelect.value = settings.algorithm;
+    const help = settings.algorithm === 'plp'
+      ? 'Follows the repeating pulse through extra hits and missing beats.'
+      : 'Fits a beat grid to detected hits. Try it for clear percussion.';
+    if (el('rhythm-algorithm-help').textContent !== help) el('rhythm-algorithm-help').textContent = help;
     if (document.activeElement !== el('rhythm-bpm')) el('rhythm-bpm').value = settings.source === 'auto' ? (clock.bpm?.toFixed(1) ?? '') : settings.bpm.toFixed(1);
     el('rhythm-bpm').placeholder = 'Listening';
     const labels = { off: 'Off', listening: 'Listening', running: settings.source === 'auto' ? 'Tracking' : 'Manual', holding: 'Holding', lost: 'Lost' };

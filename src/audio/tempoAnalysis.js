@@ -37,7 +37,7 @@ export function createTempoAnalysis({ rhythm, getSource, now = () => performance
         rhythm.receiveEstimate({ ...data, at: data.at + offset, beatAt: data.beatAt + offset }, generation);
       };
       worker.onerror = () => { stop(); rhythm.fail('Automatic timing stopped. Choose Manual or retry Auto.'); };
-      worker.postMessage({ port: node.port }, [node.port]);
+      worker.postMessage({ port: node.port, algorithm: rhythm.settings().algorithm }, [node.port]);
       node.connect(info.context.destination);
       info.source.connect(node);
       pending = null;

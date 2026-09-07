@@ -295,14 +295,16 @@ describe('project rhythm settings', () => {
     const { registry, storage } = setup();
     const rhythm = createRhythmManager({ now: () => 0 });
     const store = createProjectStore({ registry, storage, rhythm });
-    rhythm.configure({ source: 'manual', bpm: 137 });
+    rhythm.configure({ source: 'manual', bpm: 137, algorithm: 'grid' });
     const text = store.exportProject('const scene = []; scene.draw();');
     const parsed = store.parseProject(text);
-    expect(parsed.data.rhythm).toEqual({ source: 'manual', bpm: 137, multiplier: 1 });
+    expect(parsed.data.rhythm).toEqual({ source: 'manual', bpm: 137, multiplier: 1, algorithm: 'grid' });
     rhythm.configure({ source: 'off' }); store.restoreSettings(parsed.data);
     expect(rhythm.settings().source).toBe('manual');
     const invalid = JSON.parse(text); invalid.rhythm.bpm = 0;
     expect(store.parseProject(JSON.stringify(invalid)).ok).toBe(false);
     expect(rhythm.settings().bpm).toBe(137);
+    invalid.rhythm.bpm = 137; invalid.rhythm.algorithm = 'missing';
+    expect(store.parseProject(JSON.stringify(invalid)).ok).toBe(false);
   });
 });

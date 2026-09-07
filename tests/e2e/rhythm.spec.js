@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { rhythmSamples, waveFile } from '../fixtures/rhythm-audio.js';
 async function openAudio(page) {
-  await page.goto('/live/?tempoPreview=1');
+  await page.goto('/live/');
   await page.getByRole('button', { name: 'Start silent' }).click();
   await page.keyboard.press('Escape');
   await page.keyboard.press('Control+Backslash');
@@ -51,25 +51,37 @@ test('timing menu stays stable during meter updates and dismisses on outside cli
   await expect.poll(() => page.evaluate(() => p5jsLive.rhythm.settings().source)).toBe('manual');
 });
 
-test('timing menu applies a changed Auto gate after focus leaves', async ({ page }) => {
-  await page.goto('/live/');
-  await page.getByRole('button', { name: 'Start silent' }).click();
-  await page.keyboard.press('Control+Backslash'); await page.locator('#tools-tab-audio').click();
-  // Model recalling a previously saved Auto performance, then Manual, while
-  // timing has focus. Deferred rendering must not leave the old choice behind.
-  await page.evaluate(() => p5jsLive.rhythm.configure({ source: 'auto' }));
+test('Auto is available normally and algorithm menu stays stable and applies recalled settings after blur', async ({ page }) => {
+  await openAudio(page);
   const source = page.locator('#rhythm-source');
-  const auto = source.locator('option[value="auto"]');
-  await expect(source).toHaveValue('auto');
-  await expect(auto).toHaveJSProperty('disabled', false);
-  await source.focus();
-  await page.evaluate(() => p5jsLive.rhythm.configure({ source: 'manual' }));
-  await expect(page.locator('#rhythm-status')).toHaveText('Manual');
-  await expect(auto).toHaveJSProperty('disabled', false);
-  await source.press('Tab');
-  await expect(source).toHaveValue('manual');
-  await expect(auto).toHaveJSProperty('disabled', true);
-  await expect(auto).toHaveText('Auto · in validation');
+  await expect(page.locator('#rhythm-auto-options')).toBeHidden();
+  await source.selectOption('auto');
+  const algorithm = page.locator('#rhythm-algorithm');
+  await expect(algorithm).toHaveValue('plp');
+  await algorithm.click();
+  await expect.poll(() => algorithm.evaluate(select => select.matches(':open'))).toBe(true);
+  const changes = await page.evaluate(() => new Promise(resolve => {
+    const select = document.getElementById('rhythm-algorithm');
+    const phase = document.getElementById('rhythm-phase');
+    let ticks = 0, changes = 0;
+    const observer = new MutationObserver(records => {
+      for (const record of records) record.target === phase ? ticks++ : changes++;
+      if (ticks >= 8) { observer.disconnect(); resolve(changes); }
+    });
+    observer.observe(select, { subtree: true, childList: true, attributes: true, characterData: true });
+    observer.observe(phase, { attributes: true });
+  }));
+  expect(changes).toBe(0);
+  await page.locator('#rhythm-bpm').click();
+  await expect.poll(() => algorithm.evaluate(select => select.matches(':open'))).toBe(false);
+  await algorithm.focus();
+  await page.evaluate(() => p5jsLive.rhythm.configure({ algorithm: 'grid' }));
+  await expect(algorithm).toHaveValue('plp');
+  await algorithm.press('Tab');
+  await expect(algorithm).toHaveValue('grid');
+  await expect(page.locator('#rhythm-algorithm-help')).toContainText('detected hits');
+  await source.selectOption('manual');
+  await expect(page.locator('#rhythm-auto-options')).toBeHidden();
 });
 
 test('manual timing, editor focus, Motion Lab, and settings survive reload', async ({ page }) => {
@@ -102,26 +114,61 @@ test('manual timing, editor focus, Motion Lab, and settings survive reload', asy
   expect(errors).toEqual([]);
 });
 
-test('automatic tracking uses actual audio samples and releases the source cleanly', async ({ page }) => {
+test('both automatic algorithms track real PCM, switch live, persist selection, and release the source', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await openAudio(page);
-  await page.locator('#audio-file-2').setInputFiles({ name: 'pulse-123.wav', mimeType: 'audio/wav', buffer: waveFile(rhythmSamples({ bpm: 123, seconds: 20 })) });
+  await page.evaluate(() => {
+    const original = AudioBufferSourceNode.prototype.start;
+    AudioBufferSourceNode.prototype.start = function (when = 0, offset = 0, ...rest) {
+      if (Math.abs(this.buffer?.duration - 50) < 0.01) {
+        window.__fixtureStart = { at: Math.max(when, this.context.currentTime), offset };
+        AudioBufferSourceNode.prototype.start = original;
+      }
+      return original.call(this, when, offset, ...rest);
+    };
+  });
+  await page.locator('#audio-file-2').setInputFiles({ name: 'pulse-123.wav', mimeType: 'audio/wav', buffer: waveFile(rhythmSamples({ bpm: 123, seconds: 50 })) });
   await expect.poll(() => page.evaluate(() => p5jsLive.audio.status().playing)).toBe(true);
   await page.locator('#rhythm-source').selectOption('auto');
-  await expect.poll(() => page.evaluate(() => p5jsLive.rhythm.snapshot().status), { timeout: 14000 }).toBe('running');
-  expect(await page.evaluate(() => Math.abs(p5jsLive.rhythm.snapshot().bpm - 123))).toBeLessThan(2.46);
+  for (const algorithm of ['plp', 'grid', 'plp']) {
+    await page.locator('#rhythm-algorithm').selectOption(algorithm);
+    await expect.poll(() => page.evaluate(() => p5jsLive.rhythm.snapshot().status), { timeout: 14000 }).toBe('running');
+    expect(await page.evaluate(() => Math.abs(p5jsLive.rhythm.snapshot().bpm - 123))).toBeLessThan(2.46);
+    // Check the visible beat light against known PCM beat positions after phase
+    // correction settles, not just the worker's retrospective beat timestamps.
+    const errors = await page.evaluate(() => new Promise(resolve => {
+      const button = document.getElementById('toolbar-tap');
+      const start = performance.now(), errors = [];
+      const observer = new MutationObserver(() => {
+        if (!button.classList.contains('is-beating') || performance.now() - start < 1500) return;
+        // Use the native PCM start; p5/Tone may schedule playback ahead of the
+        // UI's reported start position. Neither worker output nor UI time is ground truth.
+        const position = p5.prototype.getAudioContext().currentTime - window.__fixtureStart.at + window.__fixtureStart.offset;
+        const beat = (position - 0.25) * 123 / 60;
+        errors.push(Math.abs(beat - Math.round(beat)) * 60 / 123);
+        if (errors.length === 3) { observer.disconnect(); resolve(errors); }
+      });
+      observer.observe(button, { attributes: true, attributeFilter: ['class'] });
+    }));
+    console.log(`${algorithm} visible beat timing errors (ms): ${errors.map(e => (e * 1000).toFixed(1)).join(', ')}`);
+    expect([...errors].sort((a, b) => a - b)[1]).toBeLessThan(0.09);
+  }
+  await page.locator('#rhythm-algorithm').selectOption('grid');
   await page.evaluate(() => p5jsLive.audio.useSilence());
   await expect.poll(() => page.evaluate(() => p5jsLive.rhythm.snapshot().running)).toBe(false);
   await page.locator('#rhythm-source').selectOption('manual');
   await expect.poll(() => page.evaluate(() => p5jsLive.rhythm.snapshot().running)).toBe(true);
+  await page.evaluate(() => p5jsLive.projectStore.save(p5jsLive.editor.value));
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => p5jsLive.rhythm.settings())).toMatchObject({ source: 'manual', algorithm: 'grid' });
   expect(errors).toEqual([]);
 });
 
-test('tap shortcut leaves typing alone, button Space does not toggle audio, and normal Auto is gated', async ({ page }) => {
+test('tap shortcut leaves typing alone and button Space does not toggle audio', async ({ page }) => {
   await page.goto('/live/');
   await page.getByRole('button', { name: 'Start silent' }).click();
   await page.keyboard.press('Control+Backslash'); await page.locator('#tools-tab-audio').click();
-  await expect(page.locator('#rhythm-source option[value="auto"]')).toHaveJSProperty('disabled', true);
+  await expect(page.locator('#rhythm-source option[value="auto"]')).toHaveJSProperty('disabled', false);
   await page.locator('#rhythm-bpm').focus(); await page.keyboard.press('t');
   expect(await page.evaluate(() => p5jsLive.rhythm.settings().source)).toBe('off');
   await page.locator('#rhythm-tap').focus();
@@ -265,7 +312,7 @@ test('discarded signal definitions can be collected after repeated live edits', 
   await cdp.detach();
 });
 
-test('preview analysis keeps the same scene within the frame-time budget', async ({ page }) => {
+test('Pulse analysis keeps the same scene within the frame-time budget', async ({ page }) => {
   await openAudio(page);
   await page.locator('#audio-file-2').setInputFiles({ name: 'pulse-123.wav', mimeType: 'audio/wav', buffer: waveFile(rhythmSamples({ bpm: 123, seconds: 30 })) });
   await page.locator('#run-motion-lab').click();
@@ -298,12 +345,14 @@ test('preview analysis keeps the same scene within the frame-time budget', async
   const auto = await sample();
   await page.screenshot({ path: '/tmp/astra-motion-lab.png' });
   expect(auto).toBeLessThanOrEqual(off * 1.05);
-  console.log(`Tempo preview frame time: Off ${off.toFixed(2)} ms; Auto ${auto.toFixed(2)} ms`);
+  console.log(`Pulse frame time: Off ${off.toFixed(2)} ms; Auto ${auto.toFixed(2)} ms`);
 });
 
 test('Rhythm controls fit compact Tools without horizontal page scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openAudio(page);
+  await page.locator('#rhythm-source').selectOption('auto');
+  await expect(page.locator('#rhythm-algorithm')).toBeInViewport();
   const tap = await page.locator('#toolbar-tap').boundingBox();
   expect(tap.x).toBeGreaterThanOrEqual(0);
   expect(tap.x + tap.width).toBeLessThanOrEqual(390);

@@ -398,7 +398,11 @@ scene.draw();</code></pre><p><code>[waveScope, laserFan].rotate(0, 0.2)</code> r
               <section class="rhythm-section" aria-labelledby="rhythm-title">
                 <div class="signal-heading"><h3 id="rhythm-title">Rhythm</h3><span id="rhythm-status" role="status">Off</span></div>
                 <p class="hint">Optional timing for motion. Sound reactions always stay live.</p>
-                <label class="rhythm-source-label">Timing <select id="rhythm-source" aria-label="Timing source"><option value="off">Off</option><option value="manual">Manual</option><option value="auto" disabled>Auto · in validation</option></select></label>
+                <label class="rhythm-source-label">Timing <select id="rhythm-source" aria-label="Timing source"><option value="off">Off</option><option value="manual">Manual</option><option value="auto">Auto · experimental</option></select></label>
+                <div id="rhythm-auto-options" hidden>
+                  <label class="rhythm-source-label">Algorithm <select id="rhythm-algorithm" aria-label="Beat tracking algorithm" aria-describedby="rhythm-algorithm-help"><option value="plp">Pulse (PLP)</option><option value="grid">Onset grid</option></select></label>
+                  <p id="rhythm-algorithm-help" class="hint">Follows the repeating pulse through extra hits and missing beats.</p>
+                </div>
                 <div class="rhythm-controls">
                   <button id="rhythm-tap" type="button" title="Tap tempo (Space or T outside the editor)" aria-keyshortcuts="Space T">Tap <kbd>Space</kbd></button>
                   <label>BPM <input id="rhythm-bpm" type="number" min="30" max="300" step="0.1" value="120" aria-label="Tempo BPM" /></label>

@@ -2529,4 +2529,6 @@ Detected hits remain `audio.onset`, independent of the shared `clock` snapshot.
 Run Motion Lab in that panel to try LFOs, attack/release envelopes, ramps, stepped
 sequences, range mapping, and seeded variation. They work in both p5 patches and
 shader parameters. See [Timing and visual signals](RHYTHM.md) for exact APIs,
-keyboard behavior, live-edit semantics, and the gated Auto preview.
+keyboard behavior and live-edit semantics. Rhythm → Auto · experimental offers
+Pulse (PLP) and Onset grid for live comparison; Tap takes over with Manual. The
+algorithm choice is saved with projects and performances.

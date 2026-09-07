@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createTapTempo } from '../../src/rhythm/tapTempo.js';
-import { createBeatClock } from '../../src/rhythm/clock.js';
+import { createBeatClock, validateRhythmSettings } from '../../src/rhythm/clock.js';
 import { createRhythmManager } from '../../src/rhythm/rhythmManager.js';
 import { createTestHost } from './helpers.js';
 
@@ -88,4 +88,20 @@ it('holds the last published Auto phase across a long suspension', () => {
   expect(after.beat).toBe(before.beat);
   expect(after.crossings).toBe(0);
   expect(after.status).toBe('listening');
+});
+
+it('changes algorithms atomically and rejects evidence from the previous tracker', () => {
+  const rhythm = createRhythmManager({ now: () => 1 });
+  expect(rhythm.settings().algorithm).toBe('plp');
+  rhythm.configure({ source: 'auto' });
+  const generation = rhythm.generation();
+  const estimate = { bpm: 123, at: 1, beatAt: 1, confidence: 0.9 };
+  expect(rhythm.receiveEstimate(estimate, generation)).toBe(true);
+  rhythm.configure({ algorithm: 'grid' });
+  expect(rhythm.sample()).toMatchObject({ status: 'listening', running: false, bpm: null });
+  expect(rhythm.receiveEstimate(estimate, generation)).toBe(false);
+  expect(rhythm.receiveEstimate(estimate, rhythm.generation())).toBe(true);
+  expect(() => rhythm.configure({ algorithm: 'unavailable' })).toThrow('Unknown tempo algorithm');
+  expect(rhythm.settings().algorithm).toBe('grid');
+  expect(validateRhythmSettings({ source: 'auto' }).algorithm).toBe('plp');
 });

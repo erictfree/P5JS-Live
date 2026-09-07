@@ -1,7 +1,8 @@
 // A bounded, causal STFT novelty detector. FFT work runs in the analysis worker;
 // the audio callback only supplies PCM. Timestamp events at the analysis window
 // center, so buffering/worker latency does not move the estimated musical phase.
-const SIZE = 2048, HOP = 512;
+export const SPECTRAL_HOP = 512;
+const SIZE = 2048, HOP = SPECTRAL_HOP;
 export function createSpectralOnsets(sampleRate) {
   const ring = new Float32Array(SIZE), real = new Float64Array(SIZE), imag = new Float64Array(SIZE);
   const window = Float64Array.from({ length: SIZE }, (_, i) => 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (SIZE - 1)));
@@ -45,13 +46,14 @@ export function createSpectralOnsets(sampleRate) {
     return { flux: low / lowBins * 0.75 + high / highBins * 0.25, rms: Math.sqrt(energy / SIZE) };
   }
   return {
-    push(samples, at) {
+    push(samples, at, onFrame) {
       const hits = [];
       for (let i = 0; i < samples.length; i++) {
         ring[cursor] = samples[i]; cursor = (cursor + 1) % SIZE;
         if (++count % HOP !== 0) continue;
         const { flux, rms } = transform();
         const time = at + (i + 1 - SIZE / 2) / sampleRate;
+        onFrame?.({ at: time, flux, rms });
         if (lastFlux > Math.max(0.015, average * 1.8) && lastFlux > flux && time - lastHit > 0.12 && rms > 0.002) {
           hits.push({ at: lastFluxAt, strength: lastFlux }); lastHit = lastFluxAt;
         }

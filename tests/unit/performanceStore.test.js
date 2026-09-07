@@ -164,11 +164,13 @@ describe('named performance persistence', () => {
   it('retains timing through save, reload and merge, and rejects invalid timing', () => {
     const storage = fakeStorage();
     const store = createPerformanceStore({ storage, makeId: () => 'rhythm' });
-    const source = { ...snapshot(), rhythm: { source: 'manual', bpm: 132, multiplier: 1 } };
+    const source = { ...snapshot(), rhythm: { source: 'manual', bpm: 132, multiplier: 1, algorithm: 'grid' } };
     expect(store.save(source).ok).toBe(true);
     expect(createPerformanceStore({ storage }).get('rhythm').rhythm.bpm).toBe(132);
     const other = createPerformanceStore({ storage: fakeStorage() });
     expect(other.merge(store.list()).ok).toBe(true);
     expect(other.get('rhythm').rhythm.source).toBe('manual');
+    expect(other.get('rhythm').rhythm.algorithm).toBe('grid');
     expect(other.save({ ...source, rhythm: { source: 'invented' } }).ok).toBe(false);
+    expect(other.save({ ...source, rhythm: { ...source.rhythm, algorithm: 'unknown' } }).ok).toBe(false);
   });

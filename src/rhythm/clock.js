@@ -1,15 +1,16 @@
-export const RHYTHM_DEFAULTS = Object.freeze({ source: 'off', bpm: 120, multiplier: 1 });
+export const RHYTHM_DEFAULTS = Object.freeze({ source: 'off', bpm: 120, multiplier: 1, algorithm: 'plp' });
 export const fraction = value => ((value % 1) + 1) % 1;
 export const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 export function validateRhythmSettings(value = {}) {
   const result = { ...RHYTHM_DEFAULTS, ...value };
   if (!['off', 'manual', 'auto'].includes(result.source)) throw new TypeError('Unknown rhythm source');
+  if (!['plp', 'grid'].includes(result.algorithm)) throw new TypeError('Unknown tempo algorithm');
   if (!Number.isFinite(result.bpm) || result.bpm < 30 || result.bpm > 300) {
     throw new RangeError('Tempo must be between 30 and 300 BPM');
   }
   if (![0.5, 1, 2].includes(result.multiplier)) throw new RangeError('Auto multiplier must be ½, 1, or 2');
-  return { source: result.source, bpm: result.bpm, multiplier: result.multiplier };
+  return { source: result.source, bpm: result.bpm, multiplier: result.multiplier, algorithm: result.algorithm };
 }
 
 // An anchored clock avoids accumulating frame-step rounding error. Rate changes

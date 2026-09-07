@@ -10,7 +10,7 @@ frame.
 | --- | --- |
 | [Quickstart](GUIDE.md) | Run the starter, edit a patch, combine two sketches, save, and recover. |
 | [Data model](DATA-MODEL.md) | What patches, arrays, effects, and the active scene mean. |
-| [Timing and visual signals](RHYTHM.md) | Tap tempo, six numeric operators, Motion Lab, and the Auto preview. |
+| [Timing and visual signals](RHYTHM.md) | Tap tempo, six numeric operators, Motion Lab, and selectable Auto algorithms. |
 | [Composition cookbook](COMPOSITION.md) | Group and nest sketches, chain shaders, pass configuration, and try Layer Lab. |
 | [User manual](USER-MANUAL.md) | A progressive course through audio, JavaScript, controls, MIDI, and performance. |
 | [API reference](API.md) | Exact context fields, lifecycle, commands, and shader operators. |
@@ -39,7 +39,7 @@ These record decisions and checks at a point in time. Use the guides and API abo
 for current behavior.
 
 - [Tempo and visual signals plan](TEMPO-BEAT-PLAN.md)
-- [Tempo validation and Auto preview gate](TEMPO-VALIDATION.md)
+- [Tempo algorithm validation](TEMPO-VALIDATION.md)
 - [Code health review, September 2026](CODE-HEALTH.md)
 - [Interface usability plan](INTERFACE-USABILITY-PLAN.md)
 - [Tools implementation review](TOOLS-IMPLEMENTATION.md)

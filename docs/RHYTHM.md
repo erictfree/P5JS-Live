@@ -140,17 +140,27 @@ Signal ownership follows ordinary JavaScript references, including closures and
 bounded version history. Weak registrations let discarded definitions be collected;
 helpers hold no audio nodes or GPU buffers.
 
-## Automatic tracking preview
+## Automatic tracking
 
-The algorithm and AudioWorklet/worker pipeline are implemented, but **Auto is still
-in validation** and disabled in the normal selector. For a deliberate trial, open
-`/live/?tempoPreview=1`, then choose **Auto · experimental**. A previously saved Auto
-selection remains an explicit opt-in on reload; choose Off or Manual to leave it.
+Load a song or select mic/line input, then choose **Tools → Audio → Rhythm →
+Timing → Auto · experimental**. Auto is available on the normal `/live/` page;
+no preview URL is needed. Timing still starts Off in a new project.
 
-Auto currently searches 60–200 BPM before the user's ½ / ×2 preference. It computes
-spectral changes from fixed-hop audio samples, tests competing pulse grids over a
-bounded eight-second window, and corrects tempo/phase gradually. It needs no supplied
-BPM and never overrides Manual. It has no meter inference or external MIDI/Link sync.
+The **Algorithm** selector offers two choices:
+
+| Algorithm | Approach |
+| --- | --- |
+| **Pulse (PLP)**, the default | Follows periodic structure in continuous spectral changes. Combines recent pulse estimates to stabilize phase through extra hits and missing beats. |
+| **Onset grid** | Fits candidate grids to individually detected hits over the last eight seconds. Useful as an alternative for clear percussion. |
+
+Switch algorithms while music plays to compare them. Each switch clears previous
+evidence and starts Listening; the old worker cannot change the new clock. The
+selection is saved with projects and performances. **Tap** or entering a BPM takes
+over with Manual immediately; **½ / ×2** selects another pulse speed.
+
+Both algorithms search 60–200 BPM before the user's ½ / ×2 preference, need no
+supplied BPM, and correct tempo/phase gradually. They do not infer a bar, downbeat,
+or time signature, and do not provide external MIDI/Link sync.
 
 Listening means no established estimate; Tracking means recent supporting evidence;
 Holding predicts briefly without new evidence; Lost stops the clock after three
@@ -159,11 +169,12 @@ A source change, loop discontinuity, or suspension clears stale evidence. Analys
 runs in a worker with at most one unacknowledged audio batch; overload drops analysis
 rather than growing queues. Microphone audio is never routed to audible output.
 
-Synthetic fixtures pass the initial timing targets, but the existing music clip
-loses tracking through dense passages. This preview is not a dependable automatic
-sync source yet. [Validation record](TEMPO-VALIDATION.md) documents measurements,
-comparison with aubiojs, and the gate for normal availability.
+Pulse passes synthetic timing checks and supports more of the existing music clip
+than Onset grid, but both still lose tracking. Auto remains experimental while we
+try it with representative music. [Validation record](TEMPO-VALIDATION.md) describes
+the implementation, measurements, and remaining accuracy checks.
 
-Project schema 7 and performance schema 2 include timing settings. The onset API is
+Project schema 7 and performance schema 2 include timing settings, including
+`algorithm: 'plp' | 'grid'` (default `'plp'`). The onset API is
 `audio.onset`, `audio.sinceOnset`, and the `onset(context)` lifecycle hook. No aliases
 for the former beat names or legacy format adapters are provided.

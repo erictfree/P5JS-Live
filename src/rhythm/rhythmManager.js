@@ -23,8 +23,9 @@ export function createRhythmManager({ now = () => performance.now() / 1000 } = {
   function configure(changes) {
     const next = validateRhythmSettings({ ...settings, ...changes });
     const changedSource = next.source !== settings.source;
+    const changedAlgorithm = next.algorithm !== settings.algorithm;
     settings = next;
-    if (changedSource) { taps.reset(); invalidate(); clock.suppress(); }
+    if (changedSource || changedAlgorithm) { taps.reset(); invalidate(); clock.suppress(); }
     if (settings.source === 'manual') { status = 'running'; clock.setRate(settings.bpm); }
     else if (settings.source === 'off') { status = 'off'; clock.setRate(null); }
     else if (estimate) clock.setRate(estimate.bpm * settings.multiplier);
