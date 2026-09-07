@@ -73,8 +73,13 @@ objects remain available for wet/dry mix, blending, and bypass configuration.
 
 ## Scene activation and namespaces
 
-`scene.draw()` selects a named array for rendering at the next frame boundary. It
-returns that array, so `const scene = [...].draw()` can also capture the name. A
+Only one scene is active at a time. `scene.draw()` selects a named array for
+rendering at the next frame boundary, replacing the active scene. Calling
+`otherScene.draw()` switches to that scene. If several draw commands are applied
+at the same boundary, the last one wins. To render multiple layers together,
+include them in one scene array.
+
+The command returns that array, so `const scene = [...].draw()` can also capture the name. A
 scene must have a named binding, as with `activate(scene)` today. Call activation
 while evaluating live code; the host owns subsequent frames. The array definition
 and its `.draw()` command can be evaluated together or in separate blocks.

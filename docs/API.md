@@ -134,8 +134,10 @@ const scene = [
 scene.draw();
 ```
 
-Earlier entries draw first. `scene.draw()` selects the named array for the host's
-ongoing frame loop. It is an array method and does not replace p5's `window.draw`.
+Earlier entries draw first. Only one scene is active at a time. `scene.draw()`
+selects the named array for the host's ongoing frame loop, replacing the active
+scene at the next frame boundary. To render multiple layers together, include
+them in one scene array. It is an array method and does not replace p5's `window.draw`.
 Call it while evaluating live code. `activate(scene)` remains a compatible command
 that accepts the array, not its name as a string.
 Re-evaluating a scene changes its order without replacing unchanged patch

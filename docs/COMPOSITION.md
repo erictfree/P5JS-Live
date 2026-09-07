@@ -94,7 +94,7 @@ replaces native methods. No source translation is used. `layer(sketch)` and
 | --- | --- |
 | `[patch1, patch2]` | Describe one layer; nest the array to isolate its image from its parent. |
 | `.add(...patches)` | Append patches or nested arrays without flattening or changing effect scope. |
-| `.draw()` | Select this named scene for the ongoing draw loop, at the next frame boundary. |
+| `.draw()` | Replace the active scene with this named array at the next frame boundary. Only one scene is active at a time. |
 | `.fx(...effects)` | Append patches that process the layer's current image, in order. |
 | `.rotate(angle = 0, speed = 0)` | Rotate the rendered image in radians; speed is radians per second. |
 | `.scale(amount = 1)` | Scale the rendered image around its center. |
