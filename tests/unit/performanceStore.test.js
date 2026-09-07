@@ -87,7 +87,7 @@ describe('named performance persistence', () => {
   it('reads only the current performance storage key', () => {
     const storage = fakeStorage();
     storage.setItem('algolab.performances.v1', JSON.stringify({
-      schema: 1,
+      schema: 2,
       performances: [{
         ...snapshot('Migrated'),
         id: 'old-slot',
@@ -160,3 +160,15 @@ describe('named performance persistence', () => {
     expect(createPerformanceStore({ storage: corrupt }).list()).toEqual([]);
   });
 });
+
+  it('retains timing through save, reload and merge, and rejects invalid timing', () => {
+    const storage = fakeStorage();
+    const store = createPerformanceStore({ storage, makeId: () => 'rhythm' });
+    const source = { ...snapshot(), rhythm: { source: 'manual', bpm: 132, multiplier: 1 } };
+    expect(store.save(source).ok).toBe(true);
+    expect(createPerformanceStore({ storage }).get('rhythm').rhythm.bpm).toBe(132);
+    const other = createPerformanceStore({ storage: fakeStorage() });
+    expect(other.merge(store.list()).ok).toBe(true);
+    expect(other.get('rhythm').rhythm.source).toBe('manual');
+    expect(other.save({ ...source, rhythm: { source: 'invented' } }).ok).toBe(false);
+  });

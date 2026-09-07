@@ -6,8 +6,10 @@
 // tuned parameters, audio-analysis settings, and the useful parts of the stage view.
 // Compiled functions and File objects never enter storage.
 
+import { validateRhythmSettings } from '../rhythm/clock.js';
+
 const KEY = 'p5js-live.performances.v1';
-const SCHEMA = 1;
+const SCHEMA = 2;
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -64,6 +66,9 @@ export function createPerformanceStore({
     }
     const name = String(snapshot.name ?? '').trim();
     if (!name) return { ok: false, reason: 'missing-name' };
+    let rhythm;
+    try { rhythm = validateRhythmSettings(snapshot.rhythm); }
+    catch { return { ok: false, reason: 'invalid-rhythm' }; }
 
     const performances = read();
     const existing = id ? performances.find((entry) => entry.id === id) : null;
@@ -79,6 +84,7 @@ export function createPerformanceStore({
       params: Array.isArray(snapshot.params) ? clone(snapshot.params) : [],
       controls: Array.isArray(snapshot.controls) ? clone(snapshot.controls) : [],
       audio: clone(snapshot.audio ?? {}),
+      rhythm,
       view: clone(snapshot.view ?? {}),
     };
     const next = existing
@@ -121,6 +127,7 @@ export function createPerformanceStore({
 }
 
 function validPerformance(entry) {
+  try { validateRhythmSettings(entry?.rhythm); } catch { return false; }
   return (
     entry &&
     typeof entry.id === 'string' &&

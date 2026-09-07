@@ -65,7 +65,7 @@ describe('local persistence', () => {
     const storage = fakeStorage();
     storage.setItem(
       'algolab.project.v5',
-      JSON.stringify({ schema: 6, source: SOURCE, safeScene: 'tunnel', params: [] }),
+      JSON.stringify({ schema: 7, source: SOURCE, safeScene: 'tunnel', params: [] }),
     );
 
     const loaded = createProjectStore({ registry, storage }).load();
@@ -136,7 +136,7 @@ describe('local persistence', () => {
     const storage = fakeStorage();
     storage.setItem(
       'algolab.project.v1',
-      JSON.stringify({ schema: 6, source: SOURCE, safeScene: 'tunnel', params: [] }),
+      JSON.stringify({ schema: 7, source: SOURCE, safeScene: 'tunnel', params: [] }),
     );
 
     expect(createProjectStore({ registry, storage }).load()).toBe(null);
@@ -147,20 +147,20 @@ describe('local persistence', () => {
     const storage = fakeStorage();
     storage.setItem(
       'algolab.project.v2',
-      JSON.stringify({ schema: 6, source: SOURCE, safeScene: 'tunnel', params: [] }),
+      JSON.stringify({ schema: 7, source: SOURCE, safeScene: 'tunnel', params: [] }),
     );
 
     expect(createProjectStore({ registry, storage }).load()).toBe(null);
 
     storage.setItem(
       'algolab.project.v3',
-      JSON.stringify({ schema: 6, source: SOURCE, safeScene: 'tunnel', params: [] }),
+      JSON.stringify({ schema: 7, source: SOURCE, safeScene: 'tunnel', params: [] }),
     );
     expect(createProjectStore({ registry, storage }).load()).toBe(null);
 
     storage.setItem(
       'algolab.project.v4',
-      JSON.stringify({ schema: 6, source: SOURCE, safeScene: 'tunnel', params: [] }),
+      JSON.stringify({ schema: 7, source: SOURCE, safeScene: 'tunnel', params: [] }),
     );
     expect(createProjectStore({ registry, storage }).load()).toBe(null);
   });
@@ -176,7 +176,7 @@ describe('local persistence', () => {
       const storage = fakeStorage();
       storage.setItem(
         key,
-        JSON.stringify({ schema: 6, source: SOURCE, safeScene: 'tunnel', params: [] }),
+        JSON.stringify({ schema: 7, source: SOURCE, safeScene: 'tunnel', params: [] }),
       );
       expect(createProjectStore({ registry, storage }).load()).toBe(null);
     }
@@ -253,7 +253,7 @@ describe('import parsing is separate from running', () => {
       'algolab-project',
     ]) {
       const parsed = store.parseProject(
-        JSON.stringify({ format, schema: 6, source: SOURCE.split('\n') }),
+        JSON.stringify({ format, schema: 7, source: SOURCE.split('\n') }),
       );
       expect(parsed.ok).toBe(false);
       expect(parsed.error).toContain('Not a p5js live project');
@@ -268,7 +268,7 @@ describe('import parsing is separate from running', () => {
       store.parseProject(JSON.stringify({ format: 'p5js-live-project', schema: 99 })).error,
     ).toContain('format version 99');
     expect(
-      store.parseProject(JSON.stringify({ format: 'p5js-live-project', schema: 6 })).error,
+      store.parseProject(JSON.stringify({ format: 'p5js-live-project', schema: 7 })).error,
     ).toContain('no source');
   });
 
@@ -279,12 +279,30 @@ describe('import parsing is separate from running', () => {
     store.parseProject(
       JSON.stringify({
         format: 'p5js-live-project',
-        schema: 6,
+        schema: 7,
         source: ['const evil = { draw() {} };'],
       }),
     );
 
     expect(registry.listScenes()).toEqual(before);
     expect(registry.hasStrategy('evil')).toBe(false);
+  });
+});
+
+describe('project rhythm settings', () => {
+  it('round-trips rhythm and rejects invalid imported timing before applying source', async () => {
+    const { createRhythmManager } = await import('../../src/rhythm/rhythmManager.js');
+    const { registry, storage } = setup();
+    const rhythm = createRhythmManager({ now: () => 0 });
+    const store = createProjectStore({ registry, storage, rhythm });
+    rhythm.configure({ source: 'manual', bpm: 137 });
+    const text = store.exportProject('const scene = []; scene.draw();');
+    const parsed = store.parseProject(text);
+    expect(parsed.data.rhythm).toEqual({ source: 'manual', bpm: 137, multiplier: 1 });
+    rhythm.configure({ source: 'off' }); store.restoreSettings(parsed.data);
+    expect(rhythm.settings().source).toBe('manual');
+    const invalid = JSON.parse(text); invalid.rhythm.bpm = 0;
+    expect(store.parseProject(JSON.stringify(invalid)).ok).toBe(false);
+    expect(rhythm.settings().bpm).toBe(137);
   });
 });

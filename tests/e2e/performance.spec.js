@@ -577,7 +577,7 @@ show.draw();`;
     await page.addInitScript((savedSource) => {
       localStorage.clear();
       localStorage.setItem('p5js-live.project.v5', JSON.stringify({
-        schema: 6,
+        schema: 7,
         savedAt: Date.now(),
         source: savedSource,
         safeScene: 'show',
@@ -2371,7 +2371,7 @@ test.describe('project portability', () => {
 
     const project = JSON.stringify({
       format: 'p5js-live-project',
-      schema: 6,
+      schema: 7,
       source: [
         'const imported = { draw() { circle(50, 50, 20); } };',
         'const main = [imported];',

@@ -11,14 +11,17 @@
 // than throwing during startup, because a performer should never be met with a
 // broken page.
 
+import { validateRhythmSettings } from '../rhythm/clock.js';
+
 const KEY = 'p5js-live.project.v5';
 const PROJECT_FORMAT = 'p5js-live-project';
-const SCHEMA = 6;
+const SCHEMA = 7;
 
 export function createProjectStore({
   registry,
   diagnostics,
   controlManager = null,
+  rhythm = null,
   storage = globalThis.localStorage,
 } = {}) {
   let timer = null;
@@ -37,6 +40,7 @@ export function createProjectStore({
         step,
       })),
       controls: controlManager?.snapshotMappings?.() ?? [],
+      rhythm: validateRhythmSettings(rhythm?.settings()),
     };
   }
 
@@ -72,6 +76,7 @@ export function createProjectStore({
         diagnostics?.warn('Saved project is from an older format — starting fresh');
         return null;
       }
+      data.rhythm = validateRhythmSettings(data.rhythm);
       return data;
     } catch (error) {
       diagnostics?.warn('Saved project was unreadable — starting fresh', error.message);
@@ -85,6 +90,7 @@ export function createProjectStore({
    */
   function restoreSettings(data) {
     if (!data) return;
+    const rhythmSettings = validateRhythmSettings(data.rhythm);
     if (data.safeScene) registry.setSafeScene(data.safeScene);
     for (const param of data.params ?? []) {
       registry.declareParam(param.name, param.value, param);
@@ -93,6 +99,7 @@ export function createProjectStore({
       registry.setParam(param.name, param.value);
     }
     controlManager?.restoreMappings?.(data.controls ?? []);
+    rhythm?.configure(rhythmSettings);
   }
 
   function clear() {
@@ -123,6 +130,7 @@ export function createProjectStore({
         safeScene: data.safeScene,
         params: data.params,
         controls: data.controls,
+        rhythm: data.rhythm,
         ...extra,
       },
       null,
@@ -178,6 +186,8 @@ export function createProjectStore({
     if (data.performances !== undefined && !Array.isArray(data.performances)) {
       return { ok: false, error: 'Project file performances are unreadable' };
     }
+    try { data.rhythm = validateRhythmSettings(data.rhythm); }
+    catch (error) { return { ok: false, error: error.message }; }
     return {
       ok: true,
       data: {
@@ -185,6 +195,7 @@ export function createProjectStore({
         safeScene: data.safeScene ?? null,
         params: Array.isArray(data.params) ? data.params : [],
         controls: Array.isArray(data.controls) ? data.controls : [],
+        rhythm: data.rhythm,
         performances: data.performances ?? [],
       },
     };

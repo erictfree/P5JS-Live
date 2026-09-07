@@ -15,11 +15,12 @@ import { createTransaction, LIVE_API_NAMES } from './liveApi.js';
 import { installArrayMethods, withArrayDrawing } from './arrayApi.js';
 import { strategyOf } from './stateStore.js';
 import { findCells, findStatements } from '../language/sourceBlocks.js';
+import { createSignalRuntime } from '../signals/signals.js';
 
 const TARGETED_OPS = new Set(['reset']);
 const DECLARATION = /^\s*(?:const|let|var|class|function)\s+([A-Za-z_$][\w$]*)\b/;
 
-export function createEvaluator({ registry, stateStore, diagnostics }) {
+export function createEvaluator({ registry, stateStore, diagnostics, signals = createSignalRuntime() }) {
   installArrayMethods();
   /** @type {Array<{transaction: object, label: string}>} */
   const queue = [];
@@ -68,9 +69,12 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
       return { ok: false, phase: 'syntax', error };
     }
 
-    const transaction = createTransaction(source, { nameOf: knownNameOf });
+    const signalScope = signals.scope();
+    const transaction = createTransaction(source, { nameOf: knownNameOf, signalApi: signalScope.api });
+    transaction.signalScope = signalScope;
     let captured = {};
     try {
+      signals.evaluating(true);
       captured =
         withArrayDrawing(transaction.selectScene, () => compiled(
           ...transaction.args(),
@@ -82,6 +86,9 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
     } catch (error) {
       diagnostics?.error(`Evaluation error — ${label} not applied`, formatError(error, source));
       return { ok: false, phase: 'evaluation', error };
+    } finally {
+      signals.evaluating(false);
+      signalScope.seal();
     }
 
     if (transaction.isEmpty()) {
@@ -90,6 +97,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
       // that useful side effect from a pure helper expression, so report successful
       // execution without pretending the registry had to change.
       diagnostics?.success(`${label} evaluated`);
+      signalScope.commit();
       return { ok: true, phase: 'executed', staged: [], operations: 0 };
     }
 
@@ -230,6 +238,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
 
     for (const { transaction, label, completion } of queue) {
       const configurationSnapshot = registry.snapshotConfiguration();
+      transaction.signalScope?.commit();
       applyBindingUpdates(transaction.bindingUpdates);
       for (const [name, entry] of transaction.stagedStrategies) {
         const record = registry.stageStrategy(
@@ -358,6 +367,7 @@ export function createEvaluator({ registry, stateStore, diagnostics }) {
   }
 
   return {
+    signals,
     evaluate,
     applyPending,
     discardPending,

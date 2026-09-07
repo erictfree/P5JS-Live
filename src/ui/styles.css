@@ -2623,3 +2623,19 @@ button.glyph.danger { color: #ffb3bb; }
 #icons button.glyph { border-radius: 1px; }
 #icons button.glyph.is-on { color: #ffb45e; }
 #runtime-bar { border-radius: 2px; }
+
+/* Compact timing strip: source, tempo, and separate sound/clock feedback. */
+.rhythm-section { border-top: 1px solid var(--line, #50504b); margin-top: 16px; padding-top: 12px; }
+.rhythm-source-label, .rhythm-controls, .rhythm-indicators { display: flex; gap: 8px; align-items: center; margin: 10px 0; }
+.rhythm-source-label select { flex: 1; min-width: 0; }
+.rhythm-controls label { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rhythm-controls input { width: 76px; min-width: 0; }
+.rhythm-controls button { min-height: 32px; }
+.rhythm-indicators { flex-wrap: wrap; font: 11px ui-monospace, monospace; justify-content: space-between; }
+.rhythm-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #50504b; }
+.rhythm-dot.lit { background: #ffb65b; }
+#rhythm-onset-dot.lit { background: #58d5a3; }
+#rhythm-phase, #rhythm-quality { display: block; width: 100%; height: 7px; margin-bottom: 10px; accent-color: #ffb65b; }
+#rhythm-quality[hidden], .toolbar-rhythm[hidden] { display: none; }
+.toolbar-rhythm { display: inline-flex; align-items: center; gap: 6px; font: 11px ui-monospace, monospace; white-space: nowrap; }
+@media (max-width: 700px) { .toolbar-rhythm output { display: none; } }

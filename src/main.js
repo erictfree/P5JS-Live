@@ -170,7 +170,9 @@ const controller = createAppController({
   network,
   controlManager,
 });
-const projectStore = createProjectStore({ registry, diagnostics, controlManager });
+const rhythm = host.rhythm;
+audio.connectRhythm(rhythm);
+const projectStore = createProjectStore({ registry, diagnostics, controlManager, rhythm });
 const performanceStore = createPerformanceStore({ diagnostics });
 const projection = createProjection({
   controller,
@@ -1076,6 +1078,7 @@ function performanceSnapshot(name) {
       step,
     })),
     controls: controlManager.snapshotMappings(),
+    rhythm: rhythm.settings(),
     audio: {
       analysis: audio.featureOptions(),
       loop: audio.status().looping,
@@ -1443,6 +1446,19 @@ function buildDemoScene() {
 
 document.getElementById('insert-demo-scene').addEventListener('click', buildDemoScene);
 
+document.getElementById('run-motion-lab').addEventListener('click', async () => {
+  try {
+    const response = await fetch(new URL('../starter/motion-lab.js', import.meta.url));
+    if (!response.ok) throw new Error('Could not load Motion Lab');
+    const source = await response.text();
+    for (const cell of findCells(source)) editor.replaceNamedBlock(cell.label, cell.text);
+    const result = evaluator.evaluate(source, { label: 'Motion Lab' });
+    if (!result.ok) throw result.error;
+    editor.revealScene('motionLab');
+    diagnostics.success('Motion Lab ready', 'Press Esc to release the editor, then hold H to trigger or tap T for tempo. Your existing source remains in the project.');
+  } catch (error) { diagnostics.error('Motion Lab could not start', error.message); }
+});
+
 // --- project export / import -----------------------------------------------------
 
 document.getElementById('export-project').addEventListener('click', () => {
@@ -1635,6 +1651,7 @@ const COMMANDS = {
   f: () => toggleFullscreen(),
   p: () => toggleProjection(),
   l: () => toggleLoop(),
+  t: () => controller.actions.tapTempo(),
   a: () => document.getElementById('audio-file-2').click(),
   m: () => startMicrophone(),
   '?': () => toggleKeys(),
@@ -1699,12 +1716,13 @@ window.addEventListener('keydown', (event) => {
 
   const tag = document.activeElement?.tagName;
   const inField = tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT';
-  if (inField || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (inField || document.activeElement?.isContentEditable || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.key === ' ' && document.activeElement?.tagName === 'BUTTON') return;
 
   const command = COMMANDS[event.key];
   if (!command) return;
   event.preventDefault();
-  if (event.key === 'n' && event.repeat) return;
+  if ((event.key === 'n' || event.key === 't') && event.repeat) return;
   command();
 });
 window.addEventListener('keyup', (event) => {
@@ -1713,8 +1731,11 @@ window.addEventListener('keyup', (event) => {
   keyboard.alt = event.altKey;
 });
 
+rhythm.subscribe(() => projectStore.saveSoon(editor.value));
+
 // Save on the way out, so a mid-set refresh does not lose the last edit.
 window.addEventListener('beforeunload', () => {
+  audio.disposeAnalysis();
   projectStore.save(editor.value);
   network.dispose();
   controlManager.dispose();
@@ -1737,4 +1758,5 @@ window.p5jsLive = {
   network,
   controlManager,
   aiAssistant,
+  rhythm,
 };

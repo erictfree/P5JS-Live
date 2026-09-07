@@ -16,12 +16,14 @@
 import { ShaderChain } from '../shaders/shaderChain.js';
 import { StreamRoom } from '../network/streamRoom.js';
 import { isLayerArray, assertPatch } from './layer.js';
+import { SIGNAL_NAMES } from '../signals/signals.js';
 
 export const LIVE_API_NAMES = [
   'reset',
   'control',
   'ShaderChain',
   'StreamRoom',
+  ...SIGNAL_NAMES,
 ];
 
 const LIFECYCLE_KEYS = ['state', 'enter', 'draw', 'onset', 'exit', 'dispose'];
@@ -72,7 +74,7 @@ export function validateStrategy(value, suggestedName) {
  * without a binding receive a scene-local identity when `defineScene()` visits them.
  * Objects do not carry a second name property.
  */
-export function createTransaction(source = '', { nameOf = () => null } = {}) {
+export function createTransaction(source = '', { nameOf = () => null, signalApi = {} } = {}) {
   /** @type {Map<string, {definition: Function | object, source: string}>} */
   const stagedStrategies = new Map();
   /** Objects mentioned by scenes/commands; the evaluator stages them only if needed. */
@@ -147,6 +149,7 @@ export function createTransaction(source = '', { nameOf = () => null } = {}) {
   }
 
   const api = {
+    ...signalApi,
     ShaderChain,
     StreamRoom,
 

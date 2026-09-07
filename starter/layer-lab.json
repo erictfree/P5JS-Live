@@ -1,6 +1,6 @@
 {
   "format": "p5js-live-project",
-  "schema": 6,
+  "schema": 7,
   "source": [
     "// %% controls labControls",
     "// LAYER LAB — a self-contained p5 + native array effects playground.",

@@ -180,3 +180,11 @@ Press **Escape** to release editor focus before using single-key commands.
 See the [keyboard reference](USER-MANUAL.md#30-keyboard-reference) for editing,
 folding, and audio shortcuts. For networking experiments, use the source-based
 [beta guide](NETWORKING.md); the Network tab is currently unavailable.
+
+## Explore motion and rhythm
+
+Choose Tools → Audio → Run Motion Lab to try all six visual signal helpers. Press
+Esc, then hold H to trigger the example without sound or tap T to establish tempo.
+The complete [timing guide](RHYTHM.md) explains how to reuse those values in your
+own p5 patches and shader effects. Auto tracking is an explicit preview while its
+recorded-audio validation continues.

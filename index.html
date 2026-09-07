@@ -227,6 +227,7 @@
             <dt><kbd>r</kbd></dt><dd>show / hide the installed-patch reference</dd>
             <dt><kbd>e</kbd></dt><dd>show / hide the code</dd>
             <dt><kbd>d</kbd></dt><dd>dim / restore the visuals behind the code</dd>
+            <dt><kbd>t</kbd></dt><dd>tap tempo (outside text fields)</dd>
             <dt><kbd>n</kbd></dt><dd>show / hide the top navigation bar</dd>
             <dt><kbd>f</kbd></dt><dd>fullscreen</dd>
             <dt><kbd>p</kbd></dt><dd>projection window</dd>
@@ -393,6 +394,23 @@ scene.draw();</code></pre><p><code>[waveScope, laserFan].rotate(0, 0.2)</code> r
                 <div class="signal-heading"><h3>Signal</h3><span id="audio-signal-state">No source</span></div>
                 <meter id="audio-level" min="0" max="1" value="0" aria-label="Audio level"></meter>
                 <div class="audio-bands"><span>Low <output id="audio-bass">0.00</output></span><span>Mid <output id="audio-mid">0.00</output></span><span>High <output id="audio-treble">0.00</output></span></div>
+              </section>
+              <section class="rhythm-section" aria-labelledby="rhythm-title">
+                <div class="signal-heading"><h3 id="rhythm-title">Rhythm</h3><span id="rhythm-status" role="status">Off</span></div>
+                <p class="hint">Optional timing for motion. Sound reactions always stay live.</p>
+                <label class="rhythm-source-label">Timing <select id="rhythm-source" aria-label="Timing source"><option value="off">Off</option><option value="manual">Manual</option><option value="auto" disabled>Auto · in validation</option></select></label>
+                <div class="rhythm-controls">
+                  <button id="rhythm-tap" type="button" title="Tap tempo (t outside the editor)">Tap <kbd>T</kbd></button>
+                  <label>BPM <input id="rhythm-bpm" type="number" min="30" max="300" step="0.1" value="120" aria-label="Tempo BPM" /></label>
+                  <button id="rhythm-half" type="button" aria-label="Half tempo">½</button>
+                  <button id="rhythm-double" type="button" aria-label="Double tempo">×2</button>
+                </div>
+                <div class="rhythm-indicators"><span><i id="rhythm-onset-dot" class="rhythm-dot"></i> Detected hit</span><span><i id="rhythm-clock-dot" class="rhythm-dot"></i> Clock beat</span><output id="rhythm-multiplier"></output></div>
+                <progress id="rhythm-phase" max="1" value="0" aria-label="Beat phase"></progress>
+                <meter id="rhythm-quality" min="0" max="1" value="0" aria-label="Tracking quality" hidden></meter>
+                <button id="rhythm-align" type="button" disabled>Align beat now</button>
+                <button id="run-motion-lab" type="button">Run Motion Lab</button>
+                <p id="rhythm-error" class="row-error" role="status" hidden></p>
               </section>
               <details class="compact-settings">
                 <summary>Analysis settings</summary>
@@ -788,6 +806,7 @@ const publishMain = room.publish({
            a fixed landmark: drawers open beneath it instead of moving it around. -->
       <div id="icons">
         <div id="audio-transport" aria-label="Audio playback controls">
+          <span id="toolbar-rhythm" class="toolbar-rhythm" hidden><output id="toolbar-bpm">120 BPM</output><button id="toolbar-tap" type="button" title="Tap tempo (t)">Tap</button></span>
           <button id="play-toggle" type="button" class="transport-control" title="Play or pause the audio file (space)" aria-label="Play audio" disabled>▶ play</button>
           <button id="loop-performance-toggle" type="button" class="transport-control" title="Loop the audio file (l)" aria-label="Loop audio" aria-pressed="false">↻ loop</button>
         </div>

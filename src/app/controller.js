@@ -178,6 +178,7 @@ export function createAppController({
       },
       params: registry.listParams().map(({ name, value }) => ({ name, value })),
       controls: controlManager?.snapshotMappings?.() ?? [],
+      rhythm: host.rhythm?.settings(),
     });
   }
 
@@ -194,6 +195,8 @@ export function createAppController({
       registry: registry.snapshotRuntime(),
       states: stateStore.snapshotAll(),
       bindings: evaluator.snapshotBindings(),
+      signals: evaluator.signals?.snapshot(),
+      rhythm: host.rhythm?.settings(),
       controls: controlManager?.snapshotMappings?.() ?? [],
       signature: projectSignature(source),
     };
@@ -210,6 +213,8 @@ export function createAppController({
     host.reset({ preserveDefinitions: preserved });
     registry.restoreRuntime(checkpoint.registry);
     evaluator.restoreBindings(checkpoint.bindings);
+    evaluator.signals?.restore(checkpoint.signals);
+    if (checkpoint.rhythm) host.rhythm?.configure(checkpoint.rhythm);
     controlManager?.restoreMappings?.(checkpoint.controls ?? []);
     const stateResult = stateStore.restoreAll(checkpoint.states);
     const missing = [...new Set([...(checkpoint.states?.skipped ?? []), ...stateResult.skipped])];
@@ -421,10 +426,17 @@ export function createAppController({
       fps: host.fps(),
       audioStatus: audio.status(),
       audio: latestAudio,
+      clock: host.rhythm?.snapshot(),
+      rhythmSettings: host.rhythm?.settings(),
+      rhythmError: host.rhythm?.error(),
     };
   }
 
   const actions = Object.freeze({
+    setRhythm(changes) { return host.rhythm.configure(changes); },
+    tapTempo() { return host.rhythm.tap(); },
+    alignBeat() { return host.rhythm.align(); },
+    multiplyTempo(factor) { return host.rhythm.multiply(factor); },
     resetStrategy(name) {
       const count = stateStore.resetStrategy(name, registry.boundMethod(name, 'state'));
       diagnostics.info(`${name} state reset${count > 1 ? ` (${count} copies)` : ''}`);

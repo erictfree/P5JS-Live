@@ -10,6 +10,7 @@
 // Drawing is injected through `drawing` so this file can be unit-tested without p5.
 
 import { createLayerArray } from './layer.js';
+import { createRhythmManager } from '../rhythm/rhythmManager.js';
 
 const MAX_DT = 1 / 10; // after a stall, resumed state must not leap
 const FPS_WINDOW = 60;
@@ -25,6 +26,7 @@ export function createHostLoop({
   keyboard = {},
   fpsThreshold = 30, // configurable from the Project panel
   now = () => performance.now() / 1000,
+  rhythm = createRhythmManager({ now }),
   onCodeError = () => {},
 }) {
   const performance_ = { fpsThreshold, slowSince: null, warned: false };
@@ -87,6 +89,8 @@ export function createHostLoop({
     drawInputs.time = t - startTime;
     drawInputs.sceneTime = t - sceneEnteredAt;
     registry.paramValues(drawInputs.controls);
+    drawInputs.clock = rhythm.sample(t);
+    evaluator.signals?.beginFrame(drawInputs);
     drawing.syncGroups?.(activeGroupIds());
     return drawInputs;
   }
@@ -378,6 +382,7 @@ export function createHostLoop({
   }
 
   return {
+    rhythm,
     beginFrame,
     drawScene,
     commitPendingChanges,

@@ -10,6 +10,7 @@
 // code has no way to reach either one.
 
 import { createFeatureExtractor } from './features.js';
+import { createTempoAnalysis } from './tempoAnalysis.js';
 
 /** @typedef {'none'|'file'|'mic'} SourceKind */
 
@@ -90,6 +91,7 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
   let lastReadAt = null;
   let looping = false;
   let sourceRequest = 0;
+  let tempoAnalysis = null;
 
   function disposeNode(node) {
     if (!node) return;
@@ -421,6 +423,7 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
    * Returns a frozen audio snapshot.
    */
   function readFrame() {
+    tempoAnalysis?.update();
     const nowSeconds = performance.now() / 1000;
     const dt = lastReadAt === null ? 1 / 60 : Math.min(nowSeconds - lastReadAt, 0.25);
     lastReadAt = nowSeconds;
@@ -465,6 +468,14 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
   }
 
   return {
+    connectRhythm(rhythm) {
+      tempoAnalysis?.dispose();
+      tempoAnalysis = createTempoAnalysis({ rhythm, getSource: () => ({
+        context: runtime.audioContext(), source: sourceKind === 'mic' ? mic?.output : soundFile?.output,
+        generation: sourceRequest, position: currentPosition(),
+      }) });
+    },
+    disposeAnalysis() { tempoAnalysis?.dispose(); },
     init,
     loadFile,
     unlock,

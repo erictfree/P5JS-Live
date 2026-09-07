@@ -17,6 +17,8 @@ src/host/hostLoop.js        lifecycle calls, frame boundaries, and rollback
 src/shaders/shaderChain.js  single-input GPU operator compiler and patch
 src/language/sourceBlocks.js statement and // %% cell discovery
 src/audio/                  audio graph and feature processing
+src/rhythm/                 shared clock, tap estimation, and causal tempo tracker
+src/signals/                numeric helpers and shared frame sampling
 src/control/                Web MIDI input and parameter mappings
 src/network/                StreamRoom objects and WebRTC client manager
 src/ui/                     editors, read-only views, and projection
@@ -161,7 +163,7 @@ Audio starts only after a user gesture. With no source, the host supplies silenc
 
 ## Persistence and Safe State
 
-Project schema 6 stores source, the safe-scene preference, and live-control values.
+Project schema 7 stores source, the safe-scene preference, live-control values, and rhythm settings. Performance schema 2 includes those timing settings.
 Portable exports additionally include every named performance, each with its own
 source, parameters, audio-analysis settings, and view settings. Import evaluates the
 working source first, then merges valid performances by identity without deleting
@@ -211,3 +213,17 @@ resources, or freeze the tab. p5js live is for trusted source.
 The draw path reuses its input object, FPS ring, and analyzer snapshot. Diagnostics
 and history are bounded. Panels update on model changes or a slow timer rather than
 every frame. `pixelDensity(1)` avoids high-DPI fill costs.
+
+## Rhythm and signals
+
+The host samples one rhythm service and one signal runtime before drawing. Signal
+factories participate in evaluator transactions; constructing one in `draw()` is an
+error. Weak registrations follow JavaScript reachability, so a helper captured by
+an old patch stays valid until its consumers/history are released. Shared reads are
+memoized by frame, independent of render order; managed signal snapshots participate
+in in-memory recovery. This does not attempt to parse or migrate closure contents.
+
+Auto is an explicit preview while the recorded-audio validation gate remains open.
+Its AudioWorklet supplies bounded mono PCM batches to a worker for spectral novelty
+and pulse-grid estimation. The main thread maps audio timestamps into monotonic host
+time and rejects results from previous source generations. See [timing contracts](RHYTHM.md).

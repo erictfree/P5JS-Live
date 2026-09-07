@@ -814,7 +814,7 @@ const laserFan = {
     category: 'visual',
     blurb: 'Horizontal digital slices that intensify with treble. Configurable object literal.',
     source: `// %% patch glitchSlices
-// Treble controls travel distance; a onset adds a bright interruption.
+// Treble controls travel distance; an onset adds a bright interruption.
 const glitchSlices = {
   slices: 18,
   hue: 320,
@@ -1994,7 +1994,7 @@ const pixelDrift = new ShaderChain()
   {
     name: 'neonInk',
     category: 'shader',
-    blurb: 'Turns preceding layers into a onset-sensitive two-tone neon silhouette.',
+    blurb: 'Turns preceding layers into an onset-sensitive two-tone neon silhouette.',
     source: `// %% patch neonInk
 // neonInk reduces a complex image to a sharply coloured silhouette.
 const neonInk = new ShaderChain()

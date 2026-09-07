@@ -25,7 +25,7 @@ async function settled(page) {
 async function boot(page, source, url = '/live/') {
   await page.addInitScript(source => {
     localStorage.setItem('p5js-live.project.v5', JSON.stringify({
-      schema: 6, source, savedAt: Date.now(), params: [],
+      schema: 7, source, savedAt: Date.now(), params: [],
     }));
   }, source);
   await page.goto(url);

@@ -299,3 +299,23 @@ const broken = { draw() { ((( } };`);
     h.controller.dispose();
   });
 });
+
+describe('rhythm and signal checkpoint recovery', () => {
+  it('restores triggered signal state and manual settings without rewinding the clock', () => {
+    const h = setup();
+    h.controller.setSourceProvider(() => 'motion source');
+    h.host.rhythm.configure({ source: 'manual', bpm: 120 });
+    h.evaluator.evaluate('const hitStep = sequence([10, 20, 30], {trigger: "onset"}); const patch = c => hitStep(c); const scene = [patch]; scene.draw();');
+    h.frame(3); h.frame(1, { onset: true });
+    const step = h.evaluator.binding('hitStep'); expect(step()).toBe(20);
+    const checkpoint = h.controller.checkpoint();
+    h.frame(1, { onset: true }); expect(step()).toBe(30);
+    h.host.rhythm.configure({ bpm: 90 }); h.frame(5);
+    const before = h.host.rhythm.snapshot().beat;
+    expect(h.controller.restoreCheckpoint(checkpoint).ok).toBe(true);
+    h.frame(1);
+    expect(h.evaluator.binding('hitStep')).toBe(step); expect(step()).toBe(20);
+    expect(h.host.rhythm.settings().bpm).toBe(120);
+    expect(h.host.rhythm.snapshot().beat).toBeGreaterThanOrEqual(before);
+  });
+});

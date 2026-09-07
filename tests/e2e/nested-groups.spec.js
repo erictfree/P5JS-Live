@@ -37,7 +37,7 @@ test('nested scene arrays render on transparent recursive targets', async ({ pag
   await page.addInitScript((source) => {
     localStorage.clear();
     localStorage.setItem('p5js-live.project.v5', JSON.stringify({
-      schema: 6,
+      schema: 7,
       savedAt: Date.now(),
       source,
       safeScene: 'scene',
@@ -94,7 +94,7 @@ scene.draw();`,
   await page.addInitScript((savedSource) => {
     localStorage.clear();
     localStorage.setItem('p5js-live.project.v5', JSON.stringify({
-      schema: 6,
+      schema: 7,
       savedAt: Date.now(),
       source: savedSource,
       safeScene: 'scene',
@@ -151,7 +151,7 @@ scene.draw();`,
   await page.addInitScript((savedSource) => {
     localStorage.clear();
     localStorage.setItem('p5js-live.project.v5', JSON.stringify({
-      schema: 6,
+      schema: 7,
       savedAt: Date.now(),
       source: savedSource,
       safeScene: 'scene',
@@ -184,7 +184,7 @@ scene.draw();`,
   await page.addInitScript((savedSource) => {
     localStorage.clear();
     localStorage.setItem('p5js-live.project.v5', JSON.stringify({
-      schema: 6,
+      schema: 7,
       savedAt: Date.now(),
       source: savedSource,
       safeScene: 'scene',

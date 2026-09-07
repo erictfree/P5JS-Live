@@ -333,6 +333,7 @@ audio.bass
 audio.mid
 audio.treble
 audio.onset
+audio.sinceOnset
 audio.spectrum
 audio.waveform
 audio.sampleRate
@@ -352,6 +353,17 @@ const strongBins = audio.spectrum.filter((magnitude) => magnitude > 180);
 const average = audio.waveform.reduce((sum, sample) => sum + abs(sample), 0)
   / max(1, audio.waveform.length);
 ```
+
+## Rhythm and visual signals
+
+`audio.onset` is a detected hit, independent of the optional tempo grid in
+`context.clock`. The `onset(context)` lifecycle method runs on those hit frames.
+`audio.sinceOnset` is elapsed analysis time since the last hit.
+
+The numeric helpers `lfo`, `envelope`, `ramp`, `sequence`, `remap`, and `variation`
+return context callbacks usable by both p5 patches and shader arguments. Construct
+them outside drawing. See [Timing and visual signals](RHYTHM.md) for exact options,
+clock fields, triggers, lifetime, and the automatic-tracking preview gate.
 
 ## Live controls
 

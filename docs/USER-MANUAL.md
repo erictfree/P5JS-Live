@@ -489,7 +489,7 @@ audio.level       // normalized overall energy, generally 0..1
 audio.bass        // normalized low-frequency energy
 audio.mid         // normalized middle-frequency energy
 audio.treble      // normalized high-frequency energy
-audio.onset        // true on a detected onset event
+audio.onset       // true on a detected audio hit (not an estimated clock beat)
 audio.spectrum    // FFT magnitudes, each 0..255
 audio.waveform    // time-domain samples, each -1..1
 ```
@@ -2024,7 +2024,7 @@ All patches in one frame receive the same analysis.
 | --- | --- |
 | `state()` | Return a plain object used as initial per-occurrence state |
 | `enter(context)` | Called once when the occurrence enters the active scene |
-| `onset(context)` | Called on a frame whose shared audio snapshot reports a onset |
+| `onset(context)` | Called on a frame whose shared audio snapshot reports an onset |
 | `draw(context)` | Called once per active frame; required for object/instance patches |
 | `exit(context)` | Called when the occurrence leaves the active scene |
 | `dispose()` | Release resources when the implementation is permanently replaced or discarded |
@@ -2517,3 +2517,14 @@ helper it requires.
 - [Composition cookbook](COMPOSITION.md): complete examples of array effects and nesting.
 - [Data model](DATA-MODEL.md): arrays, patch state, and active-scene selection.
 - [Networking](NETWORKING.md): experimental source-based canvas sharing; no Network tab.
+
+## Tap tempo and reusable visual motion
+
+Tools → Audio now includes Rhythm. Tap T outside text fields, use Tap, or enter
+30–300 BPM. Manual keeps running without sound; Off holds the optional clock.
+Detected hits remain `audio.onset`, independent of the shared `clock` snapshot.
+
+Run Motion Lab in that panel to try LFOs, attack/release envelopes, ramps, stepped
+sequences, range mapping, and seeded variation. They work in both p5 patches and
+shader parameters. See [Timing and visual signals](RHYTHM.md) for exact APIs,
+keyboard behavior, live-edit semantics, and the gated Auto preview.

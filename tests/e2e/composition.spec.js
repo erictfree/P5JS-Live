@@ -15,7 +15,7 @@ const shape = { draw() {
 async function boot(page, entries) {
   const source = `${PATCHES}\n// %% scene show\nconst show = [${entries}];\nshow.draw();`;
   await page.addInitScript((source) => {
-    localStorage.setItem('p5js-live.project.v5', JSON.stringify({ schema: 6, savedAt: Date.now(), source, params: [] }));
+    localStorage.setItem('p5js-live.project.v5', JSON.stringify({ schema: 7, savedAt: Date.now(), source, params: [] }));
   }, source);
   await page.goto('/live/');
   await page.getByRole('button', { name: 'Start silent' }).click();

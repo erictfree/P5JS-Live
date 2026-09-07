@@ -1,3 +1,4 @@
+import { SIGNAL_NAMES } from '../signals/signals.js';
 // Syntax colouring for the code mirror.
 //
 // A scanner, not a parser — the same bargain `findBlocks` makes in editor.js and for
@@ -21,7 +22,7 @@ const KEYWORDS = new Set([
  * p5js live's own vocabulary. Coloured apart from every other call because these
  * are the small command vocabulary around otherwise ordinary JavaScript objects.
  */
-const HOST_API = new Set(['reset', 'control', 'StreamRoom', 'ShaderChain']);
+const HOST_API = new Set(['reset', 'control', 'StreamRoom', 'ShaderChain', ...SIGNAL_NAMES]);
 
 /**
  * @typedef {'comment' | 'string' | 'number' | 'keyword' | 'host' | 'call' | 'text'} TokenKind

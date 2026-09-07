@@ -133,3 +133,11 @@ activation. Source is evaluated exactly as written.
 Source remains the composition authority. Editing prepares a change; Run applies
 it. Projects store source and performer settings. GPU buffers remain runtime
 resources, and safe-state recovery retains supported occurrence state.
+
+## Changing visual values
+
+`lfo`, `envelope`, `ramp`, `sequence`, `remap`, and `variation` produce numeric
+context callbacks. They can drive ordinary p5 drawing or array/shader parameters;
+image composition remains an array. One helper shares one sample and state across
+its consumers. The optional `clock` is separate from detected `audio.onset` hits.
+See [Timing and visual signals](RHYTHM.md) for examples and lifetime rules.

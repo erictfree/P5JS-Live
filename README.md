@@ -49,6 +49,7 @@ p5js live includes:
 
 - file, microphone, and line-input audio analysis;
 - normalized audio levels and bands, onset events, and spectrum/waveform arrays;
+- optional tap tempo and six shared visual signal operators, with a runnable Motion Lab;
 - function, object, class, factory, closure, and inline patches;
 - recursive scenes with isolated effect groups and independent state per occurrence;
 - array effects through `[sketch].rotate(...).opacity(...)` and a Scene
@@ -68,6 +69,7 @@ Start with the [documentation index](docs/README.md), or go directly to:
 - [Quickstart](docs/GUIDE.md) — a complete first patch and a second sketch.
 - [Data model](docs/DATA-MODEL.md) — arrays, effect scope, and the active scene.
 - [Composition cookbook](docs/COMPOSITION.md) — nesting, chained effects, and Layer Lab.
+- [Timing and visual signals](docs/RHYTHM.md) — tap tempo, envelopes, ramps, sequences, and the Auto preview.
 - [User manual](docs/USER-MANUAL.md) — the complete learning and performance guide.
 - [API reference](docs/API.md) — exact runtime behavior and methods.
 

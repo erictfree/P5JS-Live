@@ -1,3 +1,4 @@
+import { SIGNAL_NAMES } from '../signals/signals.js';
 // Editor view — renders and edits source, then emits evaluation intents.
 // Source structure lives in ../language/sourceBlocks.js so the runtime never depends
 // on a DOM view module.
@@ -29,7 +30,7 @@ const RESERVED_PATCH_NAMES = new Set([
   'var', 'void', 'while', 'with', 'yield',
   // These are evaluator-provided bindings, so declaring one in a cell would collide
   // with the live-coding API even though it is a legal JavaScript identifier.
-  'control', 'reset', 'ShaderChain', 'StreamRoom',
+  'control', 'reset', 'ShaderChain', 'StreamRoom', ...SIGNAL_NAMES,
 ]);
 
 /** VS Code-style movement of the current line or selected consecutive lines. */

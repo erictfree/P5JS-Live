@@ -1,3 +1,4 @@
+import { createRhythmPanel } from './rhythmPanel.js';
 // Performer view — renders application snapshots and emits controller actions.
 //
 // This module owns DOM construction only. It never imports or receives the registry,
@@ -28,6 +29,7 @@ export function createPanels({
   storage = globalThis.localStorage,
 }) {
   const el = (id) => document.getElementById(id);
+  const rhythmPanel = createRhythmPanel(controller);
   const nodes = {
     toolTabs: el('side'),
     toolPanels: [...document.querySelectorAll('[data-tool-panel]')],
@@ -838,6 +840,7 @@ export function createPanels({
 
   function updateMeters() {
     const live = controller.performanceSnapshot();
+    rhythmPanel.render(live);
     nodes.fps.textContent = live.fps.toFixed(0);
     nodes.fps.className = `value ${live.fps < 30 ? 'warn' : ''}`;
 

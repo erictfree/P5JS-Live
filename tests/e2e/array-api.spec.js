@@ -9,7 +9,7 @@ const red = { draw() { background(255, 0, 0); } };
 async function boot(page, scene) {
   await page.addInitScript(source => {
     if (!localStorage.getItem('p5js-live.project.v5')) {
-      localStorage.setItem('p5js-live.project.v5', JSON.stringify({ schema: 6, savedAt: Date.now(), source, params: [] }));
+      localStorage.setItem('p5js-live.project.v5', JSON.stringify({ schema: 7, savedAt: Date.now(), source, params: [] }));
     }
   }, `${patches}\n// %% scene scene\n${scene}`);
   await page.goto('/live/');
