@@ -32,6 +32,11 @@ Library; they are not additional complete programs to paste into one buffer.
 | [Networking beta](NETWORKING.md) | Experimental source API and local two-browser test; the Network tab is unavailable. |
 | [Security](../SECURITY.md) | Trusted-code boundary and vulnerability reporting. |
 
+## Proposed work
+
+- [Tempo, detected hits, and visual motion](TEMPO-BEAT-PLAN.md) — a reactive-first
+  plan for optional tap tempo, automatic tracking, and an LFO helper; not implemented.
+
 ## Review records
 
 These record decisions and checks at a point in time. Use the guides and API above
