@@ -132,6 +132,76 @@ test('tap shortcut leaves typing alone, button Space does not toggle audio, and 
   expect(await page.evaluate(() => ['lfo', 'envelope', 'ramp', 'sequence', 'remap', 'variation'].filter(name => name in p5.prototype))).toEqual([]);
 });
 
+test('Space taps on keydown, Shift+Space controls playback, and navigation keeps Tap available', async ({ page }) => {
+  await page.goto('/live/');
+  await page.getByRole('button', { name: 'Start silent' }).click();
+  const tap = page.locator('#toolbar-tap');
+  await expect(tap).toBeVisible();
+  await expect(tap).toContainText('Space');
+  await expect(page.locator('#toolbar-bpm')).toBeHidden();
+  await expect(page.locator('#projection-open')).toHaveCount(0);
+  await page.evaluate(() => {
+    window.__taps = 0; window.__playbackToggles = 0;
+    const original = p5jsLive.rhythm.tap;
+    p5jsLive.rhythm.tap = (...args) => { window.__taps++; return original(...args); };
+    p5jsLive.audio.toggle = () => { window.__playbackToggles++; };
+  });
+  const counts = () => page.evaluate(() => [window.__taps, window.__playbackToggles]);
+  const code = page.getByRole('textbox', { name: 'Edit patch myPatch', exact: true });
+  await code.press('End');
+  const before = await code.inputValue();
+  await code.press('Space');
+  expect((await code.inputValue()).length).toBe(before.length + 1);
+  expect(await counts()).toEqual([0, 0]);
+  await code.press('Escape');
+
+  await page.keyboard.down('Space');
+  expect(await counts()).toEqual([1, 0]); // No keyup needed to register the beat.
+  await page.keyboard.down('Space'); // An OS key repeat must not become a tap.
+  await page.keyboard.up('Space');
+  expect(await counts()).toEqual([1, 0]);
+  await expect(page.locator('#toolbar-bpm')).toBeVisible();
+  await page.keyboard.press('Shift+Space');
+  expect(await counts()).toEqual([1, 1]);
+  await page.keyboard.press('t');
+  expect(await counts()).toEqual([2, 1]);
+
+  await tap.focus();
+  await page.keyboard.down('Space');
+  expect(await counts()).toEqual([3, 1]);
+  await page.keyboard.down('Space'); await page.keyboard.up('Space');
+  expect(await counts()).toEqual([3, 1]); // Suppress the native keyup click too.
+  await page.keyboard.down('Enter'); await page.keyboard.down('Enter'); await page.keyboard.up('Enter');
+  expect(await counts()).toEqual([4, 1]);
+  await tap.click();
+  expect(await counts()).toEqual([5, 1]);
+
+  await page.locator('#tools-toggle').click();
+  await page.locator('#tools-tab-audio').click();
+  await page.locator('#rhythm-bpm').focus();
+  await page.keyboard.press('Space'); await page.keyboard.press('Shift+Space');
+  expect(await counts()).toEqual([5, 1]);
+  await page.locator('#rhythm-source').selectOption('off');
+  await expect(page.locator('#toolbar-bpm')).toBeHidden();
+  await expect(tap).toBeVisible();
+  await page.locator('#tools-close').click();
+  await code.press('Escape');
+  await page.keyboard.press('n');
+  await expect(tap).toBeHidden();
+  await page.keyboard.press('Space');
+  expect(await counts()).toEqual([6, 1]);
+  await page.keyboard.press('n');
+  await expect(tap).toBeVisible();
+
+  // Projection is still accessible by keyboard after removing its nav button.
+  const popup = page.waitForEvent('popup');
+  await page.keyboard.press('p');
+  const audience = await popup;
+  await expect.poll(() => page.evaluate(() => p5jsLive.projection.isOpen())).toBe(true);
+  await audience.close();
+  await page.screenshot({ path: '/tmp/astra-tap-navigation.png' });
+});
+
 test('discarded signal definitions can be collected after repeated live edits', async ({ page, context }) => {
   await openAudio(page);
   await page.evaluate(() => {
@@ -185,10 +255,18 @@ test('preview analysis keeps the same scene within the frame-time budget', async
 test('Rhythm controls fit compact Tools without horizontal page scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openAudio(page);
+  const tap = await page.locator('#toolbar-tap').boundingBox();
+  expect(tap.x).toBeGreaterThanOrEqual(0);
+  expect(tap.x + tap.width).toBeLessThanOrEqual(390);
   await page.locator('#rhythm-tap').scrollIntoViewIfNeeded();
   const bounds = await page.locator('.rhythm-controls').boundingBox();
   expect(bounds.x).toBeGreaterThanOrEqual(0);
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(390);
   expect(await page.evaluate(() => window.scrollX)).toBe(0);
+  expect(await page.locator('#app').evaluate(app => app.scrollLeft)).toBe(0);
   await page.screenshot({ path: '/tmp/astra-rhythm-panel.png' });
+  await page.locator('#tools-close').click();
+  await expect(page.locator('#side')).not.toBeInViewport();
+  await expect(page.locator('#toolbar-tap')).toBeInViewport();
+  await page.screenshot({ path: '/tmp/astra-tap-compact.png' });
 });

@@ -209,7 +209,8 @@ projects or exports. A ChatGPT subscription does not include API access.
 | `Cmd/Ctrl+Option/Alt+S` | Quick-save to a new numbered performance slot |
 | `Cmd/Ctrl+Alt+N` | Start a new performance from the default scene |
 | `Esc` | Release editor focus |
-| `Space` | Play or pause audio |
+| `Space` / `t` | Tap tempo |
+| `Shift+Space` | Play or pause audio |
 | `Cmd/Ctrl+\` | Show or hide tools |
 | `r` | Show or hide the installed-patch reference |
 | `e` | Show or hide code |

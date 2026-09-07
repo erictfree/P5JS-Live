@@ -824,7 +824,6 @@ document.getElementById('auto-gain').addEventListener('change', (event) => {
 
 // --- projection, fullscreen, safe scene, panic -----------------------------------
 
-const projectionButton = document.getElementById('projection-open');
 const layoutSelect = document.getElementById('projection-layout');
 
 function toggleProjection() {
@@ -834,9 +833,7 @@ function toggleProjection() {
     projection.open();
     projection.setLayout(layoutSelect.value);
   }
-  projectionButton.classList.toggle('is-on', projection.isOpen());
 }
-projectionButton.addEventListener('click', toggleProjection);
 layoutSelect.addEventListener('change', () => projection.setLayout(layoutSelect.value));
 
 async function toggleFullscreen() {
@@ -1457,7 +1454,7 @@ document.getElementById('run-motion-lab').addEventListener('click', async () => 
     const result = evaluator.evaluate(source, { label: 'Motion Lab' });
     if (!result.ok) throw result.error;
     editor.revealScene('motionLab');
-    diagnostics.success('Motion Lab ready', 'Press Esc to release the editor, then hold H to trigger or tap T for tempo. Your existing source remains in the project.');
+    diagnostics.success('Motion Lab ready', 'Press Esc to release the editor, then hold H to trigger or tap Space for tempo. Your existing source remains in the project.');
   } catch (error) { diagnostics.error('Motion Lab could not start', error.message); }
 });
 
@@ -1643,7 +1640,6 @@ stage.addEventListener('drop', async (event) => {
  * long one — and is why the list in index.html has to be kept next to this map.
  */
 const COMMANDS = {
-  ' ': () => toggleAudio(),
   0: () => panic(), // one action back to a scene the performer trusts
   s: () => setSafeScene(),
   r: () => toggleReference(), // project patches and their public interfaces
@@ -1653,7 +1649,7 @@ const COMMANDS = {
   f: () => toggleFullscreen(),
   p: () => toggleProjection(),
   l: () => toggleLoop(),
-  t: () => controller.actions.tapTempo(),
+  t: () => panels.tapTempo(),
   a: () => document.getElementById('audio-file-2').click(),
   m: () => startMicrophone(),
   '?': () => toggleKeys(),
@@ -1719,7 +1715,18 @@ window.addEventListener('keydown', (event) => {
   const tag = document.activeElement?.tagName;
   const inField = tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT';
   if (inField || document.activeElement?.isContentEditable || event.metaKey || event.ctrlKey || event.altKey) return;
-  if (event.key === ' ' && document.activeElement?.tagName === 'BUTTON') return;
+  if (event.key === ' ') {
+    const tapFocused = ['toolbar-tap', 'rhythm-tap'].includes(document.activeElement?.id);
+    // Keep native Space activation on other controls. On Tap itself, use keydown
+    // for precise timing rather than waiting for the button's keyup click.
+    if (!event.shiftKey && !tapFocused && document.activeElement?.matches('button, summary, [role="button"], [role="tab"]')) return;
+    event.preventDefault();
+    if (!event.repeat) {
+      if (event.shiftKey) toggleAudio();
+      else panels.tapTempo();
+    }
+    return;
+  }
 
   const command = COMMANDS[event.key];
   if (!command) return;

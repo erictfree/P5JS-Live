@@ -10,13 +10,16 @@ Open **Tools → Audio → Run Motion Lab**. This adds its source and selects th
 operators, with the same envelope driving p5 drawing and shader opacity.
 
 Press **Esc** to release editor focus, then hold **H** to trigger the demonstration
-without sound. **T** taps tempo. The blue ring follows the optional clock; the orange
+without sound. **Space** (or **T**) taps tempo. The blue ring follows the optional clock; the orange
 ring uses seconds. With timing Off, the blue ring holds while the orange ring moves.
 The complete source is [starter/motion-lab.js](../starter/motion-lab.js).
 
 ## Tap tempo
 
-In **Tools → Audio → Rhythm**, choose Manual, tap **Tap**, or enter a BPM. Tapping or
+**Tap** is always visible in the top navigation, including when timing is Off.
+Press **Esc** to release editor focus, then tap **Space** or **T**, or click **Tap**.
+Each press registers on keydown and briefly lights the Tap buttons.
+In **Tools → Audio → Rhythm**, you can also choose Manual or enter a BPM. Tapping or
 entering BPM selects Manual. Two taps give an estimate; further consistent taps
 stabilize it. A gap longer than 2.5 seconds starts a new tap sequence. Key repeat and
 closely duplicated taps are ignored. Manual accepts 30–300 BPM.
@@ -24,11 +27,13 @@ closely duplicated taps are ignored. Manual accepts 30–300 BPM.
 **½ / ×2** changes the speed without resetting phase. **Align beat now** immediately
 aligns the grid. Ordinary subsequent taps correct alignment gradually. Manual keeps
 running through silence, audio pauses, source changes, and scene edits. Choose Off
-to hold the clock. The compact transport readout appears while timing is enabled
-and hides with navigation.
+to hold the clock. The compact BPM readout appears while timing is enabled.
+Tap and the readout hide with navigation; the keyboard shortcuts still work.
 
-T works outside text fields. Typing in the editor is unchanged. The focused Tap
-button also works with Enter or Space, without also toggling playback.
+**Shift+Space** plays or pauses audio. Typing in the editor and other text fields is
+unchanged. Focused buttons keep their normal keyboard activation: Space activates
+the focused button, and on Tap it registers a tap immediately. Enter also activates
+Tap. Holding a key does not generate repeated taps.
 
 ## One clock snapshot per frame
 

@@ -95,7 +95,9 @@ input:focus-visible {
 #app {
   position: relative;
   height: 100vh;
-  overflow: hidden;
+  /* Drawers animate beyond the stage. Focusing one must not scroll the entire
+   * instrument sideways; code and tool panels have their own scroll containers. */
+  overflow: clip;
 }
 
 #stage {
@@ -2636,6 +2638,9 @@ button.glyph.danger { color: #ffb3bb; }
 .rhythm-dot.lit { background: #ffb65b; }
 #rhythm-onset-dot.lit { background: #58d5a3; }
 #rhythm-phase, #rhythm-quality { display: block; width: 100%; height: 7px; margin-bottom: 10px; accent-color: #ffb65b; }
-#rhythm-quality[hidden], .toolbar-rhythm[hidden] { display: none; }
+#rhythm-quality[hidden], #toolbar-bpm[hidden] { display: none; }
 .toolbar-rhythm { display: inline-flex; align-items: center; gap: 6px; font: 11px ui-monospace, monospace; white-space: nowrap; }
+#toolbar-tap, #rhythm-tap { font-variant-numeric: tabular-nums; }
+#toolbar-tap kbd, #rhythm-tap kbd { font: 10px var(--mono); opacity: .7; }
+#toolbar-tap.is-tapping, #side #rhythm-tap.is-tapping { color: #242521; background: #ffb45e; border-color: #ffb45e; }
 @media (max-width: 700px) { .toolbar-rhythm output { display: none; } }

@@ -5,6 +5,8 @@ export function createRhythmPanel(controller) {
   const sourceSelect = el('rhythm-source');
   const autoOption = sourceSelect.querySelector('[value="auto"]');
   let localError = '';
+  const tapButtons = ['rhythm-tap', 'toolbar-tap'].map(el);
+  let tapFlashTimer;
   function action(fn) {
     try { fn(); localError = ''; }
     catch (error) { localError = error.message; }
@@ -13,7 +15,20 @@ export function createRhythmPanel(controller) {
   sourceSelect.addEventListener('change', event => action(() => controller.actions.setRhythm({ source: event.target.value })));
   sourceSelect.addEventListener('blur', () => render(controller.performanceSnapshot()));
   el('rhythm-bpm').addEventListener('change', event => action(() => controller.actions.setRhythm({ source: 'manual', bpm: Number(event.target.value) })));
-  for (const id of ['rhythm-tap', 'toolbar-tap']) el(id).addEventListener('click', () => action(() => controller.actions.tapTempo()));
+  function tapTempo() {
+    action(() => controller.actions.tapTempo());
+    clearTimeout(tapFlashTimer);
+    for (const button of tapButtons) button.classList.add('is-tapping');
+    tapFlashTimer = setTimeout(() => {
+      for (const button of tapButtons) button.classList.remove('is-tapping');
+    }, 120);
+  }
+  for (const button of tapButtons) {
+    button.addEventListener('click', tapTempo);
+    button.addEventListener('keydown', event => {
+      if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault();
+    });
+  }
   el('rhythm-half').addEventListener('click', () => action(() => controller.actions.multiplyTempo(0.5)));
   el('rhythm-double').addEventListener('click', () => action(() => controller.actions.multiplyTempo(2)));
   el('rhythm-align').addEventListener('click', () => action(() => controller.actions.alignBeat()));
@@ -44,9 +59,9 @@ export function createRhythmPanel(controller) {
     el('rhythm-align').disabled = !clock.running;
     el('rhythm-error').textContent = localError || live.rhythmError || (settings.source === 'auto' ? 'Experimental tracking: may lose the pulse or choose a different tempo. Tap to take over.' : '');
     el('rhythm-error').hidden = !el('rhythm-error').textContent;
-    el('toolbar-rhythm').hidden = settings.source === 'off';
+    el('toolbar-bpm').hidden = settings.source === 'off';
     el('toolbar-bpm').textContent = clock.bpm ? `${clock.bpm.toFixed(1)} BPM` : label;
     el('rhythm-multiplier').textContent = settings.source === 'auto' && settings.multiplier !== 1 ? `×${settings.multiplier}` : '';
   }
-  return { render };
+  return { render, tapTempo, stop() { clearTimeout(tapFlashTimer); } };
 }

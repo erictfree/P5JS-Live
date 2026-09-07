@@ -219,7 +219,8 @@
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Option/Alt</kbd>+<kbd>1…9</kbd></dt><dd>recall the corresponding numbered saved performance</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Option/Alt</kbd>+<kbd>S</kbd></dt><dd>quick-save the current window to a new numbered performance slot</dd>
             <dt><kbd>Esc</kbd></dt><dd>release editor focus</dd>
-            <dt><kbd>Space</kbd></dt><dd>play / pause</dd>
+            <dt><kbd>Space</kbd> / <kbd>t</kbd></dt><dd>tap tempo (release editor focus first)</dd>
+            <dt><kbd>Shift</kbd>+<kbd>Space</kbd></dt><dd>play / pause</dd>
             <dt><kbd>0</kbd></dt><dd>restore the complete safe state</dd>
             <dt><kbd>s</kbd></dt><dd>capture the current project as the safe state</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>N</kbd></dt><dd>start a new performance with the default scene</dd>
@@ -227,7 +228,6 @@
             <dt><kbd>r</kbd></dt><dd>show / hide the installed-patch reference</dd>
             <dt><kbd>e</kbd></dt><dd>show / hide the code</dd>
             <dt><kbd>d</kbd></dt><dd>dim / restore the visuals behind the code</dd>
-            <dt><kbd>t</kbd></dt><dd>tap tempo (outside text fields)</dd>
             <dt><kbd>n</kbd></dt><dd>show / hide the top navigation bar</dd>
             <dt><kbd>f</kbd></dt><dd>fullscreen</dd>
             <dt><kbd>p</kbd></dt><dd>projection window</dd>
@@ -400,7 +400,7 @@ scene.draw();</code></pre><p><code>[waveScope, laserFan].rotate(0, 0.2)</code> r
                 <p class="hint">Optional timing for motion. Sound reactions always stay live.</p>
                 <label class="rhythm-source-label">Timing <select id="rhythm-source" aria-label="Timing source"><option value="off">Off</option><option value="manual">Manual</option><option value="auto" disabled>Auto · in validation</option></select></label>
                 <div class="rhythm-controls">
-                  <button id="rhythm-tap" type="button" title="Tap tempo (t outside the editor)">Tap <kbd>T</kbd></button>
+                  <button id="rhythm-tap" type="button" title="Tap tempo (Space or T outside the editor)" aria-keyshortcuts="Space T">Tap <kbd>Space</kbd></button>
                   <label>BPM <input id="rhythm-bpm" type="number" min="30" max="300" step="0.1" value="120" aria-label="Tempo BPM" /></label>
                   <button id="rhythm-half" type="button" aria-label="Half tempo">½</button>
                   <button id="rhythm-double" type="button" aria-label="Double tempo">×2</button>
@@ -806,14 +806,13 @@ const publishMain = room.publish({
            a fixed landmark: drawers open beneath it instead of moving it around. -->
       <div id="icons">
         <div id="audio-transport" aria-label="Audio playback controls">
-          <span id="toolbar-rhythm" class="toolbar-rhythm" hidden><output id="toolbar-bpm">120 BPM</output><button id="toolbar-tap" type="button" title="Tap tempo (t)">Tap</button></span>
-          <button id="play-toggle" type="button" class="transport-control" title="Play or pause the audio file (space)" aria-label="Play audio" disabled>▶ play</button>
+          <span id="toolbar-rhythm" class="toolbar-rhythm"><button id="toolbar-tap" type="button" title="Tap tempo (Space or T outside the editor)" aria-keyshortcuts="Space T">Tap <kbd>Space</kbd></button><output id="toolbar-bpm" hidden></output></span>
+          <button id="play-toggle" type="button" class="transport-control" title="Play or pause the audio file (Shift+Space)" aria-keyshortcuts="Shift+Space" aria-label="Play audio" disabled>▶ play</button>
           <button id="loop-performance-toggle" type="button" class="transport-control" title="Loop the audio file (l)" aria-label="Loop audio" aria-pressed="false">↻ loop</button>
         </div>
         <button id="load-audio" type="button" class="glyph labeled-control" title="Load an audio file (a)" aria-label="Load an audio file">Audio</button>
         <input id="audio-file-2" type="file" accept=".mp3,.wav,.ogg,.m4a,.aac" hidden />
         <button id="use-mic" type="button" class="glyph" title="Switch to microphone or line input (m)" aria-label="Switch to microphone or line input">◉</button>
-        <button id="projection-open" type="button" class="glyph labeled-control" title="Open the audience projection window (p)" aria-label="Open the audience projection window">Audience</button>
         <button id="fullscreen-toggle" type="button" class="glyph" title="Fullscreen the stage (f)" aria-label="Fullscreen the stage">⤢</button>
         <button id="panic" type="button" class="glyph danger labeled-control" title="Restore the complete safe state (0)" aria-label="Restore safe state (0)">Restore safe</button>
         <button id="fold-code" type="button" class="glyph" title="Fold code into cells" aria-label="Fold code into cells">▤</button>

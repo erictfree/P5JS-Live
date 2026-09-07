@@ -328,7 +328,7 @@ At startup, choose one of the following:
 - **Silence** to code without an audio source.
 
 Browsers require a click before they allow sound. If a file takes time to decode,
-wait for the loading indication to finish. Press `Space` or use the transport to play
+wait for the loading indication to finish. Press `Shift+Space` or use the transport to play
 and pause. The loop control repeats a file.
 
 Audio files are deliberately not embedded in project exports. Keep the media file
@@ -1934,7 +1934,8 @@ The `Cmd/Ctrl+Shift+Up/Down` form is the portable choice.
 
 | Key | Action |
 | --- | --- |
-| `Space` | Play or pause a loaded audio file |
+| `Space` / `t` | Tap tempo |
+| `Shift+Space` | Play or pause a loaded audio file |
 | `0` | Restore Safe State |
 | `s` | Capture the current confirmed project as Safe State |
 | `r` | Show or hide the installed-patch Reference drawer |
@@ -2520,8 +2521,9 @@ helper it requires.
 
 ## Tap tempo and reusable visual motion
 
-Tools → Audio now includes Rhythm. Tap T outside text fields, use Tap, or enter
-30–300 BPM. Manual keeps running without sound; Off holds the optional clock.
+Tap is always available in the top navigation. Press Esc to release editor focus,
+then tap Space (or T), or click Tap. Tools → Audio → Rhythm also accepts 30–300 BPM.
+Shift+Space plays or pauses audio. Manual keeps running without sound; Off holds the optional clock.
 Detected hits remain `audio.onset`, independent of the shared `clock` snapshot.
 
 Run Motion Lab in that panel to try LFOs, attack/release envelopes, ramps, stepped
