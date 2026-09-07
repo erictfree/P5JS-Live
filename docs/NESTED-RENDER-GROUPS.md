@@ -183,3 +183,12 @@ Nested arrays are the core composition syntax. App-provided [array effect method
 add chaining directly: `[patch1, patch2].rotate(0, 0.2).opacity(0.6)` processes both
 patches together. Nest that array to isolate its effects. The host retains each
 patch's lifecycle and state; `scene.draw()` selects the scene for ongoing rendering.
+
+## Private image inputs
+
+A group passed to `.modulate(group, amount)` uses the same offscreen rendering and
+patch lifecycle, but returns its texture to the effect without compositing into the
+parent. It can include nested groups or further modulation. Inputs are tracked in
+the registry tree and Safe State, including occurrence identity and mute settings.
+Targets are reused across frames and released on departure. See the
+[composition cookbook](COMPOSITION.md#use-one-layer-to-distort-another).

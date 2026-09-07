@@ -10,6 +10,7 @@
 // Drawing is injected through `drawing` so this file can be unit-tested without p5.
 
 import { createLayerArray } from './layer.js';
+import { ShaderChain, SHADER_IMAGE_TEXTURES } from '../shaders/shaderChain.js';
 import { createRhythmManager } from '../rhythm/rhythmManager.js';
 
 const MAX_DT = 1 / 10; // after a stall, resumed state must not leap
@@ -99,7 +100,10 @@ export function createHostLoop({
     const ids = [];
     const visit = (nodes) => {
       for (const node of nodes ?? []) {
-        if (node?.kind !== 'group') continue;
+        if (node?.kind !== 'group') {
+          for (const input of node.inputs ?? []) visit([input.layer]);
+          continue;
+        }
         ids.push(node.id);
         visit(node.children);
       }
@@ -133,19 +137,22 @@ export function createHostLoop({
    *   - an already-committed version throws -> it is marked failed, but the loop and
    *     every other strategy keeps running
    */
-  function drawStrategy(strategy, inputs) {
+  function drawStrategy(strategy, inputs, prepareInputs = () => null) {
     const id = strategy.id;
     const name = strategy.strategy;
     const record = registry.getStrategy(name);
-    if (!record?.definition) return;
+    if (!record?.definition) return false;
 
     // Persistent state is per instance; the implementation is shared by all copies.
     drawInputs.state = stateStore.ensure(id, strategy.state);
 
     let threw = null;
+    const parentTextures = drawInputs[SHADER_IMAGE_TEXTURES];
     drawing.push();
     drawing.resetDefaults();
     try {
+      drawInputs[SHADER_IMAGE_TEXTURES] = prepareInputs();
+      drawInputs.state = stateStore.ensure(id, strategy.state);
       if (!entered.has(id)) {
         entered.add(id);
         strategy.enter?.(drawInputs);
@@ -155,12 +162,13 @@ export function createHostLoop({
     } catch (error) {
       threw = error;
     } finally {
+      drawInputs[SHADER_IMAGE_TEXTURES] = parentTextures;
       drawing.pop();
     }
 
     if (threw === null) {
       registry.markRendered(name);
-      return;
+      return true;
     }
 
     if (record.candidate) {
@@ -178,7 +186,7 @@ export function createHostLoop({
       // hidden JavaScript variable. Rebuild the visible scene-array binding from the
       // restored registry configuration so a later `scene.draw()` cannot accidentally
       // resurrect the failed function object. Named strategies restore normally.
-      const inline = /^([A-Za-z_$][\w$]*)((?:\[\d+\])+)$/.exec(name);
+      const inline = /^([A-Za-z_$][\w$]*)((?:\[(?:\d+|input\d+)\])+)$/.exec(name);
       if (inline && evaluator.hasBinding(inline[1])) {
         const previousScene = result.configurationSnapshot?.scenes
           ?.find((scene) => scene.name === inline[1]);
@@ -200,6 +208,7 @@ export function createHostLoop({
     } else {
       reportRepeatingError(record, threw);
     }
+    return false;
   }
 
   function materializeScene(entries) {
@@ -208,36 +217,57 @@ export function createHostLoop({
         const children = materializeScene(entry.group);
         return createLayerArray(children, entry.muted);
       }
-      return registry.getStrategy(entry)?.definition;
+      const definition = registry.getStrategy(typeof entry === 'string' ? entry : entry.strategy)?.definition;
+      if (entry?.inputs?.length && definition instanceof ShaderChain) {
+        return definition.withImageInputs(new Map(entry.inputs.map(input =>
+          [input.uniform, materializeScene([input.layer])[0]])));
+      }
+      return definition;
     });
   }
 
-  /** Draw the recursive scene tree. Nested arrays receive transparent offscreen targets. */
+  /** Render input layers privately, then expose their textures only to the owning effect. */
   function drawScene(inputs = drawInputs) {
-    const visit = (nodes) => {
-      for (const node of nodes ?? []) {
-        if (node?.kind === 'group' && node.muted) continue;
-        if (node?.kind !== 'group') {
-          drawStrategy(node, inputs);
-          continue;
-        }
-
-        const parentCanvas = drawInputs.canvas;
-        const scope = drawing.beginGroup?.(node.id);
-        if (!scope) {
-          visit(node.children);
-          continue;
-        }
-        try {
-          drawInputs.canvas = drawing.groupCanvas?.(scope) ?? parentCanvas;
-          visit(node.children);
-        } finally {
-          drawInputs.canvas = parentCanvas;
-          drawing.endGroup(scope);
-        }
+    const tree = registry.activeTree();
+    const renderGroup = (node, composite = true) => {
+      const parentCanvas = drawInputs.canvas;
+      const scope = drawing.beginGroup?.(node.id);
+      if (!scope) {
+        if (!composite) throw new Error('Image modulation requires offscreen rendering');
+        return { ok: visit(node.children), canvas: parentCanvas };
       }
+      const canvas = drawing.groupCanvas?.(scope);
+      let ok = true;
+      try {
+        drawInputs.canvas = canvas ?? parentCanvas;
+        if (!node.muted) ok = visit(node.children);
+      } finally {
+        drawInputs.canvas = parentCanvas;
+        drawing.endGroup(scope, { composite });
+      }
+      return { ok, canvas };
     };
-    visit(registry.activeTree());
+    const visit = (nodes) => {
+      let ok = true;
+      for (const node of nodes ?? []) {
+        if (node?.kind === 'group') {
+          if (!node.muted) ok = renderGroup(node).ok && ok;
+          continue;
+        }
+        ok = drawStrategy(node, inputs, () => {
+          if (!node.inputs?.length) return null;
+          const textures = new Map();
+          for (const input of node.inputs) {
+            const result = renderGroup(input.layer, false);
+            if (!result.ok) throw new Error(`Image input failed for ${node.strategy}`);
+            textures.set(input.uniform, result.canvas);
+          }
+          return textures;
+        }) && ok;
+      }
+      return ok;
+    };
+    visit(tree);
   }
 
   /** A committed strategy that throws every frame must not flood history or memory. */

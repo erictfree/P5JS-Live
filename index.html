@@ -264,6 +264,7 @@
               <div id="scene-inspector-status" class="scene-inspector-status" role="status"></div>
               <div id="scene-pending" class="library-pending" hidden><strong>Scene edits are waiting to run</strong><p>The tree below shows the live composition.</p><button id="scene-review-source" type="button">Review scene &amp; run</button></div>
               <ol id="scene-tree" class="scene-tree" aria-label="Live scene composition"></ol>
+              <details class="tool-disclosure scene-recipe"><summary>Let one image distort another</summary><p><code>[lettering].modulate([rings], 0.08)</code> uses the rings to bend the lettering. The image input stays offstage unless you also add it to the scene.</p><button id="run-image-modulation" type="button">Run Image Modulation</button></details>
               <details class="tool-disclosure scene-recipe"><summary>Chain effects onto a sketch</summary><p>Put one or more installed sketches in an array, then chain effects onto that array. Edit its scene cell, then Run.</p><pre><code>const scene = [
   [waveScope]
     .kaleid(6)

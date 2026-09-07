@@ -377,6 +377,12 @@ export function createAppController({
         bypassed: chain?.bypassed ?? false,
         operations: chain?.operations.map(({ name, args }) => ({ name, args: args.map((value) => formatValue(value)) })) ?? [],
         passes: chain?.passCount ?? 0,
+        inputs: (node.inputs ?? []).map((input, inputIndex) => ({
+          ...describeTree([input.layer], [...entryPath, `input${inputIndex}`])[0],
+          label: `Image input${node.inputs.length > 1 ? ` ${inputIndex + 1}` : ''}${input.layer.sourceName ? ` · ${input.layer.sourceName}` : ''}`,
+          sourceName: input.layer.sourceName || node.strategy,
+          imageInput: true,
+        })),
       };
     });
     scene.tree = describeTree(registry.activeTree());

@@ -82,6 +82,23 @@ Array `.rotate()` and `.opacity()` process rendered pixels with GPU shaders. p5
 global `rotate()` inside a patch changes drawing coordinates for that patch. The
 array method and the p5 function belong to different objects.
 
+## Image inputs
+
+`[picture].modulate([mapPatch], amount)` adds a dependency on another layer's image.
+The input array has the same composition rules as every other layer, but its
+completed image is sampled by the effect instead of composited into the parent.
+It may itself contain effects and nested image inputs. The host renders each input
+occurrence before its consuming effect, using the same frame's audio, clock, and
+signals. It retains ordinary patch state, lifecycle, named replacement, and recovery.
+
+Inputs belong to occurrences, not to a shared image cache keyed by array identity.
+Using the same array twice gives separate host-managed state, just like nesting it
+twice. This does not clone object-owned fields or GPU resources. Configuration
+snapshots include the input trees; project files still store source. GPU targets
+remain runtime resources and disappear when their input occurrences leave.
+Cyclic same-frame dependencies are rejected; previous-frame `.feedback()` remains
+an explicit temporal operation. The Scene inspector exposes input branches.
+
 ## Scene activation and namespaces
 
 Only one scene is active at a time. `scene.draw()` selects a named array for

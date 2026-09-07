@@ -140,8 +140,9 @@ const drawing = {
     };
   },
   groupCanvas: (scope) => scope.graphics,
-  endGroup(scope) {
+  endGroup(scope, { composite = true } = {}) {
     scope.pInst._renderer = scope.parentRenderer;
+    if (!composite) return;
     push();
     this.resetDefaults();
     noTint();
@@ -1446,18 +1447,24 @@ function buildDemoScene() {
 
 document.getElementById('insert-demo-scene').addEventListener('click', buildDemoScene);
 
-document.getElementById('run-motion-lab').addEventListener('click', async () => {
-  try {
-    const response = await fetch(new URL('../starter/motion-lab.js', import.meta.url));
-    if (!response.ok) throw new Error('Could not load Motion Lab');
-    const source = await response.text();
-    for (const cell of findCells(source)) editor.replaceNamedBlock(cell.label, cell.text);
-    const result = evaluator.evaluate(source, { label: 'Motion Lab' });
-    if (!result.ok) throw result.error;
-    editor.revealScene('motionLab');
-    diagnostics.success('Motion Lab ready', 'Press Esc, then hold and release H for the ADSR; tap Space for tempo. The Lag cell compares raw steps with smooth motion. Your existing source remains in the project.');
-  } catch (error) { diagnostics.error('Motion Lab could not start', error.message); }
-});
+function connectExample(buttonId, file, sceneName, title, message) {
+  document.getElementById(buttonId).addEventListener('click', async () => {
+    try {
+      const response = await fetch(new URL(`../starter/${file}`, import.meta.url));
+      if (!response.ok) throw new Error(`Could not load ${title}`);
+      const source = await response.text();
+      for (const cell of findCells(source)) editor.replaceNamedBlock(cell.label, cell.text);
+      const result = evaluator.evaluate(source, { label: title });
+      if (!result.ok) throw result.error;
+      editor.revealScene(sceneName);
+      diagnostics.success(`${title} ready`, message);
+    } catch (error) { diagnostics.error(`${title} could not start`, error.message); }
+  });
+}
+connectExample('run-motion-lab', 'motion-lab.js', 'motionLab', 'Motion Lab',
+  'Press Esc, then hold and release H for the ADSR; tap Space for tempo. The Lag cell compares raw steps with smooth motion. Your existing source remains in the project.');
+connectExample('run-image-modulation', 'image-modulation.js', 'imageModulation', 'Image Modulation',
+  'Press Esc, then hold H to compare the undistorted image. Controls has Modulation depth. The rings are a private image input; edit modRings to change the distortion. Your existing source remains in the project.');
 
 // --- project export / import -----------------------------------------------------
 

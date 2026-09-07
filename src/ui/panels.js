@@ -253,6 +253,7 @@ export function createPanels({
       const catalog = library.find(({ name }) => name === node.label);
       kind.textContent = node.muted ? 'Muted' : node.bypassed ? 'Bypassed'
         : node.status === 'failed' ? 'Error'
+        : node.imageInput ? 'Modulator'
         : node.kind === 'group' ? 'Isolated'
         : node.kind === 'effect' || catalog?.category === 'shader' ? 'Effect' : 'Patch';
       row.append(select, kind);
@@ -287,6 +288,13 @@ export function createPanels({
         cost.className = 'scene-pass-count';
         cost.textContent = `${node.passes} shader pass${node.passes === 1 ? '' : 'es'}`;
         li.append(operations, cost);
+      }
+      if (node.inputs?.length) {
+        const inputs = document.createElement('ol');
+        inputs.className = 'scene-tree';
+        inputs.setAttribute('aria-label', `${node.label} image inputs`);
+        inputs.append(...rows(node.inputs, depth + 1));
+        li.append(inputs);
       }
       return li;
     });

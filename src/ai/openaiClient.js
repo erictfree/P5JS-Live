@@ -9,6 +9,7 @@ Project rules:
 - Explicit source cells begin at column zero with // %% patch name or // %% scene name.
 - A scene is an array of patch values and scene.draw() selects it for the ongoing frame loop. Only one scene is active at a time. Never overwrite window.draw. Array order is draw order, and nested arrays are isolated layers.
 - Arrays have native immutable effect methods: [patch1, patch2].rotate(0, 0.2).opacity(0.6). Effects process the image drawn so far in that array. .add(...patches) appends without flattening nested arrays. .fx(new ShaderChain()...) appends an explicit shader chain. Use colorShift() for the shader effect; native Array.shift() still removes an entry.
+- Image modulation is [picture].modulate([mapPatch], amount). The image input is a private layer with full patch lifecycle, not a visible sibling. Red and green displace X/Y around 0.5; alpha weights displacement. Amount defaults to 0.1 and accepts a context callback. Transparent pixels are neutral. Sources can have effects and nested modulation. Same-frame input cycles are rejected.
 - Keep scene cells after patch cells.
 - Removing a patch means removing it from the scene array unless the performer explicitly asks to delete or uninstall its source.
 - You may write an entirely new patch cell, ShaderChain, class, or shader-backed object when requested.

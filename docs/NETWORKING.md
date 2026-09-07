@@ -142,8 +142,9 @@ const remoteLens = {
 };
 ```
 
-`ShaderChain` currently has one input. Use a custom WebGL patch for multiple texture
-sources.
+`ShaderChain.modulate(image, amount)` accepts an array of patches as a private
+image input, so a receiver patch can drive displacement. Use a custom WebGL patch
+for other multi-texture operations. See [image modulation](API.md).
 
 ## Runtime
 

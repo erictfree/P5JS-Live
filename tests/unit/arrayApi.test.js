@@ -57,7 +57,7 @@ describe('native array composition', () => {
 
   it('exposes all selected shader operators and preserves native shift', () => {
     for (const name of ARRAY_SHADER_METHODS) {
-      const effect = [a][name]().at(-1);
+      const effect = [a][name](...(name === 'modulate' ? [[b]] : [])).at(-1);
       expect(effect).toBeInstanceOf(ShaderChain);
       expect(effect.operations[0].name).toBe(name);
     }

@@ -73,9 +73,9 @@ function isPatchBlock(block, name) {
   return label === `patch ${name}`;
 }
 
-/** `scene[2]` is the scene-local identity of an anonymous array entry. */
-function inlineSceneName(name) {
-  return /^(.*)\[(\d+)\]$/.exec(name)?.[1] ?? null;
+/** Anonymous entries and image inputs navigate to their owning source binding. */
+function inlineSourceName(name) {
+  return /^([A-Za-z_$][\w$]*)(?:\[(?:\d+|input\d+)\])+$/.exec(name)?.[1] ?? null;
 }
 
 /**
@@ -1026,10 +1026,11 @@ export function createEditor(textarea, handlers) {
   /** A patch can compile successfully and still throw when the next frame calls it. */
   function flashCodeError(name) {
     if (folded && foldedView) {
-      const sceneName = inlineSceneName(name);
+      const sceneName = inlineSourceName(name);
       const description = sceneName ? `scene ${sceneName}` : `patch ${name}`;
       const block = [...foldedView.querySelectorAll('.folded-block')].find(
-        (candidate) => candidate.dataset.blockDescription === description,
+        (candidate) => candidate.dataset.blockDescription === description ||
+          (sceneName && candidate.dataset.blockDescription === `patch ${sceneName}`),
       );
       if (block) {
         flash(false, [block]);
@@ -1627,13 +1628,14 @@ export function createEditor(textarea, handlers) {
       return match ? { name: match[1], source: block.text.trimEnd() } : null;
     },
     revealStrategy(name) {
-      const sceneName = inlineSceneName(name);
-      if (sceneName) return this.revealScene(sceneName);
-
-      const target = findBlocks(textarea.value).find((block) => isPatchBlock(block, name));
-      if (!target) return false;
+      const sceneName = inlineSourceName(name);
+      if (sceneName) return this.revealScene(sceneName) || this.revealStrategy(sceneName);
 
       const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const declarationPattern = new RegExp(`^\\s*(?:const|let|var|class|function)\\s+${escaped}\\b`);
+      const target = findBlocks(textarea.value).find((block) => isPatchBlock(block, name))
+        ?? findStatements(textarea.value).find((statement) => declarationPattern.test(statement.text));
+      if (!target) return false;
       const declaration = target.text.match(
         new RegExp(`\\b(?:const|let|var|function)\\s+(${escaped})\\b`),
       );
@@ -1656,10 +1658,10 @@ export function createEditor(textarea, handlers) {
     /** Put a stored version back in the editor when the performer reverts. */
     replaceBlockFor(name, source) {
       const blocks = findBlocks(textarea.value);
-      const sceneName = inlineSceneName(name);
+      const sceneName = inlineSourceName(name);
       const target = blocks.find((block) =>
         sceneName
-          ? describeBlock(block.text) === `scene ${sceneName}`
+          ? describeBlock(block.text) === `scene ${sceneName}` || isPatchBlock(block, sceneName)
           : isPatchBlock(block, name));
       // Through `write` so a revert is itself undoable — putting an old version back
       // is exactly the kind of move a performer takes back a second later.

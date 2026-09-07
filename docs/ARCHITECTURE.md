@@ -14,7 +14,7 @@ src/host/stateStore.js      per-instance state and restoration
 src/host/liveApi.js         live commands and validation
 src/host/evaluator.js       binding capture and atomic staging
 src/host/hostLoop.js        lifecycle calls, frame boundaries, and rollback
-src/shaders/shaderChain.js  single-input GPU operator compiler and patch
+src/shaders/shaderChain.js  GPU operator compiler with managed image inputs
 src/language/sourceBlocks.js statement and // %% cell discovery
 src/audio/                  audio graph and feature processing
 src/rhythm/                 shared clock, tap estimation, and causal tempo tracker

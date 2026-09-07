@@ -89,11 +89,11 @@ test('quickstart: starter, second patch, shared and separate effects', async ({ 
   }
 });
 
-test('cookbook: nested groups, explicit shaders and configured patch factories', async ({ page }, testInfo) => {
+test('cookbook: nested groups, image modulation, explicit shaders and configured patch factories', async ({ page }, testInfo) => {
   const file = 'docs/COMPOSITION.md';
   await boot(page, example(file, 'together'));
   await visiblyAnimating(page);
-  for (const name of ['separate', 'nested', 'explicit-shader', 'configured']) {
+  for (const name of ['separate', 'nested', 'modulation', 'explicit-shader', 'configured']) {
     await run(page, example(file, name));
     await visiblyAnimating(page);
   }

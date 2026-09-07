@@ -482,6 +482,7 @@ Transform operators:
 | `mirror(horizontal, vertical)` | Reflection amounts from 0 to 1 |
 | `crop(left, right, top, bottom)` | Normalized visible bounds |
 | `noiseWarp(amount, scale, speed)` | Animated value-noise displacement |
+| `modulate(image, amount = 0.1)` | Displace this image using another array of patches; amount may be a context callback |
 | `rotate(angle, speed)` | Radians and optional radians per second |
 | `scale(amount, xMult, yMult, offsetX, offsetY)` | Zoom, axis multipliers, and center |
 | `pixelate(pixelX, pixelY)` | Horizontal and vertical cell counts |
@@ -502,7 +503,31 @@ Color operators:
 `saturate`, `hue`, `colorama`, `sum`, and `rgba`.
 
 These operate on the current layer's rendered image. `feedback` also samples the
-chain's previous output frame. Use a custom WebGL patch for arbitrary multiple textures.
+chain's previous output frame. `modulate(image, amount = 0.1)` takes another array
+as a private image input, including nested groups and that input's own effects.
+The host renders it with the same frame context and ordinary occurrence lifecycle.
+It is not composited into the parent. Its normalized red/green values, minus 0.5,
+displace sampling coordinates in X/Y; alpha multiplies the displacement. Transparent
+pixels are neutral. With amount 0.1, each axis can move by up to 5% of its dimension.
+Positive red/green displacement samples to the right/down, so image features appear
+shifted left/up. Sampling wraps at the image edges; negative amounts reverse it.
+Use `background(128)` for an approximately neutral opaque map (8-bit mid-gray).
+Amount 0 is an identity operation. Invalid or cyclic inputs fail before activation;
+non-finite dynamic amounts fail through normal patch error recovery.
+
+Input patches are listed under **Image input** in Tools → Scene. Reusing an input
+creates independent host-managed occurrences, matching nested arrays; object-owned
+resources still follow the normal sharing rules. Named input patches replace live.
+Changing a helper array requires rerunning its consumer scene. Replacing a named
+ShaderChain declaration refreshes its input occurrences at the frame boundary;
+mutating an existing chain's input structure requires rerunning its scene.
+Each modulation starts a shader pass if preceding operations exist, limiting each
+pass to one additional image sampler. Input layers add their own rendering cost.
+Their targets are reused, resized, and released when those occurrences leave.
+Muted input groups remain transparent and pause drawing; bypassing the consuming
+shader skips its effect but keeps its input lifecycle running.
+
+Use a custom WebGL patch for other multi-texture operations.
 The library's `Plasma` class shows how to own an offscreen WebGL buffer, pass `canvas`
 to a sampler, update uniforms, and release resources.
 

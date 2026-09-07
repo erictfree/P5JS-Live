@@ -36,7 +36,7 @@ implementation model, see [Architecture](ARCHITECTURE.md). The shorter
 
 | Document information | |
 | --- | --- |
-| Manual edition | 1.1 |
+| Manual edition | 1.2 |
 | Updated | September 7, 2026 |
 | Audience | Students, educators, creative coders, and live visual performers |
 | Prerequisites | Current desktop Google Chrome; basic JavaScript is helpful but not required |
@@ -1179,6 +1179,59 @@ For a custom WebGL class, keep GPU resources on the object, allocate them lazily
 resize as needed, and release them in `dispose()`. Custom fragment shaders commonly
 receive resolution, time, audio, and the previous canvas texture as uniforms.
 
+#### Let one image distort another
+
+An effect can use another patch's image as an input. With existing `lettering`,
+`rings`, and `backdrop` patches:
+
+```js
+const scene = [
+  backdrop,
+  [lettering].modulate([rings].blur(4), 0.08),
+];
+scene.draw();
+```
+
+The rings render offscreen, then distort the lettering. They do not appear as
+another visible layer unless you also place them directly in the scene. Both
+sides can contain several patches, nested arrays, and their own chained effects.
+
+Red controls horizontal displacement; green controls vertical displacement.
+The center is 0.5 in normalized color: use `background(128)` for an approximately
+neutral opaque map. Transparent areas cause no displacement. Stronger red samples
+farther right, moving visible features left; stronger green moves features up.
+Amount defaults to 0.1, allowing up to 5% displacement on each axis. Zero shows
+the original image; negative amounts reverse the direction. Image edges wrap.
+
+Amount also accepts our usual context callbacks. For example, create a smoother
+once, then use it in the scene:
+
+```js
+const bass = lag(c => c.audio.bass, { rise: 0.04, fall: 0.3 });
+const scene = [
+  backdrop,
+  [lettering].modulate([rings], c => 0.02 + bass(c) * 0.1),
+];
+scene.draw();
+```
+
+For a complete working example, open **Tools → Scene → Let one image distort
+another → Run Image Modulation**. Press Esc, then hold H to compare the original
+image. Adjust **Modulation depth** in Controls. Edit `modRings` and Run its patch
+to change the distortion while the scene continues. The example also works without
+sound, and keeps your existing source in the project.
+
+The Scene inspector shows an **Image input** branch beneath the effect. Those
+patches receive the usual state, time, audio, clock, and lifecycle calls. Reusing
+an input creates separate occurrences, as with ordinary nested arrays. Its
+object-owned fields and resources still follow the normal sharing rules.
+
+You can modulate an input with another input. Circular same-frame dependencies
+are rejected; use `.feedback()` for previous-frame effects. `.mute()` on the input
+pauses its patches and makes the map transparent. Editing a named patch updates
+its live occurrences; changing a helper array requires rerunning its consumer
+scene. Each additional input and shader pass has a rendering cost.
+
 #### Build a custom shader patch
 
 Use a class when the visual needs its own GLSL program or offscreen WebGL target. A
@@ -2102,6 +2155,7 @@ Transform and coordinate operators:
 | `.mirror(horizontal, vertical)` | Axis reflection amounts |
 | `.crop(left, right, top, bottom)` | Normalized visible bounds |
 | `.noiseWarp(amount, scale, speed)` | Animated value-noise displacement |
+| `.modulate(image, amount)` | Displacement from another array of patches; amount defaults to 0.1 |
 | `.rotate(angle, speed)` | Angle and optional continuous speed |
 | `.scale(amount, xMult, yMult, offsetX, offsetY)` | Zoom, axis multipliers, and offset |
 | `.pixelate(pixelX, pixelY)` | Horizontal and vertical cell counts |
@@ -2144,9 +2198,10 @@ Color operators:
 | `.sum(scale)` | Sum RGB channels with scaling |
 | `.rgba(r, g, b, a)` | Explicit channel weighting |
 
-`ShaderChain` is single-input: it processes the pixels already present in its current
-scene or nested-group scope. Use nested groups to choose that input scope. Arbitrary
-multi-texture routing requires a custom WebGL patch.
+`ShaderChain` processes the pixels already present in its current scene or nested
+group. `.modulate(image, amount)` also accepts an array as a private image input;
+that image displaces the current pixels. Use nested groups to choose effect scope.
+Other custom multi-texture operations require a custom WebGL patch.
 
 #### p5.js drawing surface
 

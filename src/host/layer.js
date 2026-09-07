@@ -15,6 +15,15 @@ export function assertPatch(value, ancestors = new Set(), location = 'layer') {
     ancestors.delete(value);
     return;
   }
+  if (value instanceof ShaderChain) {
+    if (ancestors.has(value)) throw new TypeError(`${location}: cyclic image input`);
+    ancestors.add(value);
+    for (const [index, input] of value.imageInputs.entries()) {
+      assertPatch(input.source, ancestors, `${location}.modulate[${index}]`);
+    }
+    ancestors.delete(value);
+    return;
+  }
   if (typeof value === 'function' || typeof value?.draw === 'function') return;
   throw new TypeError(`${location}: layer entries need a patch (a function or object with draw()) or a group of patches`);
 }

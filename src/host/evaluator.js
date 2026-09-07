@@ -37,7 +37,7 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
       if (bound) return bound;
     }
     for (const record of registry.listStrategies()) {
-      if (record.definition === value) return record.name;
+      if (record.definition === value || record.history.some(entry => entry.definition === value)) return record.name;
     }
     return null;
   }
@@ -70,7 +70,11 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
     }
 
     const signalScope = signals.scope();
-    const transaction = createTransaction(source, { nameOf: knownNameOf, signalApi: signalScope.api });
+    const transaction = createTransaction(source, {
+      nameOf: knownNameOf,
+      definitionOf: name => registry.getStrategy(name)?.definition,
+      signalApi: signalScope.api,
+    });
     transaction.signalScope = signalScope;
     let captured = {};
     try {
@@ -81,6 +85,12 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
           ...availableBindings.map(([, value]) => value),
         )) ?? {};
       const localNameOf = captureDeclarations(transaction, declarations, captured);
+      transaction.refreshSceneInputs(registry.snapshotConfiguration().scenes, localNameOf);
+      const declarationsByName = new Map(declarations.map(entry => [entry.name, entry]));
+      for (const [name, entry] of transaction.referencedStrategies) {
+        const declaration = declarationsByName.get(name);
+        if (declaration) entry.source = declaration.source;
+      }
       transaction.resolveCommandTargets(localNameOf);
       promoteNewReferences(transaction);
     } catch (error) {
@@ -184,13 +194,6 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
       sceneNames.add(name);
     }
 
-    // A function mentioned by a scene becomes a strategy at that point.
-    // When it was declared in this evaluation, keep its cell as its history source.
-    const declarationsByName = new Map(declarations.map((entry) => [entry.name, entry]));
-    for (const [name, entry] of transaction.referencedStrategies) {
-      const declaration = declarationsByName.get(name);
-      if (declaration) entry.source = declaration.source;
-    }
     return localNameOf;
   }
 
@@ -275,7 +278,9 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
     for (const [name, value] of updates) {
       const previous = bindings.get(name);
       if ((typeof previous === 'object' && previous !== null) || typeof previous === 'function') {
-        namesByObject.delete(previous);
+        // Existing scene/input arrays can still hold this version after many edits.
+        // A weak alias preserves the named patch link without retaining the object.
+        if (!registry.hasStrategy(name)) namesByObject.delete(previous);
       }
       bindings.set(name, value);
       if ((typeof value === 'object' && value !== null) || typeof value === 'function') {
@@ -315,12 +320,26 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
       diagnostics?.warn(`No stored version ${version} of ${name}`);
       return { ok: false, phase: 'history' };
     }
-    const transaction = createTransaction(entry.source, { nameOf: knownNameOf });
+    const transaction = createTransaction(entry.source, {
+      nameOf: knownNameOf, definitionOf: name => registry.getStrategy(name)?.definition,
+    });
     transaction.stagedStrategies.set(name, {
       definition: entry.definition,
       source: entry.source,
       stateSnapshot: stateStore.snapshotStrategy(name),
     });
+    try {
+      transaction.refreshSceneInputs(registry.snapshotConfiguration().scenes);
+      promoteNewReferences(transaction);
+      for (const [target, staged] of transaction.stagedStrategies) {
+        staged.stateSnapshot = stateStore.snapshotStrategy(target);
+      }
+      const error = validateTargets(transaction);
+      if (error) throw error;
+    } catch (error) {
+      diagnostics?.error('History could not be restored', error.message);
+      return { ok: false, phase: 'history', error };
+    }
     // Scene-local identities such as `scene[1]` are registry identities, not hidden
     // JavaScript variables. Their stored source is the scene cell, which the editor
     // restores; only an actual captured binding should be changed here.
@@ -337,9 +356,9 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
     return dropped;
   }
 
-  function clearBindings() {
+  function clearBindings({ forgetNames = true } = {}) {
     bindings.clear();
-    namesByObject = new WeakMap();
+    if (forgetNames) namesByObject = new WeakMap();
   }
 
   function snapshotBindings() {
@@ -347,7 +366,7 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
   }
 
   function restoreBindings(snapshot) {
-    clearBindings();
+    clearBindings({ forgetNames: false });
     for (const [name, value] of snapshot ?? []) restoreBinding(name, value);
   }
 
@@ -355,7 +374,7 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
   function restoreBinding(name, value) {
     const current = bindings.get(name);
     if ((typeof current === 'object' && current !== null) || typeof current === 'function') {
-      namesByObject.delete(current);
+      if (!registry.hasStrategy(name)) namesByObject.delete(current);
     }
     if (value === null || value === undefined) bindings.delete(name);
     else {
@@ -389,7 +408,10 @@ function isObjectStrategy(value) {
 function flattenSceneEntries(entries, result = []) {
   for (const entry of entries ?? []) {
     if (Array.isArray(entry?.group)) flattenSceneEntries(entry.group, result);
-    else result.push(entry);
+    else {
+      for (const input of entry?.inputs ?? []) flattenSceneEntries([input.layer], result);
+      result.push(typeof entry === 'string' ? { strategy: entry } : entry);
+    }
   }
   return result;
 }

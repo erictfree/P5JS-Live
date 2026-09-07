@@ -1,9 +1,12 @@
-// A composable, single-input post-processing patch.
+// Composable post-processing, with host-managed image inputs for modulation.
 //
 // The public method vocabulary follows the familiar coordinate and colour operator
 // groups used by Hydra, while the implementation is native to p5js live's p5 scene
 // model. A chain is an ordinary object with draw() and dispose(), so it participates
 // in evaluation, rollback, scene ordering, and resource cleanup like every other patch.
+
+// Internal frame-local textures; never part of project data or the public context API.
+export const SHADER_IMAGE_TEXTURES = Symbol('shader image textures');
 
 const VERTEX_SOURCE = `
   precision highp float;
@@ -108,6 +111,16 @@ const SPECS = Object.freeze({
     glsl: ([left, right, top, bottom]) => `
       coverage *= step(${left}, uv.x) * step(uv.x, ${right});
       coverage *= step(${top}, uv.y) * step(uv.y, ${bottom});
+    `,
+  },
+  modulate: {
+    kind: 'coord',
+    args: [['image', 'sampler2D', null], ['amount', 'float', 0.1]],
+    glsl: ([image, amount], index) => `
+      vec4 modulation${index} = straightAlpha(texture2D(${image}, fract(uv)));
+      // Transparent input is neutral. R/G encode signed X/Y displacement;
+      // 0.5 is the center, with a full-scale excursion of half the amount.
+      uv += (modulation${index}.rg - 0.5) * modulation${index}.a * ${amount};
     `,
   },
   noiseWarp: {
@@ -458,6 +471,11 @@ function blendSource(mode) {
 function operation(name, supplied) {
   const spec = SPECS[name];
   if (!spec) throw new TypeError(`Unknown shader operator "${name}"`);
+  for (let i = 0; i < spec.args.length; i++) {
+    if (spec.args[i][1] === 'sampler2D' && !Array.isArray(supplied[i])) {
+      throw new TypeError(`${name}() needs an array of patches as its image input`);
+    }
+  }
   return {
     name,
     args: spec.args.map(([, , fallback], index) => supplied[index] ?? fallback),
@@ -466,14 +484,15 @@ function operation(name, supplied) {
 
 // Materialize the input to neighborhood filters. Otherwise a second blur would
 // expand the first blur nine times in GLSL (and grow exponentially from there).
-const NEIGHBORHOOD_OPERATORS = new Set(['blur', 'sharpen', 'edgeDetect', 'bloom', 'rgbSplit']);
+// Each image-input operation also starts a pass, bounding active texture samplers.
+const PASS_BOUNDARY_OPERATORS = new Set(['blur', 'sharpen', 'edgeDetect', 'bloom', 'rgbSplit', 'modulate']);
 
 /** Compile left-to-right image operations into bounded, reusable shader passes. */
 export function compileShaderOperations(operations, { blendMode = 'alpha' } = {}) {
   blendSource(blendMode); // Validate even an empty chain.
   const groups = [[]];
   operations.forEach((entry, index) => {
-    if (NEIGHBORHOOD_OPERATORS.has(entry.name) && groups.at(-1).length) groups.push([]);
+    if (PASS_BOUNDARY_OPERATORS.has(entry.name) && groups.at(-1).length) groups.push([]);
     groups.at(-1).push({ entry, index });
   });
   const passes = groups.map((group, index) => compilePass(group, {
@@ -550,6 +569,11 @@ function compilePass(operations, { blendMode, final }) {
 
 /** Resolve a literal or a higher-order live parameter for a p5 shader uniform. */
 export function resolveShaderUniform(uniform, context) {
+  if (uniform.type === 'sampler2D') {
+    const texture = context[SHADER_IMAGE_TEXTURES]?.get(uniform.name);
+    if (!texture) throw new Error(`${uniform.operator}() image input is not rendered; run the scene after changing its inputs`);
+    return texture;
+  }
   const candidate = typeof uniform.value === 'function'
     ? uniform.value(context)
     : uniform.value;
@@ -592,8 +616,28 @@ export class ShaderChain {
     return this.#operations.map(({ name, args }) => ({ name, args: [...args] }));
   }
 
+  /** Declarative dependencies, normalized by the evaluator into ordinary patch occurrences. */
+  get imageInputs() {
+    return this.#operations.flatMap(({ name, args }, index) =>
+      SPECS[name].args.flatMap(([, type], argIndex) => type === 'sampler2D'
+        ? [{ uniform: `u_${index}_${SPECS[name].args[argIndex][0]}`, source: args[argIndex] }]
+        : []));
+  }
+
+  /** Reconstruct a recovered scene without retaining failed anonymous input objects. */
+  withImageInputs(inputs) {
+    const operations = this.operations;
+    for (const { uniform } of this.imageInputs) {
+      const [, index, argument] = /^u_(\d+)_(.+)$/.exec(uniform);
+      const entry = operations[Number(index)];
+      const argIndex = SPECS[entry.name].args.findIndex(([name]) => name === argument);
+      if (inputs.has(uniform)) entry.args[argIndex] = inputs.get(uniform);
+    }
+    return new ShaderChain(operations).mix(this.#mixValue).blend(this.#blendMode).bypass(this.#bypassed);
+  }
+
   get bypassed() { return this.#bypassed; }
-  get passCount() { return 1 + this.#operations.filter(({ name }, index) => index > 0 && NEIGHBORHOOD_OPERATORS.has(name)).length; }
+  get passCount() { return 1 + this.#operations.filter(({ name }, index) => index > 0 && PASS_BOUNDARY_OPERATORS.has(name)).length; }
 
   clone() {
     return new ShaderChain(this.#operations)
@@ -646,6 +690,7 @@ export class ShaderChain {
   }
   mirror(horizontal, vertical) { return this.#append('mirror', [horizontal, vertical]); }
   crop(left, right, top, bottom) { return this.#append('crop', [left, right, top, bottom]); }
+  modulate(image, amount) { return this.#append('modulate', [image, amount]); }
   noiseWarp(amount, scale, speed) { return this.#append('noiseWarp', [amount, scale, speed]); }
 
   rotate(angle, speed) { return this.#append('rotate', [angle, speed]); }

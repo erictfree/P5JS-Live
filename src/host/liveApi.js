@@ -74,7 +74,7 @@ export function validateStrategy(value, suggestedName) {
  * without a binding receive a scene-local identity when `defineScene()` visits them.
  * Objects do not carry a second name property.
  */
-export function createTransaction(source = '', { nameOf = () => null, signalApi = {} } = {}) {
+export function createTransaction(source = '', { nameOf = () => null, definitionOf = () => null, signalApi = {} } = {}) {
   /** @type {Map<string, {definition: Function | object, source: string}>} */
   const stagedStrategies = new Map();
   /** Objects mentioned by scenes/commands; the evaluator stages them only if needed. */
@@ -99,22 +99,35 @@ export function createTransaction(source = '', { nameOf = () => null, signalApi 
     return name;
   }
 
-  function normalizeSceneEntry(sceneName, path, entry, localNameOf = nameOf, sceneSource = source) {
+  function normalizeImageInputs(sceneName, path, definition, localNameOf, sceneSource, ancestors) {
+    if (!(definition instanceof ShaderChain)) return [];
+    assertPatch(definition, new Set(), inlineStrategyName(sceneName, path));
+    return definition.imageInputs.map(({ uniform, source: image }, index) => ({
+      uniform,
+      layer: normalizeSceneEntry(sceneName, [...path, `input${index}`], image, localNameOf, sceneSource, ancestors),
+    }));
+  }
+
+  function normalizeSceneEntry(sceneName, path, entry, localNameOf = nameOf, sceneSource = source, ancestors = new Set()) {
     if (Array.isArray(entry)) {
       return {
         muted: isLayerArray(entry) && entry.muted === true,
         sourceName: localNameOf(entry),
         group: entry.map((child, index) =>
-          normalizeSceneEntry(sceneName, [...path, index], child, localNameOf, sceneSource)),
+          normalizeSceneEntry(sceneName, [...path, index], child, localNameOf, sceneSource, ancestors)),
       };
     }
     const boundName = localNameOf(entry);
+    const definition = stagedStrategies.get(boundName)?.definition ?? definitionOf(boundName) ?? entry;
     const name = referenceStrategy(
-      entry,
+      definition,
       boundName ?? inlineStrategyName(sceneName, path),
       boundName ? source : sceneSource,
     );
-    return { strategy: name };
+    if (ancestors.has(name)) throw new TypeError(`Cyclic image input involving "${name}"`);
+    const next = new Set(ancestors).add(name);
+    const inputs = normalizeImageInputs(name, [], definition, localNameOf, sceneSource, next);
+    return inputs.length ? { strategy: name, inputs } : { strategy: name };
   }
 
   /** Called by the evaluator when it captures `const scene = [laserFan, plasma]`. */
@@ -130,6 +143,38 @@ export function createTransaction(source = '', { nameOf = () => null, signalApi 
         normalizeSceneEntry(name, [index], entry, localNameOf, sceneSource)),
     });
     return name;
+  }
+
+  function refreshSceneInputs(scenes, localNameOf = nameOf) {
+    // Validate even an installed shader that has not yet been placed in a scene.
+    for (const [name, entry] of stagedStrategies) {
+      normalizeImageInputs(name, [], entry.definition, localNameOf, entry.source, new Set([name]));
+    }
+    const existing = new Set(operations.filter(op => op.type === 'scene').map(op => op.name));
+    for (const scene of scenes) {
+      if (existing.has(scene.name)) continue;
+      let changed = false;
+      const visit = (entry, path, ancestors = new Set()) => {
+        if (Array.isArray(entry?.group)) return {
+          ...entry, group: entry.group.map((child, index) => visit(child, [...path, index], ancestors)),
+        };
+        const name = typeof entry === 'string' ? entry : entry.strategy;
+        if (ancestors.has(name)) throw new TypeError(`Cyclic image input involving "${name}"`);
+        const next = new Set(ancestors).add(name);
+        const staged = stagedStrategies.get(name);
+        if (staged && ((staged.definition instanceof ShaderChain && staged.definition.imageInputs.length) || entry?.inputs?.length)) {
+          changed = true;
+          const inputs = normalizeImageInputs(name, [], staged.definition, localNameOf, scene.source, next);
+          return inputs.length ? { strategy: name, inputs } : { strategy: name };
+        }
+        if (!entry?.inputs?.length) return entry;
+        return { ...entry, inputs: entry.inputs.map((input, index) => ({
+          uniform: input.uniform, layer: visit(input.layer, [...path, `input${index}`], next),
+        })) };
+      };
+      const entries = scene.entries.map((entry, index) => visit(entry, [index]));
+      if (changed) operations.push({ type: 'scene', name: scene.name, source: scene.source, entries });
+    }
   }
 
   function commandTarget(value, command) {
@@ -193,6 +238,7 @@ export function createTransaction(source = '', { nameOf = () => null, signalApi 
     stageStrategy,
     defineScene,
     resolveCommandTargets,
+    refreshSceneInputs,
     args: () => LIVE_API_NAMES.map((key) => api[key]),
     isEmpty: () =>
       stagedStrategies.size === 0 &&

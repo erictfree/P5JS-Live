@@ -11,6 +11,11 @@ p5js live was created by **Eric Freeman** at the
 **The University of Texas at Austin**. It is an open-source project for visualists,
 creative coders, performers, and the live-coding community.
 
+Image modulation is available as `[picture].modulate([mapPatch], amount)`. Use
+**Tools → Scene → Let one image distort another → Run Image Modulation** to try
+patch-driven distortion with a depth control and smoothed bass response. See the
+[composition cookbook](docs/COMPOSITION.md#use-one-layer-to-distort-another).
+
 ## How it works
 
 A **patch** is a JavaScript function, object, or class instance that draws. A
@@ -49,7 +54,7 @@ p5js live includes:
 
 - file, microphone, and line-input audio analysis;
 - normalized audio levels and bands, onset events, and spectrum/waveform arrays;
-- optional tap tempo and six shared visual signal operators, with a runnable Motion Lab;
+- optional tap tempo and seven shared visual signal operators, with a runnable Motion Lab;
 - function, object, class, factory, closure, and inline patches;
 - recursive scenes with isolated effect groups and independent state per occurrence;
 - array effects through `[sketch].rotate(...).opacity(...)` and a Scene

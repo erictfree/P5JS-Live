@@ -4,7 +4,7 @@ import { appendToLayer, muteLayer, processLayer } from './layer.js';
 // Explicit allowlist: never copy lifecycle methods or native Array names from a
 // shader prototype. In particular, Array.shift must retain its normal behavior.
 export const ARRAY_SHADER_METHODS = Object.freeze([
-  'transform', 'mirror', 'crop', 'noiseWarp', 'rotate', 'scale', 'pixelate',
+  'transform', 'mirror', 'crop', 'noiseWarp', 'modulate', 'rotate', 'scale', 'pixelate',
   'repeat', 'repeatX', 'repeatY', 'kaleid', 'scroll', 'scrollX', 'scrollY',
   'blur', 'sharpen', 'edgeDetect', 'bloom', 'vignette', 'rgbSplit', 'feedback',
   'lumaMask', 'posterize', 'invert', 'contrast', 'brightness', 'luma', 'thresh',

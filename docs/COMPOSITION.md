@@ -125,6 +125,40 @@ scene.draw();
 preceding image and mixes 40% of its blurred result with that input. Its explicit
 configuration remains separate from any subsequent chained array effects.
 
+## Use one layer to distort another
+
+Reuse the `backdrop`, `bars`, and `rings` patches from the first example. Replace
+and run the scene cell:
+
+<!-- example: modulation -->
+```js
+// %% scene scene
+const scene = [
+  backdrop,
+  [bars].modulate([rings].blur(4), 0.12),
+];
+scene.draw();
+```
+
+The rings render privately and distort the bars. They are not a visible sibling.
+Red and green in the input control horizontal and vertical sampling offsets,
+centered at 0.5; alpha weights the distortion, so transparent regions are neutral.
+The amount defaults to 0.1 (up to 5% displacement per axis), and can be a context
+callback. Both arrays may contain nested layers or additional effects:
+
+```js
+const scene = [
+  backdrop,
+  [bars, rings].modulate([rings].rotate(0, 0.2).blur(5), 0.08),
+];
+scene.draw();
+```
+
+Tools → Scene lists the private patches under **Image input**. Open **Let one
+image distort another → Run Image Modulation** there for a lettering-and-rings
+demo with a depth control, smoothed bass response, and hold-H comparison.
+See the [API reference](API.md) for displacement direction and lifecycle details.
+
 ## Pass configuration to patches
 
 Use a factory, constructor, or ordinary object properties. The host supplies one

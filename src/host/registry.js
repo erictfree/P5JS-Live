@@ -202,6 +202,10 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
       }
       const instance = toInstance(instances, entry);
       instances.push(instance);
+      if (entry?.inputs?.length) instance.inputs = entry.inputs.map((input, index) => ({
+        uniform: input.uniform,
+        layer: visit(input.layer, [...path, `input${index}`]),
+      }));
       return instance;
     };
     return entries.map((entry, index) => visit(entry, [index]));
@@ -210,14 +214,20 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
   function flattenTree(tree, result = []) {
     for (const node of tree ?? []) {
       if (node?.kind === 'group') flattenTree(node.children, result);
-      else result.push(node);
+      else {
+        for (const input of node.inputs ?? []) flattenTree([input.layer], result);
+        result.push(node);
+      }
     }
     return result;
   }
 
   function serializeTree(tree) {
     return (tree ?? []).map((node) => {
-      if (node?.kind !== 'group') return node.strategy;
+      if (node?.kind !== 'group') return node.inputs?.length ? {
+        strategy: node.strategy,
+        inputs: node.inputs.map(input => ({ uniform: input.uniform, layer: serializeTree([input.layer])[0] })),
+      } : node.strategy;
       const group = serializeTree(node.children);
       return { group, muted: node.muted, sourceName: node.sourceName };
     });
