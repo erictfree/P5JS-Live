@@ -4,6 +4,9 @@ Sketches and shaders share the same scene model. A patch is an ordinary function
 object with `draw()`. A nested array isolates a group. `layer()` adds fluent methods
 around that group while the host continues to own every patch's state and lifecycle.
 
+For a short conceptual overview and the proposed fluent API, see
+[Sketches, layers, and scenes](DATA-MODEL.md).
+
 ## Try Layer Lab
 
 Import [layer-lab.json](../starter/layer-lab.json) from **Tools → Performances →
