@@ -305,7 +305,7 @@ const pixelRain = {
   },
 
   enter({ state }) {},
-  beat({ state, audio }) {},
+  onset({ state, audio }) {},
   draw({ state, audio, dt }) {},
   exit({ state }) {},
 
@@ -332,7 +332,7 @@ audio.level
 audio.bass
 audio.mid
 audio.treble
-audio.beat
+audio.onset
 audio.spectrum
 audio.waveform
 audio.sampleRate

@@ -121,7 +121,7 @@ describe('the system patch library', () => {
     expect(asciiSource).toContain('const asciiNoise = {');
     expect(asciiSource).toContain('characters:');
     expect(asciiSource).toContain('asciiNoise.shuffle()');
-    expect(asciiSource).toContain('audio.beat');
+    expect(asciiSource).toContain('audio.onset');
     expect(asciiSource).not.toMatch(/\bbackground\s*\(/);
 
     const h = createTestHost();

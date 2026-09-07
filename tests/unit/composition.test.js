@@ -32,12 +32,12 @@ describe('sketch composition', () => {
     const h = createTestHost();
     expect(h.evaluator.evaluate(`
       const sketch = { state: () => ({ count: 0, enters: 0, beats: 0 }),
-        enter({state}) { state.enters++; }, beat({state}) { state.beats++; },
+        enter({state}) { state.enters++; }, onset({state}) { state.beats++; },
         draw({state}) { state.count++; } };
       const wrapped = [sketch];
       const show = [wrapped, wrapped]; show.draw();
     `).ok).toBe(true);
-    h.frame(3, { beat: true });
+    h.frame(3, { onset: true });
     expect(h.registry.listScenes().map(({name}) => name)).toEqual(['show']);
     expect(h.registry.activeOrder()).toEqual(['sketch', 'sketch#2']);
     expect(h.stateStore.get('sketch')).toEqual({ count: 2, enters: 1, beats: 2 });

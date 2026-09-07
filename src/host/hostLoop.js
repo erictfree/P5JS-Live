@@ -146,7 +146,7 @@ export function createHostLoop({
         entered.add(id);
         strategy.enter?.(drawInputs);
       }
-      if (inputs.audio?.beat) strategy.beat?.(drawInputs);
+      if (inputs.audio?.onset) strategy.onset?.(drawInputs);
       strategy.draw(drawInputs);
     } catch (error) {
       threw = error;

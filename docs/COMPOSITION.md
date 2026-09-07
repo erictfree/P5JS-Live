@@ -169,7 +169,7 @@ Controls created with `control()` are available through the same context.
 | `.scale(amount = 1)` | Scale pixels around the center. |
 | `.translate(x = 0, y = 0)` | Move pixels in normalized canvas units; positive X goes right and positive Y goes down. |
 | `.opacity(amount = 1)` | Multiply alpha, normally by a value between 0 and 1. |
-| `.mute(enabled = true)` | Pause this group's draw/beat calls while retaining state; reevaluate with `.mute(false)` to resume. |
+| `.mute(enabled = true)` | Pause this group's draw/onset calls while retaining state; reevaluate with `.mute(false)` to resume. |
 
 Numeric effect arguments accept numbers or live context functions. Mute takes a
 boolean. Array `.rotate()` and `.opacity()` use GPU shaders. p5's global `rotate()`

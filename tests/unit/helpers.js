@@ -55,7 +55,7 @@ export function createTestHost({ fpsThreshold = 30, onCodeError = () => {} } = {
    * Run whole frames, exactly as src/main.js does.
    * `step` is the simulated seconds per frame — raise it to simulate a slow machine.
    */
-  function frame(count = 1, audio = { beat: false }, step = 1 / 60) {
+  function frame(count = 1, audio = { onset: false }, step = 1 / 60) {
     for (let i = 0; i < count; i++) {
       clock += step;
       const ctx = host.beginFrame(audio);

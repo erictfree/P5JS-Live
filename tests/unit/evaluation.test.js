@@ -216,7 +216,7 @@ describe('first-class function strategies', () => {
       const show = [wash];
       show.draw();
     `);
-    h.frame(5, { beat: false, level: 0.25 });
+    h.frame(5, { onset: false, level: 0.25 });
 
     expect(typeof h.registry.getStrategy('wash').definition).toBe('function');
     expect(h.stateStore.get('wash').total).toBeGreaterThan(0);

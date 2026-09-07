@@ -9,10 +9,10 @@
 import { instanceId } from './stateStore.js';
 
 const DEFAULT_HISTORY_LIMIT = 12;
-const STRATEGY_METHODS = ['state', 'enter', 'draw', 'beat', 'exit'];
+const STRATEGY_METHODS = ['state', 'enter', 'draw', 'onset', 'exit'];
 
 /**
- * @typedef {Function | { state?: Function, draw: Function, enter?: Function, beat?: Function, exit?: Function }} StrategyDefinition
+ * @typedef {Function | { state?: Function, draw: Function, enter?: Function, onset?: Function, exit?: Function }} StrategyDefinition
  * @typedef {{ version: number, source: string, definition: StrategyDefinition, at: number }} HistoryEntry
  */
 

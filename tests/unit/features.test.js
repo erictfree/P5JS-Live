@@ -110,14 +110,14 @@ describe('normalized bands', () => {
   it('treats silence as silence', () => {
     const s = createFeatureExtractor().silence();
     expect(s.level).toBe(0);
-    expect(s.beat).toBe(false);
+    expect(s.onset).toBe(false);
     expect(s.spectrum.length).toBe(0);
   });
 
   it('survives NaN and missing fields without emitting NaN', () => {
     const fx = createFeatureExtractor();
     const s = fx.compute({ dt: NaN, level: NaN, bass: undefined, nyquist: 0 });
-    for (const key of ['level', 'bass', 'mid', 'treble', 'centroid', 'sinceBeat']) {
+    for (const key of ['level', 'bass', 'mid', 'treble', 'centroid', 'sinceOnset']) {
       expect(Number.isFinite(s[key])).toBe(true);
     }
   });
@@ -125,13 +125,13 @@ describe('normalized bands', () => {
 
 describe('onset detection', () => {
   it('fires on a rising edge and not on the frames that follow it', () => {
-    const fx = createFeatureExtractor({ minBeatInterval: 0.05 });
+    const fx = createFeatureExtractor({ minOnsetInterval: 0.05 });
     for (let i = 0; i < 60; i++) fx.compute(frame({ bass: 20 })); // settle on quiet
 
     const hits = [];
     for (let i = 0; i < 20; i++) {
       // one loud frame, then sustained loudness
-      hits.push(fx.compute(frame({ bass: 220 })).beat);
+      hits.push(fx.compute(frame({ bass: 220 })).onset);
     }
     expect(hits[0]).toBe(true);
     expect(hits.slice(1, 6).every((b) => b === false)).toBe(true);
@@ -140,17 +140,17 @@ describe('onset detection', () => {
   it('never beats on silence', () => {
     const fx = createFeatureExtractor();
     for (let i = 0; i < 300; i++) {
-      expect(fx.compute(frame({ bass: 0, level: 0 })).beat).toBe(false);
+      expect(fx.compute(frame({ bass: 0, level: 0 })).onset).toBe(false);
     }
   });
 
   it('reports seconds since the last onset', () => {
-    const fx = createFeatureExtractor({ minBeatInterval: 0.05 });
+    const fx = createFeatureExtractor({ minOnsetInterval: 0.05 });
     for (let i = 0; i < 60; i++) fx.compute(frame({ bass: 20 }));
-    expect(fx.compute(frame({ bass: 220 })).beat).toBe(true);
+    expect(fx.compute(frame({ bass: 220 })).onset).toBe(true);
     let s;
     for (let i = 0; i < 30; i++) s = fx.compute(frame({ bass: 220 }));
-    expect(s.sinceBeat).toBeGreaterThan(0.4);
-    expect(s.sinceBeat).toBeLessThan(0.6);
+    expect(s.sinceOnset).toBeGreaterThan(0.4);
+    expect(s.sinceOnset).toBeLessThan(0.6);
   });
 });

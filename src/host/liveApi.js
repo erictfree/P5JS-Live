@@ -24,7 +24,7 @@ export const LIVE_API_NAMES = [
   'StreamRoom',
 ];
 
-const LIFECYCLE_KEYS = ['state', 'enter', 'draw', 'beat', 'exit', 'dispose'];
+const LIFECYCLE_KEYS = ['state', 'enter', 'draw', 'onset', 'exit', 'dispose'];
 
 function assertName(kind, name) {
   if (typeof name !== 'string' || name.trim() === '') {

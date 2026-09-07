@@ -177,18 +177,18 @@ describe('scene arrays', () => {
     delete globalThis.__log;
   });
 
-  it('fires beat on a frame where the audio snapshot says so', () => {
+  it('fires onset on a frame where the audio snapshot says so', () => {
     const h = createTestHost();
     const log = [];
     globalThis.__beats = log;
     h.evaluator.evaluate(`
-      const a = { beat() { __beats.push(1); }, draw() {} };
+      const a = { onset() { __beats.push(1); }, draw() {} };
       const show = [a];
       show.draw();
     `);
-    h.frame(3, { beat: false });
+    h.frame(3, { onset: false });
     expect(log).toHaveLength(0);
-    h.frame(1, { beat: true });
+    h.frame(1, { onset: true });
     expect(log).toHaveLength(1);
     delete globalThis.__beats;
   });

@@ -76,7 +76,7 @@ The direct shader vocabulary follows ShaderChain, with `colorShift()` replacing
 its `shift()` spelling because native arrays already use `shift()`. `.translate()`
 and `.opacity()` provide convenient transform and alpha operations. Explicit ShaderChain
 objects remain available for wet/dry mix, blending, and bypass configuration.
-`.mute(boolean)` pauses a group's draw and beat calls while retaining state.
+`.mute(boolean)` pauses a group's draw and onset calls while retaining state.
 
 Array `.rotate()` and `.opacity()` process rendered pixels with GPU shaders. p5
 global `rotate()` inside a patch changes drawing coordinates for that patch. The

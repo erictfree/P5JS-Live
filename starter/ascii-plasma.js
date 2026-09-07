@@ -47,9 +47,9 @@ const asciiNoise = {
     ) this.rebuild(state);
 
     state.elapsed += dt;
-    if (audio.beat || state.elapsed >= 1 / this.changeRate) {
+    if (audio.onset || state.elapsed >= 1 / this.changeRate) {
       state.elapsed = 0;
-      const fraction = audio.beat ? 0.32 : 0.015 + audio.treble * 0.08;
+      const fraction = audio.onset ? 0.32 : 0.015 + audio.treble * 0.08;
       const changes = max(1, floor(state.cells.length * fraction));
       for (let i = 0; i < changes; i++) {
         const cell = random(state.cells);

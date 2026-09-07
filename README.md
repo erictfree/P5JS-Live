@@ -48,7 +48,7 @@ leave the last working version running.
 p5js live includes:
 
 - file, microphone, and line-input audio analysis;
-- normalized audio levels and bands, beat events, and spectrum/waveform arrays;
+- normalized audio levels and bands, onset events, and spectrum/waveform arrays;
 - function, object, class, factory, closure, and inline patches;
 - recursive scenes with isolated effect groups and independent state per occurrence;
 - array effects through `[sketch].rotate(...).opacity(...)` and a Scene

@@ -287,19 +287,19 @@ describe('lifecycle is per scene instance', () => {
     delete globalThis.__life;
   });
 
-  it('fires beat for every copy', () => {
+  it('fires onset for every copy', () => {
     const h = createTestHost();
     let beats = 0;
     globalThis.__beat = () => beats++;
     h.evaluator.evaluate(`
-      const c = { beat() { __beat(); }, draw() {} };
+      const c = { onset() { __beat(); }, draw() {} };
       const show = [c, c, c];
       show.draw();
     `);
     h.frame(2);
 
     beats = 0;
-    h.frame(1, { beat: true });
+    h.frame(1, { onset: true });
     expect(beats).toBe(3);
     delete globalThis.__beat;
   });
@@ -412,7 +412,7 @@ describe('scene-local identities', () => {
       ];
       show.draw();
     `);
-    h.frame(4, { beat: false, level: 0.25 });
+    h.frame(4, { onset: false, level: 0.25 });
 
     expect(result.ok).toBe(true);
     expect(h.registry.activeOrder()).toEqual(['show[0]']);

@@ -21,11 +21,11 @@ export const FEATURE_DEFAULTS = Object.freeze({
   gainFloor: 0.02, // never divide by something tiny and turn silence into noise
   gainTarget: 0.82, // leave visible/dynamic headroom instead of pinning every peak at 1
   autoGain: true, // off means "divide by nothing", raw 0..1 passes through
-  beatThreshold: 1.3, // bass must exceed this multiple of its recent average
-  beatFloor: 0.08, // ...and be at least this loud, so silence never beats
-  beatRise: 0.05, // ...and must actually have risen since the previous frame
-  beatMemory: 0.35, // seconds of bass history the average covers
-  minBeatInterval: 0.12, // seconds; ~500 BPM ceiling, filters double-triggers
+  onsetThreshold: 1.3, // bass must exceed this multiple of its recent average
+  onsetFloor: 0.08, // ...and be at least this loud, so silence never beats
+  onsetRise: 0.05, // ...and must actually have risen since the previous frame
+  onsetMemory: 0.35, // seconds of bass history the average covers
+  minOnsetInterval: 0.12, // seconds; ~500 BPM ceiling, filters double-triggers
 });
 
 export function createFeatureExtractor(overrides = {}) {
@@ -40,7 +40,7 @@ export function createFeatureExtractor(overrides = {}) {
   };
   let bassAverage = 0;
   let previousBass = 0;
-  let sinceBeat = 999;
+  let sinceOnset = 999;
 
   // Patches should be able to teach and use ordinary JavaScript over analysis data.
   // A frozen plain Array has the full Array higher-order API and cannot be changed by
@@ -96,7 +96,7 @@ export function createFeatureExtractor(overrides = {}) {
     const centroid =
       centroidHz <= 20 ? 0 : clamp(Math.log(centroidHz / 20) / Math.log(nyquist / 20), 0, 1);
 
-    // Onset detection for `audio.beat`.
+    // Onset detection for `audio.onset`.
     //
     // Deliberately computed from the RAW band energy, not the auto-gained value.
     // Auto-gain exists to flatten dynamics so map() behaves consistently — which is
@@ -105,19 +105,19 @@ export function createFeatureExtractor(overrides = {}) {
     // nothing ever registers as a hit.
     //
     // Three conditions, and all three are load-bearing:
-    //   floor   — silence and room noise must never beat
+    //   floor   — silence and room noise must never onset
     //   rise    — the energy has to have actually gone up since the last frame, so a
     //             sustained bass note fires once rather than every frame
     //   average — the rise has to be large relative to the recent past, not just any
     //             wobble
-    sinceBeat += dt;
-    const memoryAlpha = options.beatMemory <= 0 ? 1 : clamp(dt / options.beatMemory, 0, 1);
-    const beat =
-      raw.bass > options.beatFloor &&
-      raw.bass - previousBass > options.beatRise &&
-      raw.bass > bassAverage * options.beatThreshold &&
-      sinceBeat >= options.minBeatInterval;
-    if (beat) sinceBeat = 0;
+    sinceOnset += dt;
+    const memoryAlpha = options.onsetMemory <= 0 ? 1 : clamp(dt / options.onsetMemory, 0, 1);
+    const onset =
+      raw.bass > options.onsetFloor &&
+      raw.bass - previousBass > options.onsetRise &&
+      raw.bass > bassAverage * options.onsetThreshold &&
+      sinceOnset >= options.minOnsetInterval;
+    if (onset) sinceOnset = 0;
     bassAverage += (raw.bass - bassAverage) * memoryAlpha;
     previousBass = raw.bass;
 
@@ -130,8 +130,8 @@ export function createFeatureExtractor(overrides = {}) {
       mid,
       treble,
       centroid,
-      beat,
-      sinceBeat,
+      onset,
+      sinceOnset,
       sampleRate,
       nyquist,
       waveform,
@@ -174,8 +174,8 @@ export function createFeatureExtractor(overrides = {}) {
       mid: 0,
       treble: 0,
       centroid: 0,
-      beat: false,
-      sinceBeat: 999,
+      onset: false,
+      sinceOnset: 999,
       sampleRate: 0,
       nyquist: 0,
       waveform: EMPTY,
@@ -207,7 +207,7 @@ export function createFeatureExtractor(overrides = {}) {
     ceiling.level = ceiling.bands = options.gainFloor;
     bassAverage = 0;
     previousBass = 0;
-    sinceBeat = 999;
+    sinceOnset = 999;
   }
 
   return { compute, silence, reset, configure, options: () => ({ ...options }) };

@@ -184,7 +184,7 @@ const localVideo = new LocalVideo({
   {
     name: 'gameOfLife',
     category: 'visual',
-    blurb: "Conway's Game of Life with fixed-step simulation, live OOP methods and beat-seeded cells.",
+    blurb: "Conway's Game of Life with fixed-step simulation, live OOP methods and onset-seeded cells.",
     source: `// %% patch gameOfLife
 // Conway's Game of Life — a transparent, stateful class patch.
 // Add an explicit background patch before it when the scene should clear or fade.
@@ -200,14 +200,14 @@ class GameOfLife {
     startingDensity = 0.24,
     hue = 165,
     wrapEdges = true,
-    birthsOnBeat = 6,
+    birthsOnOnset = 6,
   } = {}) {
     this.cellSize = cellSize;
     this.generationsPerSecond = generationsPerSecond;
     this.startingDensity = startingDensity;
     this.hue = hue;
     this.wrapEdges = wrapEdges;
-    this.birthsOnBeat = birthsOnBeat;
+    this.birthsOnOnset = birthsOnOnset;
 
     this.running = true;
     this.audioSpeed = 1.25;
@@ -300,8 +300,8 @@ class GameOfLife {
     state.generation += 1;
   }
 
-  seedFromBeat(state) {
-    for (let i = 0; i < this.birthsOnBeat; i++) {
+  seedFromOnset(state) {
+    for (let i = 0; i < this.birthsOnOnset; i++) {
       const x = Math.floor(Math.random() * state.columns);
       const y = Math.floor(Math.random() * state.rows);
       state.cells[y * state.columns + x] = 1;
@@ -325,7 +325,7 @@ class GameOfLife {
       state.generation = 0;
     }
 
-    if (audio.beat && this.birthsOnBeat > 0) this.seedFromBeat(state);
+    if (audio.onset && this.birthsOnOnset > 0) this.seedFromOnset(state);
 
     while (state.stepVersion < this.stepVersion) {
       this.advance(state);
@@ -517,12 +517,12 @@ const moireField = {
   {
     name: 'strobe',
     category: 'visual',
-    blurb: 'A restrained white beat flash. Plain first-class function patch.',
+    blurb: 'A restrained white onset flash. Plain first-class function patch.',
     source: `// %% patch strobe
 // strobe — one translucent flash on each detected onset.
 // Put it late in a scene so it flashes over the layers before it.
 function strobe({ audio }) {
-  if (!audio.beat) return;
+  if (!audio.onset) return;
   blendMode(ADD);
   noStroke();
   fill(255, 255, 255, 72);
@@ -727,16 +727,16 @@ const audioMeters = {
       textAlign(LEFT, CENTER);
     }
 
-    const beatY = this.y + rows.length * this.rowHeight + 5;
-    fill(audio.beat ? 255 : 80, audio.beat ? 80 : 80, audio.beat ? 120 : 80);
-    circle(this.x + 7, beatY + 7, 10);
+    const onsetY = this.y + rows.length * this.rowHeight + 5;
+    fill(audio.onset ? 255 : 80, audio.onset ? 80 : 80, audio.onset ? 120 : 80);
+    circle(this.x + 7, onsetY + 7, 10);
     fill(235);
-    text('beat', this.x + 19, beatY + 7);
+    text('onset', this.x + 19, onsetY + 7);
     textAlign(RIGHT, CENTER);
     text(
       \`raw bands  bass \${round(audio.raw.bass)}  mid \${round(audio.raw.mid)}  treble \${round(audio.raw.treble)}\`,
       this.x + meterWidth,
-      beatY + 7,
+      onsetY + 7,
     );
   },
 };`,
@@ -814,7 +814,7 @@ const laserFan = {
     category: 'visual',
     blurb: 'Horizontal digital slices that intensify with treble. Configurable object literal.',
     source: `// %% patch glitchSlices
-// Treble controls travel distance; a beat adds a bright interruption.
+// Treble controls travel distance; a onset adds a bright interruption.
 const glitchSlices = {
   slices: 18,
   hue: 320,
@@ -827,11 +827,11 @@ const glitchSlices = {
 
     for (let i = 0; i < this.slices; i++) {
       const n = noise(i * 8.17, time * 3.2);
-      if (n < 0.5 && !audio.beat) continue;
+      if (n < 0.5 && !audio.onset) continue;
       const y = n * height;
       const offset = (n - 0.5) * width * audio.treble * 0.45;
       const barWidth = width * (0.08 + n * 0.28);
-      fill((this.hue + i * 9) % 360, 65, 100, audio.beat ? 0.34 : 0.12);
+      fill((this.hue + i * 9) % 360, 65, 100, audio.onset ? 0.34 : 0.12);
       rect((i * 97 + offset) % width, y, barWidth, this.thickness);
     }
   },
@@ -1994,7 +1994,7 @@ const pixelDrift = new ShaderChain()
   {
     name: 'neonInk',
     category: 'shader',
-    blurb: 'Turns preceding layers into a beat-sensitive two-tone neon silhouette.',
+    blurb: 'Turns preceding layers into a onset-sensitive two-tone neon silhouette.',
     source: `// %% patch neonInk
 // neonInk reduces a complex image to a sharply coloured silhouette.
 const neonInk = new ShaderChain()
@@ -2366,7 +2366,7 @@ class BeatBurst {
     return { particles: [] };
   }
 
-  beat({ state, audio }) {
+  onset({ state, audio }) {
     for (let i = 0; i < this.amount; i++) {
       const angle = random(TWO_PI);
       const speed = random(80, 260) * (0.7 + audio.bass);

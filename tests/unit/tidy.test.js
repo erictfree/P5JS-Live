@@ -5,7 +5,7 @@ describe('tidySource', () => {
   it('indents nested objects, methods, conditions, and arrays', () => {
     const source = `const rings = {
 draw({ audio }) {
-if (audio.beat) {
+if (audio.onset) {
 circle(width / 2, height / 2, 80);
 }
 },
@@ -17,7 +17,7 @@ rings,
 
     expect(tidySource(source)).toBe(`const rings = {
   draw({ audio }) {
-    if (audio.beat) {
+    if (audio.onset) {
       circle(width / 2, height / 2, 80);
     }
   },

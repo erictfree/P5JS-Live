@@ -1979,7 +1979,7 @@ button.glyph.danger { color: #ffb3bb; }
 
 /* Audio visualizers are patches now, so the reading lives on the stage rather than in
  * a panel that has to be open. What remains here is input configuration and onset. */
-#beat-dot {
+#onset-dot {
   display: inline-block;
   width: 10px;
   height: 10px;
@@ -1987,7 +1987,7 @@ button.glyph.danger { color: #ffb3bb; }
   background: #2a2a33;
   vertical-align: middle;
 }
-#beat-dot.lit {
+#onset-dot.lit {
   background: var(--ok);
   box-shadow: 0 0 8px var(--ok);
 }
@@ -2510,7 +2510,7 @@ button.glyph.danger { color: #ffb3bb; }
 #side .audio-source-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding-bottom: 15px; }
 #side #audio-source { grid-column: 1 / -1; font-size: 13px; font-weight: 650; white-space: normal; overflow-wrap: anywhere; }
 #side #audio-position { grid-column: 1; font: 11px var(--mono); }
-#side #beat-dot { grid-column: 2; grid-row: 2; }
+#side #onset-dot { grid-column: 2; grid-row: 2; }
 #side .audio-source-row .actions { grid-column: 2; grid-row: 3; }
 .audio-transport-row { display: flex; align-items: center; gap: 14px; margin: 16px 0; }
 #side #tools-play-toggle { min-width: 90px; color: #242521; }

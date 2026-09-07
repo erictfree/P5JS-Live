@@ -29,15 +29,15 @@ describe('frame rate warning', () => {
     h.evaluator.evaluate('const a = { draw() {} }; const scene = [a]; scene.draw();');
 
     // 10 FPS. The window has to fill before any judgment is made.
-    h.frame(60, { beat: false }, 1 / 10);
+    h.frame(60, { onset: false }, 1 / 10);
     expect(warnings(h)).toHaveLength(0);
 
     // Three more seconds at 10 FPS — still under the five-second threshold.
-    h.frame(30, { beat: false }, 1 / 10);
+    h.frame(30, { onset: false }, 1 / 10);
     expect(warnings(h)).toHaveLength(0);
 
     // Past five seconds.
-    h.frame(30, { beat: false }, 1 / 10);
+    h.frame(30, { onset: false }, 1 / 10);
     expect(warnings(h)).toHaveLength(1);
     expect(warnings(h)[0].message).toContain('below 30 FPS');
   });
@@ -45,17 +45,17 @@ describe('frame rate warning', () => {
   it('warns once per episode, not once per frame', () => {
     const h = createTestHost({ fpsThreshold: 30 });
     h.evaluator.evaluate('const a = { draw() {} }; const scene = [a]; scene.draw();');
-    h.frame(600, { beat: false }, 1 / 10);
+    h.frame(600, { onset: false }, 1 / 10);
     expect(warnings(h)).toHaveLength(1);
   });
 
   it('says so when the frame rate recovers', () => {
     const h = createTestHost({ fpsThreshold: 30 });
     h.evaluator.evaluate('const a = { draw() {} }; const scene = [a]; scene.draw();');
-    h.frame(200, { beat: false }, 1 / 10);
+    h.frame(200, { onset: false }, 1 / 10);
     expect(warnings(h)).toHaveLength(1);
 
-    h.frame(120, { beat: false }, 1 / 60);
+    h.frame(120, { onset: false }, 1 / 60);
     const recovered = h.diagnostics.list().filter((d) => d.message.includes('recovered'));
     expect(recovered).toHaveLength(1);
   });
@@ -84,7 +84,7 @@ describe('dt is capped after a stall', () => {
     h.evaluator.evaluate('const a = { draw({ dt }) { __dt.push(dt); } }; const scene = [a]; scene.draw();');
     h.frame(2);
     expect(seen).toHaveLength(1);
-    h.frame(1, { beat: false }, 30); // a thirty-second stall
+    h.frame(1, { onset: false }, 30); // a thirty-second stall
     expect(seen).toHaveLength(2);
     expect(seen.at(-1)).toBe(0.1);
     expect(Math.max(...seen)).toBeLessThanOrEqual(0.1);

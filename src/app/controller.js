@@ -6,7 +6,7 @@
 import { findCells, findStatements, sceneMemberNames, sceneArrayEntries } from '../language/sourceBlocks.js';
 import { ShaderChain } from '../shaders/shaderChain.js';
 
-const LIFECYCLE_METHODS = ['state', 'enter', 'draw', 'beat', 'exit', 'dispose'];
+const LIFECYCLE_METHODS = ['state', 'enter', 'draw', 'onset', 'exit', 'dispose'];
 const FUNCTION_BUILT_INS = new Set(['length', 'name', 'arguments', 'caller', 'prototype']);
 
 /** A short, bounded rendering of configuration data for the strategy reference UI. */

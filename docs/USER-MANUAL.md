@@ -445,7 +445,7 @@ selects only the fields it needs.
 
 | Context field | Meaning |
 | --- | --- |
-| `audio` | Current level, frequency bands, beat, spectrum, and waveform |
+| `audio` | Current level, frequency bands, onset, spectrum, and waveform |
 | `time` | Seconds since the host started |
 | `sceneTime` | Seconds since this scene was activated |
 | `dt` | Seconds since the previous frame, bounded after a stall |
@@ -489,7 +489,7 @@ audio.level       // normalized overall energy, generally 0..1
 audio.bass        // normalized low-frequency energy
 audio.mid         // normalized middle-frequency energy
 audio.treble      // normalized high-frequency energy
-audio.beat        // true on a detected beat event
+audio.onset        // true on a detected onset event
 audio.spectrum    // FFT magnitudes, each 0..255
 audio.waveform    // time-domain samples, each -1..1
 ```
@@ -994,7 +994,7 @@ Available lifecycle methods are:
 | --- | --- |
 | `state()` | Creates plain persistent state for an occurrence |
 | `enter(context)` | The occurrence enters an active scene |
-| `beat(context)` | A beat event occurs |
+| `onset(context)` | A onset event occurs |
 | `draw(context)` | Every animation frame |
 | `exit(context)` | The occurrence leaves the active scene |
 | `dispose()` | Owned resources should be released permanently |
@@ -1635,7 +1635,7 @@ anonymous patch changes its path and therefore its identity.
 #### Lifecycle and event dispatch
 
 Lifecycle methods turn continuous frame processing and discrete events into a common
-object protocol. The host dispatches `enter`, `beat`, `draw`, `exit`, and `dispose` at
+object protocol. The host dispatches `enter`, `onset`, `draw`, `exit`, and `dispose` at
 defined transitions. A patch can implement only the methods it needs.
 
 This separates *when* something happens from *what* a patch does in response. Beat
@@ -1649,7 +1649,7 @@ snapshot instead of running separate FFT calculations. Scalar features are conve
 derived data; waveform and spectrum remain arrays for more detailed algorithms.
 
 Sharing one snapshot provides temporal consistency: every patch in a frame sees the
-same level, bands, beat decision, waveform, and spectrum.
+same level, bands, onset decision, waveform, and spectrum.
 
 #### GPU pipeline composition
 
@@ -2008,7 +2008,7 @@ appropriate.
 | `audio.bass` | generally `0..1` | Normalized low-frequency energy |
 | `audio.mid` | generally `0..1` | Normalized middle-frequency energy |
 | `audio.treble` | generally `0..1` | Normalized high-frequency energy |
-| `audio.beat` | Boolean | Onset decision for this frame |
+| `audio.onset` | Boolean | Onset decision for this frame |
 | `audio.spectrum` | array of `0..255` | FFT magnitude bins |
 | `audio.waveform` | array of `-1..1` | Time-domain samples |
 | `audio.sampleRate` | number | Samples per second reported by the audio context |
@@ -2024,7 +2024,7 @@ All patches in one frame receive the same analysis.
 | --- | --- |
 | `state()` | Return a plain object used as initial per-occurrence state |
 | `enter(context)` | Called once when the occurrence enters the active scene |
-| `beat(context)` | Called on a frame whose shared audio snapshot reports a beat |
+| `onset(context)` | Called on a frame whose shared audio snapshot reports a onset |
 | `draw(context)` | Called once per active frame; required for object/instance patches |
 | `exit(context)` | Called when the occurrence leaves the active scene |
 | `dispose()` | Release resources when the implementation is permanently replaced or discarded |

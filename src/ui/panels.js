@@ -75,7 +75,7 @@ export function createPanels({
     audioLoadLabel: el('audio-load-label'),
     audioLoadProgress: el('audio-load-progress'),
     audioError: el('audio-error'),
-    beatDot: el('beat-dot'),
+    onsetDot: el('onset-dot'),
     safeNote: el('safe-scene-note'),
     restoreSafe: el('restore-safe'),
     networkStatus: el('network-status'),
@@ -880,7 +880,7 @@ export function createPanels({
     renderAudioProgress(status);
     nodes.audioError.hidden = !status.error;
     nodes.audioError.textContent = status.error ?? '';
-    if (live.audio) nodes.beatDot.classList.toggle('lit', live.audio.beat);
+    if (live.audio) nodes.onsetDot.classList.toggle('lit', live.audio.onset);
   }
 
   function loadingLabel(status) {
