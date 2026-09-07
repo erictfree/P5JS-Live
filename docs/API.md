@@ -360,10 +360,18 @@ const average = audio.waveform.reduce((sum, sample) => sum + abs(sample), 0)
 `context.clock`. The `onset(context)` lifecycle method runs on those hit frames.
 `audio.sinceOnset` is elapsed analysis time since the last hit.
 
-The numeric helpers `lfo`, `envelope`, `ramp`, `sequence`, `remap`, and `variation`
+The numeric helpers `lfo`, `envelope`, `lag`, `ramp`, `sequence`, `remap`, and `variation`
 return context callbacks usable by both p5 patches and shader arguments. Construct
 them outside drawing. See [Timing and visual signals](RHYTHM.md) for exact options,
-clock fields, triggers, lifetime, and the automatic-tracking preview gate.
+clock fields, triggers, lifetime, and selectable experimental Auto algorithms.
+
+`lag(source, { time: 0.15, rise, fall, unit: 'seconds', initial })` smooths a numeric
+source or callback; rise/fall default to time, unit may be beats, and omitted
+initial starts at the first input. Its duration is an exponential time constant.
+`envelope({ gate, attack: 0.02, decay: 0.1, sustain: 0.7, release: 0.4 })` adds held
+ADSR behavior. Gate accepts a boolean, finite number, or context callback. Sustain
+is a 0–1 fraction of the min/max range. Choose gate or trigger, not both; the
+triggered form remains a one-shot attack/release envelope.
 
 ## Live controls
 

@@ -184,8 +184,9 @@ folding, and audio shortcuts. For networking experiments, use the source-based
 
 ## Explore motion and rhythm
 
-Choose Tools → Audio → Run Motion Lab to try all six visual signal helpers. Press
-Esc, then hold H to trigger the example without sound or tap Space to establish tempo.
+Choose Tools → Audio → Run Motion Lab to try all seven visual signal helpers. Press
+Esc, then hold H to trigger the hit examples and sustain the ADSR; release H to
+watch it fade. The Lag cell compares raw steps with smooth motion. Tap Space to establish tempo.
 The complete [timing guide](RHYTHM.md) explains how to reuse those values in your
 own p5 patches and shader effects. Choose Rhythm → Auto · experimental to try
 Pulse (PLP), or switch to Onset grid while listening. Tap takes over with Manual.

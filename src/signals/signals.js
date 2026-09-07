@@ -1,6 +1,6 @@
 // Numeric context callbacks shared by p5 and shader parameters. A signal owns
 // its state; consumers only read the host's memoized sample for the current frame.
-export const SIGNAL_NAMES = Object.freeze(['lfo', 'envelope', 'ramp', 'sequence', 'remap', 'variation']);
+export const SIGNAL_NAMES = Object.freeze(['lfo', 'envelope', 'lag', 'ramp', 'sequence', 'remap', 'variation']);
 const fract = value => ((value % 1) + 1) % 1;
 const clamp = value => Math.max(0, Math.min(1, value));
 function finite(value, name) {
@@ -24,6 +24,15 @@ function timing(options, defaultPeriod = 1, allowZero = false) {
     length: duration(options.beats ?? options.period ?? defaultPeriod, 'Duration', allowZero) };
 }
 const position = (ctx, unit) => unit === 'beats' ? ctx.clock.beat : ctx.time;
+function timeUnit(options) {
+  const unit = options.unit ?? 'seconds';
+  if (!['seconds', 'beats'].includes(unit)) throw new TypeError('Signal unit must be seconds or beats');
+  return unit;
+}
+function gateValue(value) {
+  if (typeof value !== 'boolean' && !Number.isFinite(value)) throw new TypeError('A gate must be a boolean or finite number');
+  return Boolean(value);
+}
 function trigger(options, required = false) {
   const source = options.trigger;
   if (source === undefined) {
@@ -79,12 +88,36 @@ const definitions = {
     };
   },
   envelope(options = {}) {
-    const event = trigger({ trigger: 'onset', ...options }, true);
     const attack = duration(options.attack ?? 0.02, 'attack', true);
     const release = duration(options.release ?? 0.4, 'release', true);
-    const unit = options.unit ?? 'seconds';
-    if (!['seconds', 'beats'].includes(unit)) throw new TypeError('Envelope unit must be seconds or beats');
+    const unit = timeUnit(options);
     const [min, max] = range(options);
+    if (options.gate !== undefined) {
+      if (options.trigger !== undefined) throw new TypeError('Choose gate for ADSR or trigger for attack/release');
+      const source = options.gate;
+      if (typeof source !== 'function') gateValue(source);
+      const decay = duration(options.decay ?? 0.1, 'decay', true);
+      const sustain = finite(options.sustain ?? 0.7, 'sustain');
+      if (sustain < 0 || sustain > 1) throw new RangeError('Sustain must be between 0 and 1');
+      const heldLevel = min + (max - min) * sustain;
+      function valueAt(time, state) {
+        if (state.start === undefined) return min;
+        const age = Math.max(0, time - state.start);
+        if (!state.held) return state.from + (min - state.from) * (release === 0 ? 1 : clamp(age / release));
+        if (attack > 0 && age < attack) return state.from + (max - state.from) * age / attack;
+        return max + (heldLevel - max) * (decay === 0 ? 1 : clamp((age - attack) / decay));
+      }
+      return (ctx, state) => {
+        const held = gateValue(typeof source === 'function' ? source(ctx) : source);
+        const time = position(ctx, unit), current = valueAt(time, state);
+        if (held !== Boolean(state.held)) {
+          state.held = held; state.start = time; state.from = current;
+        }
+        return valueAt(time, state);
+      };
+    }
+    if (options.decay !== undefined || options.sustain !== undefined) throw new TypeError('ADSR decay and sustain require a gate');
+    const event = trigger({ trigger: 'onset', ...options }, true);
     function valueAt(time, state) {
       if (state.start === undefined) return min;
       const age = Math.max(0, time - state.start);
@@ -96,6 +129,30 @@ const definitions = {
       const current = valueAt(time, state);
       if (event(ctx, state)) { state.from = current; state.start = time; }
       return valueAt(time, state);
+    };
+  },
+  lag(source, options = {}) {
+    if (typeof source !== 'function') finite(source, 'Lag source');
+    const time = duration(options.time ?? 0.15, 'time', true);
+    const rise = duration(options.rise ?? time, 'rise', true);
+    const fall = duration(options.fall ?? time, 'fall', true);
+    const unit = timeUnit(options);
+    const initial = options.initial;
+    if (initial !== undefined) finite(initial, 'initial');
+    return (ctx, state) => {
+      const target = input(source, ctx, 'Lag source'), now = position(ctx, unit);
+      if (state.value === undefined) {
+        state.value = initial ?? target;
+        state.at = now;
+      }
+      const elapsed = Math.max(0, now - state.at);
+      const responseTime = target > state.value ? rise : fall;
+      // Exact one-pole response to the sampled target over elapsed logical time.
+      // expm1 preserves small steps; zero duration follows the input immediately.
+      const amount = responseTime === 0 ? 1 : -Math.expm1(-elapsed / responseTime);
+      state.value = (1 - amount) * state.value + amount * target;
+      state.at = now;
+      return state.value;
     };
   },
   ramp(options = {}) {

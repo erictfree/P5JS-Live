@@ -2526,9 +2526,73 @@ then tap Space (or T), or click Tap. Tools → Audio → Rhythm also accepts 30�
 Shift+Space plays or pauses audio. Manual keeps running without sound; Off holds the optional clock.
 Detected hits remain `audio.onset`, independent of the shared `clock` snapshot.
 
-Run Motion Lab in that panel to try LFOs, attack/release envelopes, ramps, stepped
-sequences, range mapping, and seeded variation. They work in both p5 patches and
-shader parameters. See [Timing and visual signals](RHYTHM.md) for exact APIs,
+Run Motion Lab in that panel to try LFOs, attack/release and ADSR envelopes, lag,
+ramps, stepped sequences, range mapping, and seeded variation. Press Esc, then
+hold H to sustain the ADSR and release H to fade it out. In the Lag cell, the
+outline shows raw steps and the filled circle shows the smoothed value. These
+helpers work in both p5 patches and shader parameters.
+
+### Smooth motion with lag
+
+`lag(source, options)` makes a numeric value follow another smoothly. For example:
+
+```js
+const steps = sequence([0.7, 1.2, 0.9, 1.4], { period: 1 });
+const softSize = lag(steps, { time: 0.2 });
+const softBass = lag(c => c.audio.bass, { rise: 0.04, fall: 0.35 });
+```
+
+Use `softSize(c)` inside a p5 patch or pass `softSize` directly to
+`[myPatch].scale(softSize)`. Each helper is created once in evaluated code and
+sampled once per frame, even when several patches use it.
+
+`time` defaults to 0.15 seconds. It is an exponential time constant: about 63% of a
+fixed change is covered in that time, and 95% in three times that duration. `rise`
+and `fall` optionally override the duration for increasing and decreasing values.
+Zero duration follows immediately. Lag starts at its first sampled input unless
+you supply `initial`, such as `initial: 0`. `unit: 'beats'` uses the optional clock
+and holds progress when timing stops. This smooths control values; p5's existing
+`smooth()` drawing command keeps its usual meaning.
+
+### Hold and release an ADSR envelope
+
+A `trigger` starts a one-shot attack/release envelope. A `gate` keeps an ADSR
+envelope held until the input becomes false or zero. With an existing `myPatch`,
+this complete scene combines smoothed size and held opacity:
+
+<!-- example: lag-adsr -->
+```js
+const steps = sequence([0.7, 1.2, 0.9, 1.4], { period: 1 });
+const softSize = lag(steps, { time: 0.2 });
+const held = envelope({
+  gate: c => c.keyboard.keys.has('h'),
+  attack: 0.2, decay: 0.3, sustain: 0.55, release: 0.7,
+  min: 0.2, max: 1,
+});
+const scene = [
+  () => background(20, 22, 27),
+  [myPatch].scale(softSize).opacity(held),
+];
+scene.draw();
+```
+
+Press Esc to release editor focus, then hold H. Attack moves from the current
+value to `max`; decay moves to the sustain level; sustain remains until you release
+H; release moves to `min`. Sustain is a 0–1 fraction of the min/max range, not a
+time. A release during attack or decay starts from the current value, and pressing
+again during release also continues from the current value.
+
+ADSR defaults are attack 0.02, decay 0.1, sustain 0.7, and release 0.4. Stage
+durations use seconds, or beats with `unit: 'beats'`; zero skips a stage. Gate may
+be a boolean, a finite number, or a callback returning either. Choose `gate` or
+`trigger`; combining them, or supplying decay/sustain without a gate, is an error.
+
+Editing a helper creates fresh state when you run it. Run its consumers again to
+use that new definition, or run all with Cmd/Ctrl+Shift+Enter. Existing consumers
+keep their captured helper until re-evaluated. Modulation connections currently
+live in source; there is no graphical routing editor.
+
+See [Timing and visual signals](RHYTHM.md) for exact APIs,
 keyboard behavior and live-edit semantics. Rhythm → Auto · experimental offers
 Pulse (PLP) and Onset grid for live comparison; Tap takes over with Manual. The
 algorithm choice is saved with projects and performances.

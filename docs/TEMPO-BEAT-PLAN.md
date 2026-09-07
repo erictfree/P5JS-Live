@@ -1,9 +1,10 @@
 # Tempo, detected hits, and visual motion
 
 Status: implementation plan and delivery record, September 7, 2026. Manual timing
-and all six visual operators are implemented. The Auto pipeline is implemented as
-an explicit preview, gated from normal controls because recorded-audio validation
-has not passed. Use [the current guide](RHYTHM.md) for shipped API signatures and
+and the original six visual operators are implemented, with lag and held ADSR
+added afterward. Auto is available experimentally with selectable Pulse and
+Onset grid algorithms; broad recorded-audio validation is still incomplete.
+Use [the current guide](RHYTHM.md) for shipped API signatures and
 [the validation record](TEMPO-VALIDATION.md) for evidence. The sections below retain
 the planning rationale; proposed signatures and targets are superseded by that guide.
 

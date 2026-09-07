@@ -69,7 +69,7 @@ Start with the [documentation index](docs/README.md), or go directly to:
 - [Quickstart](docs/GUIDE.md) — a complete first patch and a second sketch.
 - [Data model](docs/DATA-MODEL.md) — arrays, effect scope, and the active scene.
 - [Composition cookbook](docs/COMPOSITION.md) — nesting, chained effects, and Layer Lab.
-- [Timing and visual signals](docs/RHYTHM.md) — tap tempo, envelopes, ramps, sequences, and selectable Auto algorithms.
+- [Timing and visual signals](docs/RHYTHM.md) — tap tempo, LFOs, lag, ADSR envelopes, sequences, and selectable Auto algorithms.
 - [User manual](docs/USER-MANUAL.md) — the complete learning and performance guide.
 - [API reference](docs/API.md) — exact runtime behavior and methods.
 

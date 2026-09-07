@@ -136,8 +136,12 @@ resources, and safe-state recovery retains supported occurrence state.
 
 ## Changing visual values
 
-`lfo`, `envelope`, `ramp`, `sequence`, `remap`, and `variation` produce numeric
+`lfo`, `envelope`, `lag`, `ramp`, `sequence`, `remap`, and `variation` produce numeric
 context callbacks. They can drive ordinary p5 drawing or array/shader parameters;
 image composition remains an array. One helper shares one sample and state across
 its consumers. The optional `clock` is separate from detected `audio.onset` hits.
-See [Timing and visual signals](RHYTHM.md) for examples and lifetime rules.
+Lag retains a smoothed value and sample time. A gated envelope retains its held
+state and stage origin; a triggered envelope follows a one-shot attack/release.
+These states participate in safe-state snapshots and failed-frame rollback.
+Modulation connections remain ordinary function references in source. See
+[Timing and visual signals](RHYTHM.md) for examples and lifetime rules.

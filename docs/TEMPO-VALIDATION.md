@@ -5,7 +5,7 @@ measurements, not a claim of universal beat recognition.
 
 ## Availability
 
-Manual timing and all six visual signal helpers are available normally. Following
+Manual timing and the visual signal helpers are available normally. Following
 the decision to try competing trackers in the instrument, **Auto · experimental**
 is now enabled on `/live/`. **Pulse (PLP)** is its default algorithm; **Onset grid**
 retains the earlier tracker for live comparison. New projects still start with

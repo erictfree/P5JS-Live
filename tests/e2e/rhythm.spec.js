@@ -114,6 +114,32 @@ test('manual timing, editor focus, Motion Lab, and settings survive reload', asy
   expect(errors).toEqual([]);
 });
 
+test('Motion Lab demonstrates lag and held ADSR on desktop and compact canvases', async ({ page }) => {
+  const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await openAudio(page);
+  await page.locator('#run-motion-lab').click();
+  await expect.poll(() => page.evaluate(() => p5jsLive.registry.activeSceneName())).toBe('motionLab');
+  if (await page.locator('#first-edit-dismiss').isVisible()) await page.locator('#first-edit-dismiss').click();
+  await page.locator('#tools-close').click();
+  await page.keyboard.press('Escape'); await page.keyboard.press('e');
+  await expect(page.locator('#code-layer')).toHaveCSS('opacity', '0');
+  for (const [width, height, label] of [[1280, 720, 'desktop'], [390, 844, 'compact']]) {
+    await page.setViewportSize({ width, height });
+    await page.keyboard.down('h');
+    await expect.poll(() => page.evaluate(() => p5jsLive.evaluator.binding('motionHeldEnvelope')())).toBeCloseTo(0.55, 4);
+    const lag = await page.evaluate(() => {
+      const signal = p5jsLive.evaluator.binding('motionLag');
+      return [signal(), signal()];
+    });
+    expect(lag[0]).toBe(lag[1]); expect(lag[0]).toBeGreaterThanOrEqual(0.25); expect(lag[0]).toBeLessThanOrEqual(1);
+    await expect.poll(() => page.evaluate(() => p5jsLive.registry.listStrategies().filter(r => r.lastError).length)).toBe(0);
+    await page.screenshot({ path: `/tmp/astra-motion-signals-${label}.png` });
+    await page.keyboard.up('h');
+    await expect.poll(() => page.evaluate(() => p5jsLive.evaluator.binding('motionHeldEnvelope')())).toBe(0);
+  }
+  expect(errors).toEqual([]);
+});
+
 test('both automatic algorithms track real PCM, switch live, persist selection, and release the source', async ({ page }) => {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await openAudio(page);
@@ -176,7 +202,7 @@ test('tap shortcut leaves typing alone and button Space does not toggle audio', 
   await page.keyboard.press('Space');
   await expect.poll(() => page.evaluate(() => p5jsLive.rhythm.settings().source)).toBe('manual');
   expect(await page.evaluate(() => window.__toggleCalls)).toBe(0);
-  expect(await page.evaluate(() => ['lfo', 'envelope', 'ramp', 'sequence', 'remap', 'variation'].filter(name => name in p5.prototype))).toEqual([]);
+  expect(await page.evaluate(() => ['lfo', 'envelope', 'lag', 'ramp', 'sequence', 'remap', 'variation'].filter(name => name in p5.prototype))).toEqual([]);
 });
 
 test('Space taps on keydown, Shift+Space controls playback, and navigation keeps Tap available', async ({ page }) => {

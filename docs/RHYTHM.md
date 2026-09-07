@@ -6,13 +6,17 @@ hit; `clock` supplies a separate, optional pulse. A hit may fall between beats.
 ## Try Motion Lab
 
 Open **Tools → Audio → Run Motion Lab**. This adds its source and selects the
-`motionLab` scene; your other source stays in the project. It demonstrates all six
-operators, with the same envelope driving p5 drawing and shader opacity.
+`motionLab` scene; your other source stays in the project. It demonstrates all seven
+operators, including both triggered and held envelopes. The same held envelope
+drives a p5 circle and shader opacity; lag also drives the border's blur.
 
-Press **Esc** to release editor focus, then hold **H** to trigger the demonstration
-without sound. **Space** (or **T**) taps tempo. The blue ring follows the optional clock; the orange
+Press **Esc** to release editor focus, then hold **H** to trigger the hit examples
+and sustain the ADSR. Release **H** to watch its release stage. In the Lag cell, the
+outline jumps to each raw variation value while the filled circle follows smoothly.
+**Space** (or **T**) taps tempo. The blue ring follows the optional clock; the orange
 ring uses seconds. With timing Off, the blue ring holds while the orange ring moves.
 The complete source is [starter/motion-lab.js](../starter/motion-lab.js).
+Close Tools and press **E** after Esc for an unobscured canvas; E restores the code.
 
 ## Tap tempo
 
@@ -60,7 +64,7 @@ suspension, Manual resumes at current phase and Auto reacquires.
 Tempo does not identify a downbeat, bar, or time signature. `.draw()` still selects
 a scene at the next rendering boundary; it does not wait for a beat.
 
-## Six numeric operators
+## Seven numeric operators
 
 Construct helpers in evaluated code, outside `draw()`. Each returns a function.
 Call it with the patch context in p5 code or pass it directly as a shader argument.
@@ -72,6 +76,7 @@ const zoom = ramp({ period: 8, from: 0.5, to: 1.5 });
 const paletteIndex = sequence([0, 1, 3, 2], { trigger: 'onset' });
 const diameter = remap(c => c.audio.bass, { from: [0, 1], to: [20, 200] });
 const scatter = variation({ seed: 'show-one', period: 0.5, min: -100, max: 100 });
+const softBass = lag(c => c.audio.bass, { rise: 0.04, fall: 0.3 });
 ```
 
 These are reusable definitions, not a complete scene. For example, given a patch
@@ -81,7 +86,8 @@ named `rings`, `[rings].opacity(breathe)` uses the helper directly. In a patch's
 | Helper | Options and defaults |
 | --- | --- |
 | `lfo(options)` | `period: 4` seconds or `beats`; `min: 0`, `max: 1`, `phase: 0` in cycles; `wave: 'sine'`, `'triangle'`, `'saw'`, or `'square'` |
-| `envelope(options)` | `trigger: 'onset'`, `attack: 0.02`, `release: 0.4`, `unit: 'seconds'` or `'beats'`, `min: 0`, `max: 1` |
+| `envelope(options)` | Triggered attack/release by default: `trigger: 'onset'`, `attack: 0.02`, `release: 0.4`. Supply `gate` for ADSR, adding `decay: 0.1`, `sustain: 0.7`. Both modes: `unit: 'seconds'` or `'beats'`, `min: 0`, `max: 1`. |
+| `lag(source, options)` | Smooth a number or context callback. `time: 0.15`, optional `rise` and `fall` overrides, `unit: 'seconds'` or `'beats'`, optional `initial` value. |
 | `ramp(options)` | `period: 1` seconds or `beats`; `from: 0`, `to: 1`; optional `trigger` |
 | `sequence(values, options)` | Nonempty numeric array; `period: 1` seconds, `beats`, or `trigger` |
 | `remap(source, options)` | A number or context callback; `from: [0, 1]`, `to: [0, 1]`, `clamp: true` |
@@ -96,13 +102,68 @@ invert the result. Mapping rejects a zero-width input range.
 LFOs follow shared host time or beat position. The default sine starts at its low
 endpoint at phase zero. Ramps without triggers start when their code is applied,
 then hold their endpoint. Triggered ramps wait at `from` and reset to it on each
-trigger. Envelopes start at rest, rise to `max`, then release to `min`; retriggering
-starts from the current value. The initial envelope has no sustain stage.
+trigger. Triggered envelopes start at rest, rise to `max`, then release to `min`;
+retriggering starts from the current value. Held ADSR envelopes add decay and
+sustain, as described below.
 
 Sequences and variation initially expose index zero. Timed intervals or triggers
 advance the index; sequences wrap. Variation hashes the seed and index, so repeated
 reads and differing frame rates do not change a timed sequence or p5's random stream.
 Audio-triggered variation depends on the actual detected event history.
+
+### Smooth values with lag
+
+`lag()` is a one-pole low-pass filter for numeric visual controls. Use it to soften
+audio jitter, smooth stepped sequences, or make a parameter follow another signal:
+
+```js
+const steps = sequence([0.7, 1.2, 0.9, 1.4], { period: 1 });
+const size = lag(steps, { time: 0.2 });
+const bass = lag(c => c.audio.bass, { rise: 0.04, fall: 0.35 });
+```
+
+Pass `size` to `[myPatch].scale(size)` or call `size(c)` in a p5 patch. `time` is a
+time constant: the output covers about 63% of a fixed difference in one time
+constant and 95% in three. This is exponential smoothing, not a queued delay or a
+fixed-duration ramp. `rise` and `fall` override `time` for increasing and decreasing
+numeric values. Durations are nonnegative; zero follows the target immediately.
+
+By default, lag starts at the first sampled input. Add `initial: 0` to ease from
+zero instead. `unit: 'beats'` measures the durations in beats and holds progress
+when the optional clock stops. The response uses elapsed logical time, so smoothing
+does not become slower when frames drop. Continuously changing inputs are sampled
+once per visual frame. The name avoids p5's existing `smooth()` drawing command.
+
+### Hold an ADSR envelope
+
+Use a **gate** when a gesture should sustain a value until released:
+
+```js
+const held = envelope({
+  gate: c => c.keyboard.keys.has('h'),
+  attack: 0.2,
+  decay: 0.3,
+  sustain: 0.55,
+  release: 0.7,
+});
+```
+
+After releasing editor focus with Esc, holding H starts attack toward `max`, then
+decay toward the sustain level. That level remains while H is held. Releasing H
+starts release toward `min`, including if attack or decay is still underway.
+Pressing H again during release starts attack from the current value. Sustain is
+a fraction from 0 to 1 between `min` and `max`, not a duration. Defaults are shown
+in the table. Zero-length stages complete immediately; reversed ranges also work.
+
+`gate` accepts a boolean, finite number, or context callback returning either;
+false/zero releases and true/nonzero holds. For example, a callback can read a
+control or an audio threshold. Durations use seconds by default; choose
+`unit: 'beats'` for beat durations, which hold when the clock stops.
+
+Choose `gate` for ADSR or `trigger` for a one-shot attack/release envelope; they
+cannot be combined. Supplying decay or sustain without a gate is an error.
+`trigger: c => c.keyboard.keys.has('h')` triggers once when pressed and then
+releases automatically; `gate` stays at sustain until the key is released.
 
 ### Triggers and shared reads
 

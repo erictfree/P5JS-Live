@@ -1455,7 +1455,7 @@ document.getElementById('run-motion-lab').addEventListener('click', async () => 
     const result = evaluator.evaluate(source, { label: 'Motion Lab' });
     if (!result.ok) throw result.error;
     editor.revealScene('motionLab');
-    diagnostics.success('Motion Lab ready', 'Press Esc to release the editor, then hold H to trigger or tap Space for tempo. Your existing source remains in the project.');
+    diagnostics.success('Motion Lab ready', 'Press Esc, then hold and release H for the ADSR; tap Space for tempo. The Lag cell compares raw steps with smooth motion. Your existing source remains in the project.');
   } catch (error) { diagnostics.error('Motion Lab could not start', error.message); }
 });
 

@@ -100,6 +100,32 @@ test('cookbook: nested groups, explicit shaders and configured patch factories',
   await page.screenshot({ path: testInfo.outputPath('configured-patches.png') });
 });
 
+test('manual: lag and held ADSR drive shader parameters and rendered opacity', async ({ page }) => {
+  await boot(page, example('docs/GUIDE.md', 'starter'));
+  await run(page, example('docs/USER-MANUAL.md', 'lag-adsr'));
+  await page.keyboard.press('Escape');
+  const center = () => page.evaluate(() => {
+    const canvas = document.querySelector('#stage canvas');
+    return Array.from(canvas.getContext('2d').getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data);
+  });
+  const before = await center();
+  await page.keyboard.down('h');
+  await expect.poll(() => page.evaluate(() => p5jsLive.evaluator.binding('held')())).toBeCloseTo(0.64, 2);
+  const held = await center();
+  expect(held[1]).toBeGreaterThan(before[1] + 20);
+  const sampled = await page.evaluate(() => {
+    const smooth = p5jsLive.evaluator.binding('softSize');
+    return { first: smooth(), second: smooth(), raw: p5jsLive.evaluator.binding('steps')() };
+  });
+  expect(sampled.first).toBe(sampled.second);
+  expect(sampled.first).toBeGreaterThanOrEqual(0.7);
+  expect(sampled.first).toBeLessThanOrEqual(1.4);
+  await page.keyboard.up('h');
+  await expect.poll(() => page.evaluate(() => p5jsLive.evaluator.binding('held')())).toBeCloseTo(0.2, 5);
+  await settled(page);
+  expect((await center())[1]).toBeLessThan(held[1] - 20);
+});
+
 test('network docs: complete source-only example publishes and receives', async ({ page, context, baseURL }) => {
   const file = 'docs/NETWORKING.md';
   const receiver = await context.newPage();
