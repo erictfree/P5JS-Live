@@ -308,3 +308,17 @@ the site is used before enabling collection.
 p5js live evaluates trusted JavaScript with `new Function`; it is not a sandbox. Code
 can access browser globals, consume unbounded resources, or freeze the tab. Run only
 source you trust. See [SECURITY.md](SECURITY.md).
+
+### Performance controller preview
+
+Under **Tools → Performances → Open controller**, use the virtual 64-pad surface to
+launch saved performances immediately or on the next beat. **Add two demo
+performances** provides Orbits and Tiles with eight live controls. Pad launches keep
+current audio, tempo and MIDI setup; the existing **Recall** restores full snapshots.
+Eight assignable encoders, stable banks, generic MIDI Learn and absolute pickup work
+without a Push attached. Controller assignments travel with project exports.
+
+Push 1/2/3 profiles are **hardware unverified**. Device-specific maps, outgoing LEDs,
+USB screen transfer and MPE remain future work. See the
+[controller plan](docs/PERFORMANCE-CONTROLLERS-PLAN.md) and
+[user manual](docs/USER-MANUAL.md#live-launcher-and-virtual-push).

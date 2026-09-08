@@ -16,6 +16,8 @@ export function createControlManager({
   schedule = (callback) => (globalThis.requestAnimationFrame ?? setTimeout)(callback),
 } = {}) {
   let access = null;
+  let messageRouter = null;
+  let disconnectHandler = null;
   let status = typeof navigator_?.requestMIDIAccess === 'function' ? 'disconnected' : 'unsupported';
   let learning = null;
   let lastMessage = null;
@@ -38,6 +40,7 @@ export function createControlManager({
   }
 
   function connectInputs() {
+    disconnectHandler?.();
     for (const input of inputs()) {
       input.onmidimessage = (event) => receive(input, event.data);
     }
@@ -151,6 +154,8 @@ export function createControlManager({
     const device = inputName(input);
     lastMessage = { ...message, device, at: Date.now() };
 
+    if (!learning && messageRouter?.(lastMessage)) { notify(); return true; }
+
     if (learning) {
       bindings.set(learning, {
         param: learning,
@@ -250,6 +255,8 @@ export function createControlManager({
   }
 
   return {
+    setMessageRouter(router) { messageRouter = router; },
+    setDisconnectHandler(handler) { disconnectHandler = handler; },
     connectMidi,
     learn,
     removeBinding,

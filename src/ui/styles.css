@@ -2645,3 +2645,44 @@ button.glyph.danger { color: #ffb3bb; }
 #toolbar-tap.is-tapping, #toolbar-tap.is-beating,
 #side #rhythm-tap.is-tapping, #side #rhythm-tap.is-beating { color: #242521; background: #ffb45e; border-color: #ffb45e; }
 @media (max-width: 700px) { .toolbar-rhythm output { display: none; } }
+
+/* Controller surface: a software test instrument, independent of hardware I/O. */
+.surface-heading, .performance-surface header, .surface-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.surface-heading, .performance-surface header { justify-content: space-between; }
+.performance-surface { width: min(1040px, 94vw); max-width: 94vw; max-height: 92vh; overflow: auto; padding: 20px; color: #e2e4e5; background: #222526; border: 1px solid #63686b; border-radius: 4px; font: 13px monospace; }
+.performance-surface::backdrop { background: #0009; }
+.performance-surface header { margin-bottom: 14px; }
+.performance-surface h2 { margin: 0; font-size: 18px; }
+.performance-surface button, .performance-surface select, .performance-surface input { font: inherit; color: #e2e4e5; background: #383d40; border: 1px solid #656b6e; border-radius: 2px; padding: 7px; }
+.performance-surface button { cursor: pointer; }
+.performance-surface button:hover { background: #51585a; }
+.performance-surface button:focus-visible, .performance-surface select:focus-visible { outline: 2px solid #ffb65d; outline-offset: 2px; }
+.performance-surface canvas { display: block; width: 100%; height: auto; margin: 12px 0; }
+.surface-encoders { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+.surface-encoder { min-width: 0; text-align: center; }
+.surface-encoder select { width: 100%; text-overflow: ellipsis; }
+.surface-encoder output { display: block; color: #ffb65d; padding: 8px 0; }
+.surface-encoder button { width: 44%; min-height: 34px; }
+.surface-pads { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+.surface-pads button { height: 48px; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 4px solid #727779; }
+.surface-pads [data-status="empty"] { color: #8f9699; background: #292d2f; border-color: #393f42; }
+.surface-pads [data-status="playing"] { background: #326651; border-color: #62d7b1; }
+.surface-pads [data-status="queued"], .surface-pads [data-status="loading"] { background: #705433; border-color: #ffb65d; }
+.surface-pads [data-status="failed"] { border-color: #ff6868; }
+.surface-pads [aria-pressed="true"] { outline: 1px solid #e2e4e5; outline-offset: 1px; }
+.surface-status { color: #62d7b1; min-height: 1.4em; }
+.surface-toolbar input { width: 60px; }
+.performance-surface details { border-top: 1px solid #52585b; padding-top: 12px; margin-top: 16px; }
+.performance-surface summary { cursor: pointer; }
+@media (max-width: 650px) { .surface-encoders { grid-template-columns: repeat(4, minmax(0, 1fr)); } .surface-pads { gap: 3px; } .surface-pads button { padding: 3px; } }
+
+.performance-surface canvas { width: min(100%, 720px); margin: 8px auto 12px; }
+.surface-play { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 16px; }
+.surface-play .surface-encoders { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+.surface-play .surface-encoder output { padding: 3px 0; }
+.surface-play .surface-encoder button { min-height: 27px; padding: 4px; }
+.surface-play .surface-pads button { height: 36px; }
+.surface-play .surface-toolbar { gap: 6px; }
+.surface-play aside .surface-toolbar { font-size: 11px; }
+.surface-play aside .surface-toolbar select { max-width: 180px; }
+@media (max-width: 760px) { .surface-play { grid-template-columns: 1fr; } .surface-play .surface-encoders { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

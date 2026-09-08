@@ -36,7 +36,7 @@ implementation model, see [Architecture](ARCHITECTURE.md). The shorter
 
 | Document information | |
 | --- | --- |
-| Manual edition | 1.3 |
+| Manual edition | 1.4 |
 | Updated | September 7, 2026 |
 | Audience | Students, educators, creative coders, and live visual performers |
 | Prerequisites | Current desktop Google Chrome; basic JavaScript is helpful but not required |
@@ -1450,10 +1450,62 @@ performance does not renumber earlier slots.
 Quick-save reports the assigned slot in the bottom message area. Starting a new
 performance does not delete named performances or stop the current music.
 
+#### Live launcher and virtual Push
+
+Open **Tools → Performances → Open controller**. Select **Add two demo
+performances** to try Orbits and Tiles with eight live controls. Adding demos leaves
+your current code and visuals alone; select a pad to launch one.
+
+The 8 × 8 pad grid has stable assignments across banks. Deleting a saved performance
+leaves its pad empty. Use **Pad**, **Performance**, and **Assign pad** to arrange a
+bank; select **Empty** to clear a pad. New saved performances append after the last
+assigned position. The numbered Recall list and its keyboard shortcuts are separate
+from these pad positions.
+
+A pad launch applies source and saved parameter values while keeping the current
+audio input/playback, clock, MIDI mappings and editor view. **Recall** in the saved
+list still restores the complete snapshot. Pad colors show ready, queued, loading,
+playing or failed state. Select **Next beat** to queue a launch against the current
+clock; another pad replaces the queue. **Cancel queue / Learn** cancels it. When the
+clock is unavailable or stops, the queued launch runs immediately. This is a scene
+replacement, without a crossfade or a prewarmed second renderer.
+
+The eight encoders operate numeric `control()` values in the currently playing
+performance. Their initial assignments follow source declaration order. Choose a
+different target from each encoder’s menu; assignments are remembered per performance
+and do not change when declarations are reordered. Use **− / +** or left/right arrow
+keys on those buttons; hold **Shift** for fine steps. The source owns each control’s
+name, range and step. Saved performance values supply the starting positions.
+
+Under **MIDI Learn and hardware status**, choose Pad, Encoder, Tap, Restore safe or a
+bank action and select **Learn**, then operate the physical control. Pads 1–64 refer
+to the visible bank; encoders use numbers 1–8. Absolute knobs use pickup: their value
+must reach or cross the current software value before changing it. Relative encoders
+use two’s-complement CC increments. Touch notes are ignored while learning an encoder.
+Surface routes take priority over existing parameter routes, except while parameter
+MIDI Learn is active. Reconnection rearms pickup and releases held-button state.
+**Clear surface routes** removes only these controller routes.
+
+The **Virtual Push** drives the real scene renderer. **Push 1**, **Push 2**, and
+**Push 3** are unverified target profiles using generic MIDI Learn; selecting one
+does not install a device-specific map. Physical pad LEDs, hardware displays, MPE and
+USB transport are not implemented. The 960 × 160 display is a software preview,
+not a claim of compatibility with every model’s screen.
+
+Syntax is checked before replacing the runtime. Evaluation or first-frame failures
+restore the preceding runtime. **Recover previous edits** restores the editor text
+saved immediately before the last attempted launch, without changing the visuals;
+Run the recovered code when ready. There is one previous-edit slot, not a history.
+
+Controller pad assignments, encoder targets and MIDI surface routes persist separately
+from performance recall. Project export includes them. Import replaces the controller
+layout when one is present, and merges the named performances as usual. Older project
+files without a controller layout leave your current assignments in place.
+
 #### Project export and import
 
 Under **Tools → Performances → Project files**, **Export project** creates a
-portable JSON file containing the working project and all named performances. **Import project** first validates and runs the working source,
+portable JSON file containing the working project, all named performances, and the controller layout. **Import project** first validates and runs the working source,
 then merges valid named performances by identity. It does not delete unrelated
 performances already in the browser.
 

@@ -11,6 +11,7 @@
 // than throwing during startup, because a performer should never be met with a
 // broken page.
 
+import { validateLauncher } from '../performance/launcher.js';
 import { validateRhythmSettings } from '../rhythm/clock.js';
 
 const KEY = 'p5js-live.project.v5';
@@ -186,6 +187,8 @@ export function createProjectStore({
     if (data.performances !== undefined && !Array.isArray(data.performances)) {
       return { ok: false, error: 'Project file performances are unreadable' };
     }
+    try { if (data.launcher !== undefined) data.launcher = validateLauncher(data.launcher); }
+    catch (error) { return { ok: false, error: error.message }; }
     try { data.rhythm = validateRhythmSettings(data.rhythm); }
     catch (error) { return { ok: false, error: error.message }; }
     return {
@@ -197,6 +200,7 @@ export function createProjectStore({
         controls: Array.isArray(data.controls) ? data.controls : [],
         rhythm: data.rhythm,
         performances: data.performances ?? [],
+        ...(data.launcher ? { launcher: data.launcher } : {}),
       },
     };
   }

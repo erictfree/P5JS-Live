@@ -14,6 +14,10 @@ import { createStateStore } from './host/stateStore.js';
 import { createEvaluator } from './host/evaluator.js';
 import { createHostLoop } from './host/hostLoop.js';
 import { createAudioEngine } from './audio/audioEngine.js';
+import { createPerformanceLauncher } from './performance/launcher.js';
+import { createPerformanceSurface } from './ui/performanceLauncher.js';
+import { controllerDemoPerformances } from '../starter/controller-demos.js';
+import { LIVE_API_NAMES } from './host/liveApi.js';
 import { createControlManager } from './control/controlManager.js';
 import { createEditor } from './ui/editor.js';
 import { createCodeViewFactory } from './visuals/codeView.js';
@@ -606,6 +610,7 @@ window.draw = function draw() {
     startupSourceToConfirm = null;
   }
   controller.setAudioSnapshot(snapshot);
+  launcher.tick(drawInputs.clock);
 
   // The audience's copy of this frame. No-op unless the projection window is open.
   projection.render(drawingContext.canvas);
@@ -1070,6 +1075,76 @@ const performanceNameInput = document.getElementById('performance-name');
 const performanceList = document.getElementById('performance-list');
 let performanceRecallSequence = 0;
 
+const PREVIOUS_EDITS_KEY = 'p5js-live.previous-launch-edits.v1';
+const launcher = createPerformanceLauncher({
+  store: performanceStore, registry, launch: launchPerformance,
+  clock: () => rhythm.snapshot(), tap: () => panels.tapTempo(), safe: () => restoreSafeState(),
+  warn: message => diagnostics.warn('Performance controller', message),
+});
+controlManager.setMessageRouter(message => launcher.receive(message));
+controlManager.setDisconnectHandler(() => launcher.disconnect());
+createPerformanceSurface({
+  root: document.getElementById('performance-launcher'), launcher, store: performanceStore,
+  registry, controlManager,
+  addDemos() {
+    for (const demo of controllerDemoPerformances()) {
+      if (!performanceStore.get(demo.id)) {
+        const result = performanceStore.merge([{ ...demo, createdAt: Date.now(), updatedAt: Date.now() }]);
+        if (!result.ok) diagnostics.warn('Could not save controller demo', result.reason);
+      }
+    }
+    renderPerformances();
+    diagnostics.info('Controller demos added', 'Select an Orbits or Tiles pad, then turn its eight controls.');
+  },
+  recover() {
+    try {
+      const previous = JSON.parse(localStorage.getItem(PREVIOUS_EDITS_KEY));
+      if (typeof previous?.source !== 'string') { diagnostics.info('No previous launch edits saved'); return; }
+      editor.value = previous.source;
+      controller.sourceChanged(); projectStore.saveSoon(editor.value, 0);
+      diagnostics.info('Previous edits restored to the editor', 'The current visuals keep running. Run when ready.');
+    } catch (error) { diagnostics.warn('Could not recover previous edits', error.message); }
+  },
+});
+
+async function launchPerformance(performance) {
+  // Syntax preparation does not execute user code or replace the current runtime.
+  try { new Function(...LIVE_API_NAMES, performance.source); }
+  catch (error) { return { ok: false, error }; }
+  const checkpoint = controller.checkpoint();
+  try { localStorage.setItem(PREVIOUS_EDITS_KEY, JSON.stringify({ source: editor.value, at: Date.now() })); }
+  catch (error) { diagnostics.warn('Could not save previous edits', error.message); }
+  const sequence = ++performanceRecallSequence;
+  const folded = editor.isFolded();
+  evaluator.discardPending(); evaluator.clearBindings();
+  host.reset(); registry.reset(); stateStore.clear();
+  editor.value = performance.source; editor.setFolded(folded);
+  let result;
+  try {
+    result = evaluator.evaluate(performance.source, { label: `launch ${performance.name}` });
+    if (!result.ok) throw result.error ?? new Error('Evaluation failed');
+    evaluator.applyPending();
+    // A launch changes the instrument, not the ongoing host session.
+    for (const param of performance.params ?? []) {
+      if (registry.listParams().some(entry => entry.name === param.name)) registry.setParam(param.name, param.value);
+    }
+    projection.setActiveCode(performance.source);
+    controller.sourceChanged(); projectStore.saveSoon(performance.source, 0);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    if (sequence !== performanceRecallSequence) return { ok: false, reason: 'Launch superseded' };
+    const failed = registry.listStrategies().find(record => record.lastError || record.status === 'error');
+    if (failed) throw new Error(`${failed.name} failed on its first rendered frame`);
+    diagnostics.success(`Performance launched — ${performance.name}`, 'Audio, clock, MIDI mappings and view preserved.');
+    return { ok: true };
+  } catch (error) {
+    if (sequence === performanceRecallSequence) {
+      restoreBeforePerformance(checkpoint, performance, error.message);
+      editor.setFolded(folded);
+    }
+    return { ok: false, error };
+  }
+}
+
 function performanceSnapshot(name) {
   return {
     name,
@@ -1101,6 +1176,7 @@ function performanceSnapshot(name) {
 }
 
 function renderPerformances() {
+  launcher.sync();
   const performances = performanceStore.list();
   performanceList.replaceChildren();
   if (performances.length === 0) {
@@ -1202,6 +1278,7 @@ function restoreBeforePerformance(checkpoint, performance, detail) {
 }
 
 function recallPerformance(performance) {
+  launcher.reset();
   const checkpoint = controller.checkpoint();
   const sequence = ++performanceRecallSequence;
   const performanceSource = performance.source;
@@ -1343,6 +1420,8 @@ function setSafeScene() {
 function restoreSafeState() {
   const result = controller.actions.restoreSafeState();
   if (!result.ok) return result;
+  launcher.reset();
+  performanceRecallSequence++;
   editor.value = result.source;
   projection.setActiveCode(result.source);
   projectStore.saveSoon(result.source, 0);
@@ -1477,7 +1556,7 @@ connectExample('run-code-scene', 'code-scene.js', 'codeScene', 'Code Scene',
 
 document.getElementById('export-project').addEventListener('click', () => {
   const performances = performanceStore.list();
-  const name = projectStore.download(editor.value, { performances });
+  const name = projectStore.download(editor.value, { performances, launcher: launcher.export() });
   diagnostics.success(
     `Exported ${name}`,
     `${performances.length} named performance${performances.length === 1 ? '' : 's'} included. Audio files remain separate.`,
@@ -1491,6 +1570,8 @@ document.getElementById('import-project').addEventListener('click', () => {
 /** Replace the working project in place while the canvas, clock, audio, and named
  * performances continue uninterrupted. */
 function loadStarterProject(message) {
+  launcher.reset();
+  performanceRecallSequence++;
   evaluator.discardPending();
   evaluator.clearBindings();
   projectStore.clear();
@@ -1600,6 +1681,8 @@ document.getElementById('import-file').addEventListener('change', async (event) 
   registry.reset();
   stateStore.clear();
   controlManager.restoreMappings([]);
+  launcher.reset();
+  performanceRecallSequence++;
   editor.value = importedSource;
   const result = evaluator.evaluate(importedSource, { label: file.name });
   evaluator.applyPending();
@@ -1609,6 +1692,7 @@ document.getElementById('import-file').addEventListener('change', async (event) 
   }
   projectStore.restoreSettings(parsed.data);
   const performanceImport = performanceStore.merge(parsed.data.performances);
+  if (parsed.data.launcher) launcher.import(parsed.data.launcher);
   if (!performanceImport.ok) {
     diagnostics.warn(
       `Imported ${file.name}, but could not restore its named performances`,
@@ -1768,6 +1852,7 @@ window.addEventListener('beforeunload', () => {
 // Exposed for automated browser tests and for patch authors who want to inspect the
 // running system from the browser console.
 window.p5jsLive = {
+  launcher,
   controller,
   registry,
   stateStore,
