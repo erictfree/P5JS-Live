@@ -2649,43 +2649,47 @@ button.glyph.danger { color: #ffb3bb; }
 #side #rhythm-tap.is-tapping, #side #rhythm-tap.is-beating { color: #242521; background: #ffb45e; border-color: #ffb45e; }
 @media (max-width: 700px) { .toolbar-rhythm output { display: none; } }
 
-/* Controller surface: a software test instrument, independent of hardware I/O. */
-.surface-heading, .performance-surface header, .surface-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.surface-heading, .performance-surface header { justify-content: space-between; }
-.performance-surface { width: min(1040px, 94vw); max-width: 94vw; max-height: 92vh; overflow: auto; padding: 20px; color: #e2e4e5; background: #222526; border: 1px solid #63686b; border-radius: 4px; font: 13px monospace; }
+/* Controller surface: restrained hardware-style chrome, with setup below the instrument. */
+.surface-heading, .performance-surface header, .surface-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.surface-heading { justify-content: space-between; }
+.performance-surface { width: min(1040px, 94vw); max-width: 94vw; max-height: 94vh; overflow: auto; padding: 20px 24px; color: #dce2e2; background: #202425; border: 1px solid #484e50; border-radius: 10px; font: 12px system-ui, sans-serif; box-shadow: 0 24px 80px #0007; }
 .performance-surface::backdrop { background: #0009; }
-.performance-surface header { margin-bottom: 14px; }
-.performance-surface h2 { margin: 0; font-size: 18px; }
-.performance-surface button, .performance-surface select, .performance-surface input { font: inherit; color: #e2e4e5; background: #383d40; border: 1px solid #656b6e; border-radius: 2px; padding: 7px; }
+.performance-surface header { margin-bottom: 16px; }
+.performance-surface header > div { flex: 1; }
+.surface-eyebrow, .surface-section-label { color: #93a09f; font: 10px var(--mono); letter-spacing: .12em; }
+.performance-surface h2 { margin: 4px 0 0; font-size: 18px; font-weight: 550; letter-spacing: -.02em; }
+.performance-surface button, .performance-surface select, .performance-surface input { box-sizing: border-box; font: inherit; color: #dce2e2; background: #2c3234; border: 1px solid #464e50; border-radius: 4px; padding: 6px 8px; min-height: 30px; }
 .performance-surface button { cursor: pointer; }
-.performance-surface button:hover { background: #51585a; }
-.performance-surface button:focus-visible, .performance-surface select:focus-visible { outline: 2px solid #ffb65d; outline-offset: 2px; }
-.performance-surface canvas { display: block; width: 100%; height: auto; margin: 12px 0; }
-.surface-encoders { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
-.surface-encoder { min-width: 0; text-align: center; }
-.surface-encoder select { width: 100%; text-overflow: ellipsis; }
-.surface-encoder output { display: block; color: #ffb65d; padding: 8px 0; }
-.surface-encoder button { width: 44%; min-height: 34px; }
-.surface-pads { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
-.surface-pads button { height: 48px; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 4px solid #727779; }
-.surface-pads [data-status="empty"] { color: #8f9699; background: #292d2f; border-color: #393f42; }
-.surface-pads [data-status="playing"] { background: #326651; border-color: #62d7b1; }
-.surface-pads [data-status="queued"], .surface-pads [data-status="loading"] { background: #705433; border-color: #ffb65d; }
+.performance-surface button:hover { background: #3b4547; border-color: #7a8b8c; }
+.performance-surface button:focus-visible, .performance-surface select:focus-visible, .performance-surface input:focus-visible { outline: 2px solid #ffb65d; outline-offset: 2px; }
+.performance-surface [data-close] { background: transparent; border-color: transparent; color: #a5afaf; }
+.performance-surface canvas { display: block; width: min(100%, 720px); height: auto; margin: 0 auto 18px; border: 1px solid #121718; border-radius: 5px; }
+.surface-play { display: grid; grid-template-columns: minmax(0, 2fr) minmax(230px, 1fr); gap: 20px; }
+.surface-play aside { border-left: 1px solid #394143; padding-left: 18px; min-width: 0; }
+.surface-section-label { margin: 0 0 12px; font-weight: 500; }
+.surface-encoders { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.surface-encoder { position: relative; min-width: 0; text-align: center; background: #252b2c; border: 1px solid #384143; border-radius: 5px; padding: 6px; }
+.surface-encoder-number { position: absolute; left: 8px; top: 11px; font: 9px var(--mono); color: #849391; }
+.surface-encoder select { width: 100%; padding-left: 22px; background: transparent; border: 0; text-overflow: ellipsis; min-height: 25px; font-size: 11px; }
+.surface-encoder output { display: block; color: #f0ba75; padding: 4px 0 6px; font: 13px var(--mono); }
+.surface-encoder > div { display: flex; gap: 4px; }
+.surface-encoder button { flex: 1; min-height: 24px; padding: 1px; border-color: #3b4547; background: #2c3436; }
+.surface-encoder[data-assigned="false"] output { color: #748080; }
+.surface-pads { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-top: 12px; padding: 8px; background: #191e1f; border: 1px solid #343c3e; border-radius: 6px; }
+.surface-pads button { height: 36px; min-width: 0; padding: 4px; font: 10px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid #536366; border-bottom: 3px solid #708883; background: #354341; }
+.surface-pads [data-status="empty"] { color: #879390; background: #292f30; border-color: #374143; border-bottom-color: #414c4e; }
+.surface-pads [data-status="playing"] { color: #e0fff0; background: #346455; border-color: #78d9b2; box-shadow: inset 0 0 16px #63dcb522, 0 0 8px #63dcb51a; }
+.surface-pads [data-status="queued"], .surface-pads [data-status="loading"] { background: #645039; border-color: #ffb65d; }
 .surface-pads [data-status="failed"] { border-color: #ff6868; }
-.surface-pads [aria-pressed="true"] { outline: 1px solid #e2e4e5; outline-offset: 1px; }
-.surface-status { color: #62d7b1; min-height: 1.4em; }
-.surface-toolbar input { width: 60px; }
-.performance-surface details { border-top: 1px solid #52585b; padding-top: 12px; margin-top: 16px; }
-.performance-surface summary { cursor: pointer; }
-@media (max-width: 650px) { .surface-encoders { grid-template-columns: repeat(4, minmax(0, 1fr)); } .surface-pads { gap: 3px; } .surface-pads button { padding: 3px; } }
-
-.performance-surface canvas { width: min(100%, 720px); margin: 8px auto 12px; }
-.surface-play { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 16px; }
-.surface-play .surface-encoders { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
-.surface-play .surface-encoder output { padding: 3px 0; }
-.surface-play .surface-encoder button { min-height: 27px; padding: 4px; }
-.surface-play .surface-pads button { height: 36px; }
-.surface-play .surface-toolbar { gap: 6px; }
-.surface-play aside .surface-toolbar { font-size: 11px; }
-.surface-play aside .surface-toolbar select { max-width: 180px; }
-@media (max-width: 760px) { .surface-play { grid-template-columns: 1fr; } .surface-play .surface-encoders { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.surface-pads [aria-pressed="true"] { outline: 1px solid #b6cac4; outline-offset: 2px; }
+.surface-status { color: #75d4b0; min-height: 1.4em; font-size: 11px; margin: 12px 0; overflow-wrap: anywhere; }
+.surface-toolbar label { display: inline-flex; align-items: center; gap: 5px; color: #9faaa9; }
+.surface-toolbar input { width: 50px; }
+.surface-play .surface-toolbar { gap: 5px; font-size: 11px; }
+.surface-play aside .surface-toolbar { border-top: 1px solid #394143; padding-top: 12px; }
+.surface-play aside .surface-toolbar select { max-width: 160px; }
+.performance-surface details { border-top: 1px solid #394143; padding-top: 12px; margin-top: 16px; color: #9faaa9; line-height: 1.6; }
+.performance-surface details .surface-toolbar { margin-top: 12px; }
+.performance-surface summary { cursor: pointer; font-size: 11px; }
+@media (max-width: 760px) { .surface-play { grid-template-columns: 1fr; } .surface-play aside { border-left: 0; padding-left: 0; } .surface-encoders { grid-template-columns: repeat(4, minmax(0, 1fr)); } .performance-surface { padding: 16px; } }
+@media (max-width: 480px) { .surface-pads { gap: 3px; padding: 5px; } .surface-pads button { font-size: 9px; } .surface-encoders { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

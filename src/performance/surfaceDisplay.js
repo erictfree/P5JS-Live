@@ -10,7 +10,7 @@ export function renderSurfaceDisplay(canvas, { title, status, controls }) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#171a1c'; ctx.fillRect(0, 0, 960, 160);
   ctx.fillStyle = '#62d7b1'; ctx.font = '22px monospace'; ctx.fillText(title.slice(0, 65), 15, 30);
-  ctx.fillStyle = '#b9bdc1'; ctx.font = '16px monospace'; ctx.fillText(status.slice(0, 92), 15, 57);
+  ctx.fillStyle = '#b9bdc1'; ctx.font = '16px monospace'; ctx.fillText((status.startsWith(title + ' · ') ? status.slice(title.length + 3) : status).slice(0, 92), 15, 57);
   controls.forEach((control, i) => {
     const x = i * 120;
     ctx.fillStyle = '#42474b'; ctx.fillRect(x + 5, 75, 110, 2);

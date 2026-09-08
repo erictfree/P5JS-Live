@@ -5,7 +5,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     <div class="surface-heading"><h3>Live launcher</h3><button type="button" data-open>Open controller</button></div>
     <p class="hint">Pads launch visuals and saved values. Your audio, clock and MIDI setup keep running. Recall below restores the whole snapshot.</p>
     <dialog class="performance-surface" aria-label="Virtual performance controller">
-      <header><h2>Performance controller</h2><button type="button" data-close aria-label="Close performance controller">Close</button></header>
+      <header><div><span class="surface-eyebrow">LIVE / CONTROL SURFACE</span><h2>Performance controller</h2></div><button type="button" data-close aria-label="Close performance controller">Close</button></header>
       <div class="surface-toolbar">
         <label>Profile <select data-profile aria-label="Controller profile"></select></label>
         <span data-profile-status></span>
@@ -18,7 +18,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
         <button type="button" data-action="bankPrevious" aria-label="Previous pad bank">←</button>
         <strong data-bank></strong><button type="button" data-action="bankNext" aria-label="Next pad bank">→</button>
         <label>Launch <select data-timing aria-label="Launch timing"><option value="immediate">Immediately</option><option value="beat">Next beat</option></select></label>
-        <button type="button" data-cancel>Cancel queue / Learn</button>
+        <button type="button" data-cancel title="Cancel queued launch or MIDI Learn">Cancel</button>
         <button type="button" data-action="tap">Tap</button><button type="button" data-action="safe">Restore safe</button>
       </div>
       <div class="surface-pads" aria-label="Performance pads"></div>
@@ -39,15 +39,21 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     </dialog>`;
   // Keep all 64 pads visible beside the encoders on a laptop-sized display.
   const playArea = document.createElement('div'); playArea.className = 'surface-play';
-  const padArea = document.createElement('div');
+  const padArea = document.createElement('div'); padArea.className = 'surface-pad-area';
   const encoderArea = document.createElement('aside');
   const grid = root.querySelector('.surface-pads');
   padArea.append(grid.previousElementSibling, grid);
-  encoderArea.append(root.querySelector('.surface-encoders'), root.querySelector('.surface-status'), root.querySelector('[data-slot]').closest('.surface-toolbar'));
+  const controlTitle = document.createElement('h3'); controlTitle.className = 'surface-section-label'; controlTitle.textContent = 'Live controls';
+  encoderArea.append(controlTitle, root.querySelector('.surface-encoders'), root.querySelector('.surface-status'), root.querySelector('[data-slot]').closest('.surface-toolbar'));
   playArea.append(padArea, encoderArea);
   root.querySelector('canvas').after(playArea);
   const demoRow = root.querySelector('[data-demos]').closest('p');
-  root.querySelector('[data-profile]').closest('.surface-toolbar').append(root.querySelector('[data-demos]'));
+  const setup = root.querySelector('details');
+  setup.querySelector('summary').after(root.querySelector('[data-profile]').closest('.surface-toolbar'));
+  const demoButton = root.querySelector('[data-demos]');
+  demoButton.textContent = 'Add demos';
+  demoButton.setAttribute('aria-label', 'Add two demo performances');
+  root.querySelector('[data-close]').before(demoButton);
   demoRow.remove();
   const modal = root.querySelector('dialog');
   const $ = selector => root.querySelector(selector) ?? modal.querySelector(selector);
@@ -73,6 +79,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   });
   const encoders = Array.from({ length: 8 }, (_, index) => {
     const wrapper = document.createElement('div'); wrapper.className = 'surface-encoder';
+    const number = document.createElement('span'); number.className = 'surface-encoder-number'; number.textContent = String(index + 1).padStart(2, '0');
     const select = document.createElement('select'); select.setAttribute('aria-label', `Encoder ${index + 1} target`);
     select.onchange = () => launcher.assignEncoder(index, select.value || null);
     const value = document.createElement('output'); value.setAttribute('aria-label', `Encoder ${index + 1} value`);
@@ -87,7 +94,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
       if (event.target === select || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
       event.preventDefault(); launcher.dispatch({ action: 'encoder', index, value: event.key === 'ArrowLeft' ? -1 : 1, fine: event.shiftKey });
     };
-    wrapper.append(select, value, buttons); $('.surface-encoders').append(wrapper); return { select, value };
+    wrapper.append(number, select, value, buttons); $('.surface-encoders').append(wrapper); return { select, value };
   });
   $('[data-assign]').onclick = () => {
     const state = launcher.snapshot();
@@ -120,6 +127,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     encoders.forEach(({ select, value }, i) => {
       select.value = state.targets[i] ?? ''; const param = params.find(p => p.name === state.targets[i]);
       value.textContent = param ? String(Number(param.value.toFixed(3))) : '—';
+      select.parentElement.dataset.assigned = String(Boolean(param));
     });
     pads.forEach((pad, i) => {
       const slot = state.bank * 64 + i, id = state.slots[slot], entry = entries.find(p => p.id === id);

@@ -68,9 +68,15 @@ test('syntax and first-frame failures retain the previous scene; previous edits 
 
 test('next-beat queue and learned MIDI pad use the same launcher', async ({ page }) => {
   await boot(page);
-  await page.evaluate(() => { window.p5jsLive.rhythm.configure({ source: 'manual', bpm: 30 }); window.p5jsLive.rhythm.align(); });
   await page.getByLabel('Launch timing').selectOption('beat');
-  await pad(page, 1).click(); await expect(pad(page, 1)).toHaveAttribute('data-status', 'queued');
+  // Observe the transient queue in the click task, even on a busy machine.
+  const queued = await pad(page, 1).evaluate(button => {
+    const rhythm = window.p5jsLive.rhythm;
+    rhythm.configure({ source: 'manual', bpm: 30 }); rhythm.align(); rhythm.sample();
+    button.click();
+    return button.dataset.status;
+  });
+  expect(queued).toBe('queued');
   await expect(pad(page, 1)).toHaveAttribute('data-status', 'playing', { timeout: 5000 });
   await page.evaluate(() => {
     const app = window.p5jsLive; app.launcher.setTiming('immediate'); app.launcher.learn('pad', 0);
