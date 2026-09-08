@@ -4,7 +4,7 @@ p5js live code is JavaScript. The instrument keeps the canvas, animation clock, 
 analysis, and active performance running; live code provides replaceable patches and
 scene arrays.
 
-For complete runnable programs, begin with the [quickstart](GUIDE.md) or
+For complete runnable programs, begin with the [quickstart](QUICKSTART.md) or
 [composition cookbook](COMPOSITION.md). Reference snippets below illustrate
 individual operations. Define their patch names first or install the named Library
 patches; replace alternative declarations instead of pasting them all together.

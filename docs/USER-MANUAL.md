@@ -31,13 +31,13 @@ start performing.
 
 For exact method and field definitions, see the [API reference](API.md). For the
 implementation model, see [Architecture](ARCHITECTURE.md). The shorter
-[quickstart](GUIDE.md), [data model](DATA-MODEL.md), and
+[quickstart](QUICKSTART.md), [data model](DATA-MODEL.md), and
 [composition cookbook](COMPOSITION.md) focus on the array authoring workflow.
 
 | Document information | |
 | --- | --- |
-| Manual edition | 1.4 |
-| Updated | September 7, 2026 |
+| Manual edition | 1.5 |
+| Updated | September 8, 2026 |
 | Audience | Students, educators, creative coders, and live visual performers |
 | Prerequisites | Current desktop Google Chrome; basic JavaScript is helpful but not required |
 
@@ -324,8 +324,8 @@ directly; the instrument must be served over HTTP.
 At startup, choose one of the following:
 
 - **Audio file** for an MP3, WAV, OGG, M4A, or AAC file supported by the browser.
-- **Microphone/input** for a microphone, mixer, or audio interface.
-- **Silence** to code without an audio source.
+- **Microphone** for a microphone, mixer, or audio interface.
+- **Start silent** to code without an audio source.
 
 Browsers require a click before they allow sound. If a file takes time to decode,
 wait for the loading indication to finish. Press `Shift+Space` or use the transport to play
@@ -361,13 +361,17 @@ Useful view keys work after editor focus is released with `Esc`:
 The code background is intentionally transparent. Small translucent boxes belong to
 the characters and lines, so the visual remains visible while you perform.
 
+Projects open with patch cells collapsed and scene cells expanded. Open a patch's
+disclosure arrow when you need its code. The first-edit tip's **Open myPatch** action
+also opens the starter patch; dismissing that tip keeps your folds as they are.
+
 ### 4. Make the first live edit
 
 Use the starter project for the first edit:
 
 1. Select the disclosure arrow beside `myPatch` to unfold the starter patch.
 2. Click inside the patch so the text cursor is visible.
-3. Change `120` in the size calculation to `180`, or change the hex colour in `fill()`.
+3. Change `120` in the size calculation to `180`, or change the RGB values in `fill()`.
 4. Press `Cmd/Ctrl+Enter` while the cursor remains inside that patch.
 5. Watch the stage and the status message at the bottom.
 
@@ -377,13 +381,39 @@ Use the starter project for the first edit:
 Change the value again and repeat. Try a large change so the relationship between
 source and image is obvious. Then restore a value you like.
 
-The starter scene uses `[myPatch].rotate(0, 0.2).opacity(0.85)` over a separate
-dark background. Edit and run the scene to change those effects. New and reset
-performances use this pulsing-square starter; saved projects retain their source.
+New and reset performances use this complete starter:
+
+<!-- example: starter -->
+```js
+// %% patch myPatch
+const myPatch = ({ audio, time }) => {
+  const size = 120 + audio.bass * 180;
+  const x = width / 2 + sin(time) * width / 4;
+
+  noStroke();
+  fill(105, 224, 198);
+  circle(x, height / 2, size);
+};
+
+// %% scene scene
+const scene = [
+  () => background(0),
+  myPatch,
+];
+scene.draw();
+```
+
+The circle moves side to side in silence; bass controls its size when audio plays.
+The anonymous background arrow is itself a patch and clears the canvas to black.
+Change `sin(time)` to `sin(time * 2)` to double the movement speed.
+Saved projects retain their existing source.
 The original `asciiNoise` and `plasma` patches are still available in the Library.
 
 Evaluation is different from typing. Typing prepares the next possibility;
 evaluation makes that possibility part of the running performance.
+**Live · Edited** means the previous version is running while source changes wait
+to be evaluated. Use the keyboard shortcuts below; cells have no Run button and
+successful evaluation uses a brief flash rather than a persistent Applied message.
 
 The most important editor commands are:
 
@@ -392,6 +422,8 @@ The most important editor commands are:
 | `Cmd/Ctrl+Enter` | Evaluate the current cell or statement |
 | `Cmd/Ctrl+Shift+Enter` | Evaluate the complete editor |
 | `Cmd/Ctrl+/` | Comment or uncomment the selected lines |
+| `Cmd/Ctrl+[` | Wrap or unwrap the selected expression or patch name in `[ ]` |
+| `Cmd/Ctrl+Z` | Undo an edit or restore a deleted source block |
 | `Cmd/Ctrl+Option/Alt+T` | Tidy the current cell |
 | `Cmd/Ctrl+Shift+Up/Down` | Move the current line or selection |
 | `Cmd/Ctrl+Alt+[` | Fold all objects, functions, classes, and scenes |
@@ -401,6 +433,11 @@ The most important editor commands are:
 Cell markers such as `// %% patch name` make a large project navigable and let the
 evaluator replace one unit safely. Folded source still exists and keeps its original
 line numbers.
+
+To isolate the circle for an effect, put the caret on `myPatch` in the scene and
+press `Cmd/Ctrl+[`. Change the resulting `[myPatch]` to `[myPatch].opacity(0.6)`
+and evaluate the scene. The wrapper creates a separate image layer for the effect.
+The shortcut works in both structured cells and the complete editor.
 
 ### 5. p5.js inside a patch
 
@@ -1420,6 +1457,29 @@ Opening a patch link or importing a patch file adds it under Shared patches as
 Available. The recipient still chooses whether to install and activate it. This keeps
 sharing from disrupting an existing performance.
 
+#### Remove a patch from the scene and delete its source
+
+Removing an entry from the scene and deleting a source cell are separate operations:
+
+1. Remove the patch from the scene array, or use `Cmd/Ctrl+/` on its entry to
+   comment it out. Check other scene cells for references too.
+2. Press `Cmd/Ctrl+Enter` **inside the edited scene**. Until you run that cell,
+   the previous scene continues using the patch.
+3. Hover over the unused patch's header, or focus the header with the keyboard.
+   **Delete** appears only when no scene source references the patch and it is
+   no longer part of the running scene. Select it to remove the entire cell,
+   including the `// %% patch` header.
+4. Use `Cmd/Ctrl+Z` in the editor to undo a deletion and restore the source block.
+
+You can keep unused source in the project for later. Deleting only a cell's body
+leaves an empty header; use the header's Delete action to remove the whole cell.
+Deletion adds no persistent notice or Undo button. On touch devices, eligible
+Delete controls remain visible because hovering is unavailable.
+
+Source deletion does not uninstall a Library catalog item or erase a retained
+runtime definition. It removes the editable block from the working project. A new
+performance or reload rebuilds the runtime from the project's source.
+
 ### 19. Save work, performances, and projects
 
 p5js live automatically stores the working project in the current browser. Reloading
@@ -1987,8 +2047,9 @@ The function captures a compositional rule while leaving the ingredients open.
 | Area | Purpose |
 | --- | --- |
 | Stage | The current visual output and background behind the editor |
-| Folded cells | Compact overview of patch and scene units |
+| Folded cells | Patches start collapsed; scenes start expanded. Use the disclosure arrows to change the view |
 | Expanded editor | Editable source, line numbers, selection, and fold controls |
+| Delete on a cell header | Appears on hover or keyboard focus for an unused patch; removes the header and code. `Cmd/Ctrl+Z` restores it |
 | Live bar | Active scene name, occurrence count, Safe State status, and restore action; FPS and detailed counts are in Messages |
 | Transport | File playback and looping controls that remain available during editing |
 
@@ -2009,7 +2070,7 @@ Open or close Tools with `Cmd/Ctrl+\`.
 | Panel | Main tasks |
 | --- | --- |
 | **Audio** | Inspect the source and playback position, choose an input device, loop, adjust smoothing, and enable or disable auto-gain |
-| **Scene** | Inspect the live tree and shader order, open source, and prepare top-level reorder edits for review and Run |
+| **Scene** | Inspect the live tree and shader order, open source, and prepare reorder edits; apply them with `Cmd/Ctrl+Enter` in the scene |
 | **Library** | Browse catalog patches, install source, prepare scene additions, and share a patch |
 | **Messages** | Read diagnostics and revert to a successful patch version from Evaluation history |
 | **Performances** | Save and recall performances, set or restore Safe State, and import/export/reset project files |
@@ -2068,9 +2129,11 @@ Single-key performance commands work after pressing `Esc` to release editor focu
 | `Cmd/Ctrl+Enter` | Evaluate the current cell or complete top-level statement |
 | `Cmd/Ctrl+Shift+Enter` | Evaluate the complete source buffer |
 | `Cmd/Ctrl+/` | Add or remove one reversible comment layer |
+| `Cmd/Ctrl+[` | Wrap or unwrap the selected expression or patch name in `[ ]` |
 | `Cmd/Ctrl+Option/Alt+T` | Tidy indentation in the current cell without evaluating |
 | `Cmd/Ctrl+Shift+Up/Down` | Move the current line or selected consecutive lines |
-| `Cmd/Ctrl+Z` | Undo; add Shift to redo |
+| `Cmd/Ctrl+Z` | Undo source editing, including whole-cell deletion |
+| `Cmd/Ctrl+Shift+Z` | Redo ordinary text edits using the editor's native history |
 | `Enter` | Insert a line with context-aware indentation |
 | `Tab` / `Shift+Tab` | Indent or outdent the current line or selection |
 | `Cmd/Ctrl+Alt+[` | Fold all objects, functions, classes, and scenes |
@@ -2526,6 +2589,21 @@ Folded cells hide source lines without renumbering the file. A visible cell may 
 at line 112 because lines 1–111 are folded above it. Unfold all with
 `Cmd/Ctrl+Alt+]` to see the continuous source.
 
+#### Delete is missing for a patch I removed from the scene
+
+Look for **Live · Edited** on the scene. Removing the name from the text prepares
+a change; the old scene still runs until you press `Cmd/Ctrl+Enter` inside the
+scene cell. After that, hover over the unused patch header to reveal Delete.
+Also check other scene cells: a reference inside a nested array or effect input
+still counts as use. An unused patch can keep its source; source presence alone
+does not hide Delete.
+
+#### I deleted the code but its patch header remains
+
+The folded cell's text field edits its body, not its header. Once the patch is
+unused, select Delete on the header to remove the whole cell. `Cmd/Ctrl+Z` restores
+a deleted cell without a separate confirmation banner.
+
 #### A class reports a duplicate declaration
 
 Keep the class and its constructed patch value in one explicit patch cell:
@@ -2667,6 +2745,7 @@ helper it requires.
 
 ### 36. Where to continue
 
+- [Quickstart](QUICKSTART.md): the current starter, a first edit, two sketches, and patch removal.
 - [API reference](API.md): exact patch, context, lifecycle, control, audio, and shader
   behavior.
 - [Nested render groups](NESTED-RENDER-GROUPS.md): recursive isolation, state, and

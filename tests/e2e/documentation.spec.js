@@ -78,7 +78,7 @@ for (const file of ['README.md', 'docs/USER-MANUAL.md']) {
 }
 
 test('quickstart: starter, second patch, shared and separate effects', async ({ page }) => {
-  const file = 'docs/GUIDE.md';
+  const file = 'docs/QUICKSTART.md';
   await boot(page, example(file, 'starter'));
   await visiblyAnimating(page);
   await run(page, example(file, 'rings'));
@@ -101,18 +101,22 @@ test('cookbook: nested groups, image modulation, explicit shaders and configured
 });
 
 test('manual: lag and held ADSR drive shader parameters and rendered opacity', async ({ page }) => {
-  await boot(page, example('docs/GUIDE.md', 'starter'));
+  await boot(page, example('docs/QUICKSTART.md', 'starter'));
   await run(page, example('docs/USER-MANUAL.md', 'lag-adsr'));
   await page.keyboard.press('Escape');
-  const center = () => page.evaluate(() => {
+  // The starter moves across the canvas; measure its brightness wherever it is.
+  const brightness = () => page.evaluate(() => {
     const canvas = document.querySelector('#stage canvas');
-    return Array.from(canvas.getContext('2d').getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data);
+    const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let green = 0;
+    for (let index = 1; index < pixels.length; index += 4) green = Math.max(green, pixels[index]);
+    return green;
   });
-  const before = await center();
+  const before = await brightness();
   await page.keyboard.down('h');
   await expect.poll(() => page.evaluate(() => p5jsLive.evaluator.binding('held')())).toBeCloseTo(0.64, 2);
-  const held = await center();
-  expect(held[1]).toBeGreaterThan(before[1] + 20);
+  const held = await brightness();
+  expect(held).toBeGreaterThan(before + 20);
   const sampled = await page.evaluate(() => {
     const smooth = p5jsLive.evaluator.binding('softSize');
     return { first: smooth(), second: smooth(), raw: p5jsLive.evaluator.binding('steps')() };
@@ -123,7 +127,7 @@ test('manual: lag and held ADSR drive shader parameters and rendered opacity', a
   await page.keyboard.up('h');
   await expect.poll(() => page.evaluate(() => p5jsLive.evaluator.binding('held')())).toBeCloseTo(0.2, 5);
   await settled(page);
-  expect((await center())[1]).toBeLessThan(held[1] - 20);
+  expect(await brightness()).toBeLessThan(held - 20);
 });
 
 test('network docs: complete source-only example publishes and receives', async ({ page, context, baseURL }) => {

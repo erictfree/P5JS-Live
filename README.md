@@ -76,7 +76,7 @@ p5js live includes:
 
 Start with the [documentation index](docs/README.md), or go directly to:
 
-- [Quickstart](docs/GUIDE.md) — a complete first patch and a second sketch.
+- [Quickstart](docs/QUICKSTART.md) — a complete first patch and a second sketch.
 - [Data model](docs/DATA-MODEL.md) — arrays, effect scope, and the active scene.
 - [Composition cookbook](docs/COMPOSITION.md) — nesting, chained effects, and Layer Lab.
 - [Timing and visual signals](docs/RHYTHM.md) — tap tempo, LFOs, lag, ADSR envelopes, sequences, and selectable Auto algorithms.
@@ -257,7 +257,7 @@ Add it to the scene, then evaluate the scene cell.
 ### Old source returns after a restart
 
 p5js live restores the working project saved in that browser. Use **New performance**
-for the default pulsing-square scene, or import another project.
+for the default moving-circle scene on black, or import another project.
 
 ### Audio does not start
 

@@ -8,7 +8,7 @@ frame.
 
 | Start here | What you will learn |
 | --- | --- |
-| [Quickstart](GUIDE.md) | Run the starter, edit a patch, combine two sketches, save, and recover. |
+| [Quickstart](QUICKSTART.md) | Run the starter, edit and delete patches, combine sketches, save, and recover. |
 | [Data model](DATA-MODEL.md) | What patches, arrays, effects, and the active scene mean. |
 | [Timing and visual signals](RHYTHM.md) | Tap tempo, LFOs, lag, ADSR envelopes, Motion Lab, and selectable Auto algorithms. |
 | [Composition cookbook](COMPOSITION.md) | Group and nest sketches, chain shaders, pass configuration, and try Layer Lab. |

@@ -78,6 +78,17 @@ let body = bodyMatch[1]
   )
   .trim();
 
+// Keep documentation links current when importing another packaged landing page.
+body = body.replace(
+  /<a\b([^>]*href="https:\/\/github\.com\/erictfree\/P5JS-Live\/blob\/main\/docs\/(?:GUIDE|QUICKSTART)\.md"[^>]*)>[\s\S]*?<\/a>/,
+  (_, attributes) => {
+    const quickstart = attributes.replace('docs/GUIDE.md', 'docs/QUICKSTART.md');
+    const link = `<a${quickstart}>Quickstart</a>`;
+    if (body.includes('docs/USER-MANUAL.md')) return link;
+    return `${link}\n      <a${quickstart.replace('docs/QUICKSTART.md', 'docs/USER-MANUAL.md')}>User manual</a>`;
+  },
+);
+
 const output = `<!DOCTYPE html>
 <html lang="en">
 <head>
