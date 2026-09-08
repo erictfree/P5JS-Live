@@ -247,6 +247,8 @@ editor.setFolded(true);
 // Parameter and safety-setting changes also need to save, not only typing.
 registry.subscribe(() => projectStore.saveSoon(editor.value));
 
+document.getElementById('clear-messages').addEventListener('click', () => diagnostics.clear());
+
 const panels = createPanels({
   controller,
   onRevert: ({ name, source }) => {

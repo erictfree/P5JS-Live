@@ -2544,9 +2544,12 @@ button.glyph.danger { color: #ffb3bb; }
 #side .performance-save-row input { padding: 10px; min-width: 0; }
 #side .project-reset { padding-top: 18px; margin-top: 18px; border-top: 1px solid var(--line); }
 #side .runtime-details { border-bottom: 1px solid var(--line); font: 11px/1.7 var(--mono); }
-#side .diagnostic { padding: 12px 0; }
-#side .diagnostic.error, #side .diagnostic.warn { padding: 14px; margin: 10px 0; border: 1px solid #806345; background: #352d24; border-radius: 6px; }
-#side .diagnostic .name { white-space: normal; line-height: 1.6; }
+#side .diagnostic { display: block; padding: 8px 0; overflow-wrap: anywhere; }
+#side .diagnostic.error, #side .diagnostic.warn { padding: 10px 12px; margin: 6px 0; border: 1px solid #806345; background: #352d24; border-radius: 2px; }
+#side .diagnostic .name { white-space: normal; line-height: 1.4; font-size: 12px; }
+#side .diagnostic .row-error { margin-top: 4px; padding: 0; line-height: 1.4; }
+#side .message-history-heading { padding: 12px 20px 0; }
+#side .message-history-heading p { font-size: 11px; color: var(--dim); }
 #side #ai-open { width: 100%; min-height: 40px; color: #242521; background: #ffb45e; font-weight: 650; }
 #side:not(.is-hidden) ~ #editor-hint { right: calc(var(--tools-width) + 12px); }
 #side:not(.is-hidden) ~ .ai-assistant { right: calc(var(--tools-width) + 12px); }

@@ -735,15 +735,14 @@ export function createPanels({
 
   function renderDiagnostics(snapshot) {
     const issues = snapshot.diagnostics.filter((entry) => ['error', 'warn'].includes(entry.level));
-    const activity = snapshot.diagnostics.filter((entry) => !['error', 'warn'].includes(entry.level));
     nodes.diagnostics.replaceChildren(
       ...(snapshot.diagnostics.length
-        ? [...issues, ...activity].map(diagnosticRow)
+        ? snapshot.diagnostics.map(diagnosticRow)
         : [hint('Nothing to report.')]),
     );
     nodes.messagesTabCount.textContent = String(issues.length);
     nodes.messagesTabCount.hidden = issues.length === 0;
-    nodes.messagesTabCount.title = `${issues.length} warnings or errors in recent messages`;
+    nodes.messagesTabCount.title = `${issues.length} warnings or errors in message history`;
     const latest = snapshot.diagnostics[0];
     if (latest) {
       nodes.status.textContent = latest.message;
@@ -753,6 +752,11 @@ export function createPanels({
         selectToolView('messages');
       }
       latestDiagnosticKey = key;
+    }
+    if (!latest) {
+      nodes.status.textContent = 'Message history cleared';
+      nodes.status.className = 'value';
+      latestDiagnosticKey = null;
     }
     diagnosticsInitialized = true;
   }
