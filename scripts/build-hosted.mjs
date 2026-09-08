@@ -31,7 +31,7 @@ for (const directory of ['src', 'starter', 'vendor']) {
 // Only current application media ships. Historical artwork remains in the source
 // repository for design reference; add new runtime assets to this manifest.
 const assets = [
-  ['site/assets/hero-bot-3.png', 'assets/hero-bot-3.png'],
+  ['site/assets/editor-preview.jpg', 'assets/editor-preview.jpg'],
   ['assets/video/p5jsrobot.mp4', 'live/assets/video/p5jsrobot.mp4'],
 ];
 for (const [source, target] of assets) {
@@ -39,6 +39,11 @@ for (const [source, target] of assets) {
   await mkdir(dirname(destination), { recursive: true });
   await cp(join(ROOT, source), destination);
 }
+
+await cp(join(ROOT, 'site/assets/fonts'), join(DIST, 'assets/fonts'), {
+  recursive: true,
+  filter: include,
+});
 
 console.log('Built Cloudflare static assets:');
 console.log('  /      site/index.html');

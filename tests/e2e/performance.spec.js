@@ -590,10 +590,10 @@ show.draw();`;
 
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder()))
-      .toEqual(['scene[0]', 'myPatch', 'scene[1][1]']);
+      .toEqual(['scene[0]', 'myPatch']);
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.controller.snapshot().installedPatches))
-      .toEqual(['frequencyBars', 'audioMeters', 'myPatch', 'scene[0]', 'scene[1][1]']);
+      .toEqual(['frequencyBars', 'audioMeters', 'myPatch', 'scene[0]']);
     expect(pageErrors).toEqual([]);
     await expect(page.locator('[data-library="frequencyBars"]')).toContainText('In project');
     await expect(page.locator('[data-library="frequencyBars"]')).toContainText('Open source');
@@ -1046,9 +1046,10 @@ test.describe('the minimal display', () => {
     await page.waitForTimeout(150);
     expect(await page.evaluate(() => window.frameCount)).toBeGreaterThan(frameBefore);
     await expect(welcome).toBeVisible();
-    const mascot = welcome.getByAltText('p5js.live robot mascot coding on a laptop');
-    await expect(mascot).toBeVisible();
-    expect(await mascot.evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+    await expect(welcome).toContainText('BETA — LIVE-CODE AUDIO-REACTIVE VISUALS');
+    await expect(welcome).toContainText(
+      'Write JavaScript and p5.js code that becomes the performance.',
+    );
     await expect(
       welcome.getByRole('link', {
         name: 'Department of Arts and Entertainment Technologies',
@@ -1086,11 +1087,11 @@ test.describe('the minimal display', () => {
         primaryRadius: getComputedStyle(primary).borderRadius,
       };
     });
-    expect(visualTokens.cardWidth).toBeLessThanOrEqual(560);
-    expect(visualTokens.heroBackground).toBe('rgb(193, 188, 242)');
-    expect(visualTokens.titleColor).toBe('rgb(91, 63, 166)');
-    expect(visualTokens.primaryBackground).toBe('rgb(91, 63, 166)');
-    expect(visualTokens.primaryRadius).toBe('7px');
+    expect(visualTokens.cardWidth).toBeLessThanOrEqual(600);
+    expect(visualTokens.heroBackground).toBe('rgb(251, 251, 250)');
+    expect(visualTokens.titleColor).toBe('rgb(26, 26, 26)');
+    expect(visualTokens.primaryBackground).toBe('rgb(31, 107, 99)');
+    expect(visualTokens.primaryRadius).toBe('0px');
 
     await expect.poll(() => page.evaluate(() => window.p5jsLive.audio.status().source))
       .toBe('none');
@@ -1664,6 +1665,26 @@ test.describe('the minimal display', () => {
     expect(await code.inputValue()).toBe(mixed);
   });
 
+  test('Cmd/Ctrl+[ wraps and unwraps the patch at the caret', async ({ page }) => {
+    await boot(page, { tools: false });
+    const code = page.locator('#code');
+    await code.focus();
+    const source = 'const scene = [myPatch, glow];';
+
+    await page.evaluate((value) => {
+      const editor = document.getElementById('code');
+      editor.value = value;
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+      const at = value.indexOf('myPatch') + 2;
+      editor.setSelectionRange(at, at);
+    }, source);
+
+    await code.press('ControlOrMeta+BracketLeft');
+    expect(await code.inputValue()).toBe('const scene = [[myPatch], glow];');
+    await code.press('ControlOrMeta+BracketLeft');
+    expect(await code.inputValue()).toBe(source);
+  });
+
   test('"e" hides the code, and the sketch does not notice', async ({ page }) => {
     await boot(page, { tools: false });
     await page.locator('#code').focus();
@@ -2141,7 +2162,7 @@ test.describe('named Performance recall', () => {
     const patch = page.locator('.folded-block[data-block-description="patch previous"]');
     const scene = page.locator('.folded-block[data-block-description="scene scene"]');
     await patch.locator('summary').click();
-    await scene.locator('summary').click();
+    await expect(scene).toHaveAttribute('open', '');
     await page.locator('#folded-code').evaluate((node) => {
       node.scrollTop = node.scrollHeight;
       node.scrollLeft = 120;
@@ -2155,7 +2176,8 @@ test.describe('named Performance recall', () => {
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Start fresh' }).click();
 
-    await expect(page.locator('.folded-block[open]')).toHaveCount(0);
+    await expect(page.locator('.folded-block[open]')).toHaveCount(1);
+    await expect(page.locator('.folded-block[data-block-description="scene scene"]')).toHaveAttribute('open', '');
     await expect(page.locator('.folded-block[data-block-description="patch myPatch"]')).toBeVisible();
     await expect.poll(() => page.locator('#folded-code').evaluate((node) => ({
       top: node.scrollTop,
@@ -2195,9 +2217,9 @@ test.describe('named Performance recall', () => {
 
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder()))
-      .toEqual(['scene[0]', 'myPatch', 'scene[1][1]']);
+      .toEqual(['scene[0]', 'myPatch']);
     await expect(page.locator('#code')).toHaveValue(
-      /\[myPatch\]\s*\.rotate\(0, 0\.2\)\s*\.opacity\(0\.85\)/,
+      /\(\) => background\(0\)/,
     );
     await expect(page.locator('#code')).toHaveValue(/scene\.draw\(\)/);
     await expect(page.locator('#code')).not.toHaveValue(/\/\/ %% patch effects/);
@@ -2459,7 +2481,7 @@ test.describe('project portability', () => {
 
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.registry.activeOrder()))
-      .toEqual(['scene[0]', 'myPatch', 'scene[1][1]']);
+      .toEqual(['scene[0]', 'myPatch']);
 
     const after = await page.evaluate(() => ({
       hasMess: window.p5jsLive.registry.hasStrategy('mess'),
@@ -2472,7 +2494,7 @@ test.describe('project portability', () => {
     }));
 
     expect(after.hasMess).toBe(false);
-    expect(after.stateKeys).toEqual(['myPatch', 'scene[0]', 'scene[1][1]']);
+    expect(after.stateKeys).toEqual(['myPatch', 'scene[0]']);
     expect(after.source).toContain('p5js live — starter scene');
     expect(after.safeScene).not.toBe(null);
     // The point of doing this in place rather than reloading: the canvas and the

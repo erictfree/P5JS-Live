@@ -101,7 +101,7 @@ test('array effects remain editable, reloadable and inspectable', async ({ page 
   await page.getByRole('button', { name: 'Move blue down', exact: true }).click();
   await expect(page.locator('#scene-pending')).toBeVisible();
   await page.locator('#scene-review-source').click();
-  await page.getByRole('button', { name: 'Run scene scene', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Edit scene scene', exact: true }).press('Control+Enter');
   await expect(page.locator('#scene-pending')).toBeHidden();
   await expect.poll(() => pixel(page)).toEqual([0, 0, 255, 255]);
   expect(await page.evaluate(() => window.p5jsLive.editor.value)).toContain('scene.draw()');

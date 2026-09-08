@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { moveLines } from '../../src/ui/editor.js';
+import { moveLines, toggleArrayWrap } from '../../src/ui/editor.js';
 
 describe('editor line movement', () => {
   it('moves the current line up and down while preserving its selection', () => {
@@ -19,5 +19,35 @@ describe('editor line movement', () => {
     expect(moved.selectionEnd).toBe(18);
     expect(moveLines(source, 0, 0, -1)).toBe(null);
     expect(moveLines(source, source.length, source.length, 1)).toBe(null);
+  });
+});
+
+describe('editor array wrapping', () => {
+  it('wraps the identifier at the caret and toggles it back off', () => {
+    const source = 'const scene = [myPatch, glow];';
+    const at = source.indexOf('myPatch') + 2;
+    const wrapped = toggleArrayWrap(source, at, at);
+    expect(wrapped).toEqual({
+      source: 'const scene = [[myPatch], glow];',
+      selectionStart: source.indexOf('myPatch') + 1,
+      selectionEnd: source.indexOf('myPatch') + 1 + 'myPatch'.length,
+    });
+    expect(toggleArrayWrap(
+      wrapped.source,
+      wrapped.selectionStart,
+      wrapped.selectionEnd,
+    )).toEqual({
+      source,
+      selectionStart: source.indexOf('myPatch'),
+      selectionEnd: source.indexOf('myPatch') + 'myPatch'.length,
+    });
+  });
+
+  it('wraps a selected expression while leaving surrounding whitespace alone', () => {
+    const source = '  myPatch.rotate(0.2),';
+    const wrapped = toggleArrayWrap(source, 0, source.length - 1);
+    expect(wrapped.source).toBe('  [myPatch.rotate(0.2)],');
+    expect(wrapped.source.slice(wrapped.selectionStart, wrapped.selectionEnd))
+      .toBe('myPatch.rotate(0.2)');
   });
 });

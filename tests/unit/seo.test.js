@@ -10,11 +10,13 @@ const pages = [
     path: 'site/index.html',
     canonical: 'https://p5js.live/',
     title: 'p5js.live — Live-Code Audio-Reactive Visuals',
+    image: 'https://p5js.live/assets/editor-preview.jpg',
   },
   {
     path: 'index.html',
     canonical: 'https://p5js.live/live/',
     title: 'p5js.live Instrument — Live-Code p5.js Visuals',
+    image: 'https://p5js.live/assets/editor-preview.jpg',
   },
 ];
 
@@ -28,7 +30,7 @@ describe('public SEO metadata', () => {
       expect(html).toMatch(/<meta name="description" content="[^"]{80,160}"/);
       expect(html).toContain(`<link rel="canonical" href="${page.canonical}"`);
       expect(html).toContain(`<meta property="og:url" content="${page.canonical}"`);
-      expect(html).toContain('<meta property="og:image" content="https://p5js.live/assets/hero-bot-3.png"');
+      expect(html).toContain(`<meta property="og:image" content="${page.image}"`);
       expect(html).toContain('<meta name="twitter:card" content="summary_large_image"');
       expect(html).toContain('<meta name="robots" content="index, follow, max-image-preview:large');
       expect(html).toContain('<link rel="icon" href="/favicon.svg"');

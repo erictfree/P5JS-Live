@@ -49,10 +49,10 @@ test('search, categories, and pending additions preserve explicit scene evaluati
   await row.locator('button').click();
   await expect(row.locator('.patch-status')).toHaveText('Not run');
   await expect(page.locator('#library-pending')).toBeVisible();
-  await expect(page.locator('#live-layer-count')).toHaveText('3 layers');
+  await expect(page.locator('#live-layer-count')).toHaveText('2 layers');
   await page.locator('#library-review-scene').click();
-  await page.getByRole('button', { name: 'Run scene scene', exact: true }).click();
-  await expect(page.locator('#live-layer-count')).toHaveText('4 layers');
+  await page.getByRole('textbox', { name: 'Edit scene scene', exact: true }).press('Control+Enter');
+  await expect(page.locator('#live-layer-count')).toHaveText('3 layers');
   await expect(page.locator('#library-pending')).toBeHidden();
 });
 

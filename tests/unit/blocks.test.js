@@ -12,6 +12,7 @@ import {
   describeBlock,
   insertSceneMember,
   sceneMemberNames,
+  scenesReferencingPatch,
   moveSceneCellsLast,
 } from '../../src/language/sourceBlocks.js';
 
@@ -275,6 +276,29 @@ describe('sceneMemberNames', () => {
       'plasma',
       'vignette',
     ]);
+  });
+});
+
+describe('patch deletion references', () => {
+  it('finds nested layers and image inputs in every scene, including draft code', () => {
+    const source = `// %% scene first
+const first = [[rings].rotate(0.2)];
+// %% scene second
+const second = [letters].modulate([rings], 0.1);
+// %% scene draft
+const draft = [rings,
+`;
+    expect(scenesReferencingPatch(source, 'rings')).toEqual(['first', 'second', 'draft']);
+  });
+
+  it('ignores comments, strings, and longer identifiers', () => {
+    const source = `// %% scene scene
+const scene = [
+  // rings,
+  /* rings */ ringsExtra,
+  () => text('rings', 0, 0),
+];`;
+    expect(scenesReferencingPatch(source, 'rings')).toEqual([]);
   });
 });
 

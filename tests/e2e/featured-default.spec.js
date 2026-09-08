@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('Chromatic Descent renders in silence and responds to a beat without errors', async ({ page }) => {
+test('basic starter renders in silence and responds to audio without errors', async ({ page }) => {
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto('/live/');
   await page.waitForFunction(() => window.p5jsLive?.registry.activeOrder().length > 0);
@@ -17,7 +17,7 @@ test('Chromatic Descent renders in silence and responds to a beat without errors
     document.getElementById('code-layer').classList.add('is-hidden');
   });
   await page.waitForTimeout(1000);
-  await page.screenshot({ path: '/tmp/chromatic-descent.png' });
+  await page.screenshot({ path: '/tmp/basic-starter.png' });
   expect(await page.evaluate(() => window.p5jsLive.registry.listStrategies().some(p => p.lastError))).toBe(false);
   expect(errors).toEqual([]);
 });

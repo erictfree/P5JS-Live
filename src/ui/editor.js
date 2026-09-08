@@ -12,6 +12,7 @@ import {
   insertSceneMember,
   moveSceneCellsLast,
   moveSceneEntry,
+  scenesReferencingPatch,
 } from '../language/sourceBlocks.js';
 import { tokenizeLines } from './highlight.js';
 import { tidySource } from './tidy.js';
@@ -60,6 +61,47 @@ export function moveLines(source, selectionStart, selectionEnd, direction) {
   };
 }
 
+/** Toggle an array wrapper around the selected expression or identifier at the caret. */
+export function toggleArrayWrap(source, selectionStart, selectionEnd) {
+  let from = selectionStart;
+  let to = selectionEnd;
+
+  if (from === to) {
+    let probe = from;
+    if (!/[\w$]/.test(source[probe] ?? '') && probe > 0 && /[\w$]/.test(source[probe - 1])) {
+      probe -= 1;
+    }
+    from = probe;
+    to = probe;
+    while (from > 0 && /[\w$]/.test(source[from - 1])) from -= 1;
+    while (to < source.length && /[\w$]/.test(source[to])) to += 1;
+    if (from === to) return null;
+  } else {
+    while (from < to && /\s/.test(source[from])) from += 1;
+    while (to > from && /\s/.test(source[to - 1])) to -= 1;
+    if (from === to) return null;
+  }
+
+  const selected = source.slice(from, to);
+  let replaceFrom = from;
+  let replaceTo = to;
+  let replacement = `[${selected}]`;
+
+  if (selected.startsWith('[') && selected.endsWith(']')) {
+    replacement = selected.slice(1, -1);
+  } else if (source[from - 1] === '[' && source[to] === ']') {
+    replaceFrom = from - 1;
+    replaceTo = to + 1;
+    replacement = selected;
+  }
+
+  const nextSource = `${source.slice(0, replaceFrom)}${replacement}${source.slice(replaceTo)}`;
+  const wrapped = replacement.startsWith('[') && replacement.endsWith(']');
+  const nextFrom = replaceFrom + (wrapped ? 1 : 0);
+  const nextTo = nextFrom + replacement.length - (wrapped ? 2 : 0);
+  return { source: nextSource, selectionStart: nextFrom, selectionEnd: nextTo };
+}
+
 function patchScaffold(name) {
   return `// %% patch ${name}\n\nconst ${name} = {\n  draw({ time, audio }) {\n    \n  },\n};`;
 }
@@ -101,6 +143,10 @@ export function createEditor(textarea, handlers) {
     lastRunSource: () => handlers.lastRunSource?.() ?? '',
   });
   let staged = null;
+  const deletedCells = [];
+  const deleteWarnings = new Map();
+  let deletionReferenceSource = null;
+  const deletionReferences = new Map();
   let suppressChangeNotifications = 0;
   const openFolds = new Set();
   let foldControlSignature = '';
@@ -112,10 +158,28 @@ export function createEditor(textarea, handlers) {
   const currentCellBar = handlers.currentCellBar ?? null;
 
   function evaluateSource(source, label) {
+    deleteWarnings.clear();
     const result = handlers.onEvaluate(source, label);
     feedback.start(source, result);
     refreshFeedback();
     return result;
+  }
+
+  function visibleFeedback(status) {
+    if (status.state === 'error') return status.message;
+    if (status.state === 'warning') return status.message.replace(/^Applied\.\s*/, '');
+    return '';
+  }
+
+  function patchSourceScenes(name) {
+    if (deletionReferenceSource !== textarea.value) {
+      deletionReferenceSource = textarea.value;
+      deletionReferences.clear();
+    }
+    if (!deletionReferences.has(name)) {
+      deletionReferences.set(name, scenesReferencingPatch(textarea.value, name));
+    }
+    return deletionReferences.get(name);
   }
 
   function refreshFeedback() {
@@ -124,17 +188,21 @@ export function createEditor(textarea, handlers) {
       for (const details of foldedView.querySelectorAll('.folded-block')) {
         const block = currentBlocks.get(details.dataset.foldKey);
         if (!block) continue;
+        const patchName = /^patch\s+([A-Za-z_$][\w$]*)$/.exec(describeBlock(block.text))?.[1];
+        const deleteButton = details.querySelector('.folded-delete');
+        if (deleteButton) deleteButton.hidden = Boolean(patchName && (
+          patchSourceScenes(patchName).length || handlers.runningSceneUsingPatch?.(patchName)
+        ));
         const status = feedback.status(block.text);
         const badge = details.querySelector('.cell-status');
         const message = details.querySelector('.cell-feedback');
-        const run = details.querySelector('.cell-run');
-        if (run) {
-          run.textContent = staged ? 'Accept & run all' : 'Run';
-          run.setAttribute('aria-label', staged ? 'Accept and run the complete AI proposal' : `Run ${details.dataset.blockDescription}`);
-        }
         if (badge && badge.textContent !== status.label) badge.textContent = status.label;
-        if (message && message.textContent !== status.message) message.textContent = status.message;
-        details.dataset.evaluationState = status.state;
+        if (message) {
+          const visibleMessage = deleteWarnings.get(details.dataset.foldKey) ?? visibleFeedback(status);
+          if (message.textContent !== visibleMessage) message.textContent = visibleMessage;
+          message.parentElement.hidden = visibleMessage === '';
+        }
+        details.dataset.evaluationState = deleteWarnings.has(details.dataset.foldKey) ? 'warning' : status.state;
       }
     }
     if (currentCellBar) {
@@ -142,12 +210,9 @@ export function createEditor(textarea, handlers) {
       const status = block ? feedback.status(block.text) : null;
       currentCellBar.querySelector('.current-cell-name').textContent = block ? describeBlock(block.text) : 'Complete editor';
       currentCellBar.querySelector('.cell-status').textContent = status?.label ?? '';
-      currentCellBar.querySelector('.cell-feedback').textContent = status?.message ?? '';
       currentCellBar.dataset.evaluationState = status?.state ?? 'ready';
-      currentCellBar.querySelector('button').textContent = staged ? 'Accept & run all' : 'Run';
     }
   }
-  currentCellBar?.querySelector('button').addEventListener('click', () => staged ? acceptStagedSource() : evaluateCursorBlock());
 
   function rememberTextareaCaret() {
     lastSourceCaret = textarea.selectionStart === textarea.selectionEnd
@@ -426,6 +491,20 @@ export function createEditor(textarea, handlers) {
     replaceFoldedRange(target, from, to, transformed, from, from + transformed.length);
   }
 
+  function toggleArrayWrapIn(target) {
+    const change = toggleArrayWrap(target.value, target.selectionStart, target.selectionEnd);
+    if (!change) return false;
+    replaceFoldedRange(
+      target,
+      0,
+      target.value.length,
+      change.source,
+      change.selectionStart,
+      change.selectionEnd,
+    );
+    return true;
+  }
+
   function remapOffset(before, after, offset) {
     const line = before.slice(0, offset).split('\n').length - 1;
     const beforeStart = before.lastIndexOf('\n', Math.max(0, offset - 1)) + 1;
@@ -615,24 +694,52 @@ export function createEditor(textarea, handlers) {
       const cellStatus = document.createElement('span');
       cellStatus.className = 'cell-status';
       summary.append(cellStatus);
-      const cellActions = document.createElement('div');
-      cellActions.className = 'cell-actions';
-      const runButton = document.createElement('button');
-      runButton.type = 'button';
-      runButton.className = 'cell-run';
-      runButton.textContent = 'Run';
-      runButton.title = 'Run this cell (Cmd/Ctrl+Enter)';
-      runButton.setAttribute('aria-label', `Run ${preview.description}`);
-      runButton.addEventListener('click', () => {
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'folded-delete';
+      deleteButton.textContent = 'Delete';
+      deleteButton.setAttribute('aria-label', `Delete ${preview.description}`);
+      deleteButton.title = 'Delete this entire source block, including its header';
+      deleteButton.disabled = Boolean(staged);
+      deleteButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (staged) return;
         const current = blockForFoldKey(textarea.value, foldKey);
         if (!current) return;
-        const result = staged ? acceptStagedSource() : evaluateSource(current.text, describeBlock(current.text));
-        flash(result.ok, [details]);
+        const patchName = /^patch\s+([A-Za-z_$][\w$]*)$/.exec(describeBlock(current.text))?.[1];
+        if (patchName) {
+          const sourceScenes = patchSourceScenes(patchName);
+          const runningScene = handlers.runningSceneUsingPatch?.(patchName);
+          const scenes = [...new Set([...sourceScenes, ...(runningScene ? [runningScene] : [])])];
+          if (scenes.length) {
+            const message = sourceScenes.length
+              ? `Cannot delete ${patchName}: used by scene ${scenes.join(', ')}. Remove its references and run the scene first.`
+              : `Cannot delete ${patchName}: still running in scene ${runningScene}. Run the edited scene first.`;
+            deleteWarnings.set(foldKey, message);
+            details.open = true;
+            openFolds.add(foldKey);
+            refreshFeedback();
+            return;
+          }
+        }
+        deleteWarnings.delete(foldKey);
+        const before = textarea.value;
+        const after = before.slice(0, current.start) + before.slice(current.end);
+        deletedCells.push({ before, after, description: preview.description });
+        if (deletedCells.length > 50) deletedCells.shift();
+        openFolds.delete(foldKey);
+        foldedSource = null;
+        write(after, true);
+        foldedView.querySelector('.folded-block > summary, .folded-new-patch-button')?.focus({ preventScroll: true });
       });
+      summary.append(deleteButton);
+      const cellActions = document.createElement('div');
+      cellActions.className = 'cell-actions';
       const cellMessage = document.createElement('span');
       cellMessage.className = 'cell-feedback';
       cellMessage.setAttribute('role', 'status');
-      cellActions.append(runButton, cellMessage);
+      cellActions.append(cellMessage);
 
       const rawLines = block.text.split('\n');
       const terminalNewline = rawLines.at(-1) === '';
@@ -775,6 +882,11 @@ export function createEditor(textarea, handlers) {
           toggleCommentsIn(bodyEditor);
           return;
         }
+        if (event.code === 'BracketLeft' && accel && !event.altKey && !event.shiftKey) {
+          event.preventDefault();
+          toggleArrayWrapIn(bodyEditor);
+          return;
+        }
         if (accel && event.altKey && (event.code === 'KeyT' || event.key.toLowerCase() === 't')) {
           event.preventDefault();
           tidyIn(bodyEditor);
@@ -814,6 +926,8 @@ export function createEditor(textarea, handlers) {
         rememberBodyCaret();
         setTimeout(() => {
           if (!folded || foldedView.querySelector('.folded-source-editor:focus')) return;
+          // Keep structural actions and the keyboard focus they restore alive.
+          if (foldedView.querySelector('summary:focus-within, .folded-new-patch-button:focus')) return;
           foldedSource = null;
           renderFolded(textarea.value);
         }, 0);
@@ -880,12 +994,29 @@ export function createEditor(textarea, handlers) {
   // and undo then retain their ordinary browser behavior over the complete project.
   foldedView?.addEventListener('keydown', (event) => {
     const accel = event.metaKey || event.ctrlKey;
+    if (accel && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'z' && undoCellDeletion()) {
+      event.preventDefault();
+      return;
+    }
     if (!accel || event.altKey || event.key.toLowerCase() !== 'a') return;
     event.preventDefault();
     setFolded(false);
     textarea.focus();
     textarea.select();
   });
+
+  function undoCellDeletion() {
+    const restore = deletedCells.at(-1);
+    if (staged || !restore || textarea.value !== restore.after) return false;
+    deletedCells.pop();
+    foldedSource = null;
+    write(restore.before, true);
+    const restored = [...foldedView.querySelectorAll('.folded-block')].find(
+      (node) => node.dataset.blockDescription === restore.description,
+    );
+    restored?.querySelector('summary')?.focus({ preventScroll: true });
+    return true;
+  }
 
   function revealRange(start, end = start) {
     // Navigation should respect the presentation the performer chose. In structured
@@ -961,6 +1092,9 @@ export function createEditor(textarea, handlers) {
   /** A replacement project has no meaningful caret, scroll, or open-cell position. */
   function resetNavigation() {
     openFolds.clear();
+    for (const entry of foldEntries(textarea.value)) {
+      if (entry.preview.description.startsWith('scene ')) openFolds.add(entry.foldKey);
+    }
     lastSourceCaret = 0;
     textarea.setSelectionRange(0, 0);
     textarea.scrollTop = 0;
@@ -1171,6 +1305,10 @@ export function createEditor(textarea, handlers) {
 
   textarea.addEventListener('keydown', (event) => {
     const accel = event.metaKey || event.ctrlKey;
+    if (accel && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'z' && undoCellDeletion()) {
+      event.preventDefault();
+      return;
+    }
 
     const moveLineShortcut =
       (accel && event.shiftKey && !event.altKey) ||
@@ -1221,6 +1359,21 @@ export function createEditor(textarea, handlers) {
     if ((event.key === '/' || event.code === 'Slash') && accel) {
       event.preventDefault();
       toggleLineComments();
+      return;
+    }
+
+    if (event.code === 'BracketLeft' && accel && !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      const change = toggleArrayWrap(textarea.value, textarea.selectionStart, textarea.selectionEnd);
+      if (change) {
+        replaceRange(
+          0,
+          textarea.value.length,
+          change.source,
+          change.selectionStart,
+          change.selectionEnd,
+        );
+      }
       return;
     }
 

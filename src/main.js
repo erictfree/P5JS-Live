@@ -207,6 +207,9 @@ let offerFirstEdit = false;
 
 const editor = createEditor(document.getElementById('code'), {
   lastRunSource: () => evaluator.lastRunSource(),
+  runningSceneUsingPatch: (name) => registry.activeInstancesOf(name).length
+    ? registry.activeSceneName()
+    : null,
   onEvaluate: (source, label) => {
     const result = evaluator.evaluate(source, { label });
     // The projection's code layout shows the block that was actually accepted,
@@ -635,13 +638,12 @@ function finishEntry() {
   if (!offerFirstEdit) return;
   offerFirstEdit = false;
   document.getElementById('first-edit-hint').hidden = false;
-  openFirstEdit();
 }
 document.getElementById('first-edit-open').addEventListener('click', openFirstEdit);
 document.getElementById('first-edit-dismiss').addEventListener('click', () => {
   document.getElementById('first-edit-hint').hidden = true;
   try { localStorage.setItem('p5js-live.firstEditDismissed', 'true'); } catch { /* optional */ }
-  openFirstEdit();
+  stage.focus();
 });
 const welcomeFileButton = document.getElementById('file-label');
 const welcomeFileInput = document.getElementById('audio-file');

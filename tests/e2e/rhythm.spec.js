@@ -221,6 +221,7 @@ test('Space taps on keydown, Shift+Space controls playback, and navigation keeps
   });
   const counts = () => page.evaluate(() => [window.__taps, window.__playbackToggles]);
   const code = page.getByRole('textbox', { name: 'Edit patch myPatch', exact: true });
+  await page.locator('[data-block-description="patch myPatch"] summary').click();
   await code.press('End');
   const before = await code.inputValue();
   await code.press('Space');

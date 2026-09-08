@@ -326,6 +326,17 @@ export function sceneMemberNames(source, sceneName) {
   return [...collect(source.slice(open + 1, close)), ...collectCalls(maskCommentsAndStrings(source.slice(close + 1)))];
 }
 
+/** Scene source that still mentions a patch, including nested groups and effect inputs. */
+export function scenesReferencingPatch(source, patchName) {
+  if (!isIdentifier(patchName)) return [];
+  const reference = new RegExp(`(?<![\\w$])${escapeRegExp(patchName)}(?![\\w$])`);
+  return findBlocks(source).flatMap((block) => {
+    const scene = /^scene\s+([A-Za-z_$][\w$]*)$/.exec(describeBlock(block.text));
+    if (!scene || scene[1] === patchName) return [];
+    return reference.test(maskCommentsAndStrings(block.text)) ? [scene[1]] : [];
+  });
+}
+
 /** Exact expression ranges for direct array entries; never execute authored code. */
 export function sceneArrayEntries(source, sceneName) {
   if (!isIdentifier(sceneName)) return null;
