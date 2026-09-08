@@ -531,6 +531,30 @@ function strobe({ audio }) {
   },
 
   {
+    name: 'beatStrobe',
+    category: 'visual',
+    blurb: 'A short white flash on the tempo clock, falling back to detected audio hits when no clock is running.',
+    source: `// %% patch beatStrobe
+// Put last in your scene. Tap tempo or choose Audio > Rhythm > Manual / Auto.
+// Without a running clock, detected audio onsets trigger the flash directly.
+const beatStrobe = {
+  opacity: 0.4,
+  duration: 0.06, // seconds; independent of frame rate
+  draw({ time, clock, audio, state }) {
+    const hit = clock.running ? clock.tick : audio.onset;
+    if (hit) state.flashUntil = time + this.duration;
+    if (time >= (state.flashUntil ?? -Infinity)) return;
+    colorMode(RGB, 255);
+    blendMode(BLEND);
+    rectMode(CORNER);
+    noStroke();
+    fill(255, 255, 255, Math.max(0, Math.min(1, this.opacity)) * 255);
+    rect(0, 0, width, height);
+  },
+};`,
+  },
+
+  {
     name: 'waveScope',
     category: 'visual',
     blurb: 'An additive oscilloscope line drawn from the live waveform. Arrow-function patch.',

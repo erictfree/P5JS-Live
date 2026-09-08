@@ -292,3 +292,17 @@ preceding frame's final chain output. Wet/dry mix and blend apply once at the en
 against the original input. Texture orientation and premultiplied alpha are handled
 at pass boundaries so transparent groups composite correctly. Every nested group
 also needs a render target; use the inspector and FPS readings to assess cost.
+
+### Flash on the beat
+
+Install **beatStrobe** from the Library and put it last in your scene:
+
+```js
+const scene = [myPatch, beatStrobe];
+scene.draw();
+```
+
+A running Manual or Auto rhythm clock triggers each flash. With rhythm off or no
+reliable clock, the patch falls back to detected audio onsets (hits, not an estimated
+beat grid). Silence produces no flashes. Adjust `beatStrobe.opacity` (0–1) and
+`beatStrobe.duration` (seconds) in its source; the defaults are 0.4 and 0.06 seconds.
