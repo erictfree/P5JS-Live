@@ -181,6 +181,9 @@ virtual surface exactly:
   the next numeric control.
 - **Play** mirrors the toolbar's audio transport: green while the file plays, dim when
   loaded but paused, off with no file. Pressing it is the same as the toolbar button.
+- **Stop** (the Stop Clips button, CC 29, since Push 3 has no transport Stop) lights
+  whenever a file is loaded and not playing. Pressing it stops the file and returns
+  it to the start (`audio.stop()`), keeping it loaded.
 - Values changed anywhere (Push, controller dialog, Controls tab sliders, learned MIDI)
   now propagate everywhere: the Controls tab re-renders its rows on registry changes,
   and the Push screen model is refreshed even while the dialog is closed.

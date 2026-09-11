@@ -40,6 +40,7 @@ The architecture rule from the handoff holds: hardware translates into logical l
 | Resolution row (1/4 … 1/32t) | CC 36–43 | select bank 1–8 directly; the current bank's button is lit |
 | Tap Tempo | CC 3 | `tap` — **done** (`push3Tempo.js`), LED mirrors the toolbar beat flash |
 | Play | CC 85 | **done**: toggles the audio file transport; LED green/dim/off |
+| Stop Clips | CC 29 | **done**: stops the audio file and resets to the start; lit when a file is loaded and not playing |
 | Undo | CC 119 | `safe` (restore last safe state) |
 | Delete (alone) | CC 118 | cancel queued launch |
 | Upper screen buttons | CC 102–109 | **done**: press resets the control under it to default; Shift + press cycles the column's control; LED off/dim/bright = unassigned/at default/moved |

@@ -249,6 +249,34 @@ describe('audio source replacement', () => {
     expect(engine.status().position).toBe(0);
   });
 
+  it('stop returns a playing or paused file to the start and keeps it loaded', async () => {
+    const decoding = deferred();
+    const { platform, context } = testPlatform();
+    context.decodeAudioData = vi.fn(() => decoding.promise);
+    const loaded = mockSoundFile();
+    platform.createSoundFile = vi.fn(() => loaded);
+    const engine = createAudioEngine({ platform });
+    const pending = engine.loadFile(namedFile('set.mp3'));
+    await vi.waitFor(() => expect(context.decodeAudioData).toHaveBeenCalledOnce());
+    decoding.resolve({ decoded: true });
+    await pending;
+
+    expect(engine.stop()).toBe(true);
+    await engine.start();
+    context.currentTime = 4;
+    expect(engine.status().position).toBe(4);
+    expect(engine.stop()).toBe(true);
+    expect(loaded.stop).toHaveBeenCalled();
+    expect(engine.status()).toMatchObject({ kind: 'file', loaded: true, playing: false, position: 0 });
+
+    await engine.start();
+    context.currentTime = 6;
+    engine.pause();
+    expect(engine.stop()).toBe(true);
+    expect(loaded.paused).toBe(false);
+    expect(engine.status().position).toBe(0);
+  });
+
   it('cannot overwrite a later source when decoding finishes late', async () => {
     const decoding = deferred();
     const { platform, context } = testPlatform();
