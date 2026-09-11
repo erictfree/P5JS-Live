@@ -113,15 +113,30 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     offset.setAttribute('aria-label', 'Offset');
     offset.addEventListener('input', () => engine.update(m.id, { offset: Number(offset.value) }));
 
+    const depthField = field(`Depth ${Math.round(m.depth * 100)}%`, depth);
+    const offsetField = field(`Offset ${Math.round(m.offset * 100)}%`, offset);
     fields.append(
       field('Moves', target), field('Wave', wave), field('Rate', sync),
       field(m.sync ? 'Beats' : 'Hz', m.sync ? beats : hz),
-      field(`Depth ${Math.round(m.depth * 100)}%`, depth), field(`Offset ${Math.round(m.offset * 100)}%`, offset),
+      depthField, offsetField,
     );
 
     row.classList.toggle('is-on', m.on);
     row.append(name, actions, fields);
-    return { row, value, scope };
+    return { row, value, scope, depth, offset, depthField, offsetField, signature: structure(m, params) };
+  }
+
+  // Everything except depth/offset. When only those change, the row is patched in place
+  // so a slider drag never rebuilds the element under the pointer.
+  function structure(m, params) {
+    return JSON.stringify([m.name, m.target, m.wave, m.sync, m.beats, m.hz, m.on, params.map(p => p.name)]);
+  }
+
+  function patchRow(built, m) {
+    built.depthField.firstChild.textContent = `Depth ${Math.round(m.depth * 100)}%`;
+    built.offsetField.firstChild.textContent = `Offset ${Math.round(m.offset * 100)}%`;
+    if (document.activeElement !== built.depth) built.depth.value = String(m.depth);
+    if (document.activeElement !== built.offset) built.offset.value = String(m.offset);
   }
 
   // One cycle of the wave, scaled by depth and offset, with a dot at the current phase.
@@ -152,21 +167,33 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
   function render() {
     const list = engine.list();
     const params = numericParams();
-    root.replaceChildren();
-    rows = new Map();
     if (!list.length) {
+      root.replaceChildren();
+      rows = new Map();
       const empty = document.createElement('div');
       empty.className = 'performance-empty';
       empty.textContent = 'No modulations yet. Add one and use its name in code — lfo1 is a live number from −1 to 1 — or point it at a live control.';
       root.append(empty);
       return;
     }
+    const next = new Map();
     for (const m of list) {
-      const built = buildRow(m, params);
-      rows.set(m.id, built);
-      root.append(built.row);
-      drawScope(built.scope, m, engine.phase(m.id), engine.signal(m.name));
+      const existing = rows.get(m.id);
+      let built;
+      if (existing && existing.signature === structure(m, params)) {
+        patchRow(existing, m);
+        built = existing;
+      } else {
+        built = buildRow(m, params);
+        if (existing) existing.row.replaceWith(built.row);
+      }
+      next.set(m.id, built);
     }
+    for (const [id, built] of rows) if (!next.has(id)) built.row.remove();
+    rows = next;
+    // Keep DOM order equal to list order; append moves existing nodes without rebuilding.
+    for (const built of rows.values()) root.append(built.row);
+    for (const [id, built] of rows) { const m = engine.get(id); if (m) drawScope(built.scope, m, engine.phase(id), engine.signal(m.name)); }
   }
 
   // Cheap per-frame readout of the live modulated value while the panel is visible.
