@@ -1,98 +1,38 @@
-// Recently loaded audio files, cached as blobs in IndexedDB so the start dialog can
-// offer them again. Browsers cannot reopen a local file by path, so the bytes are kept
-// (a few files at most). Falls back to an in-memory list when IndexedDB is missing.
+// Names of recently loaded audio files, kept in localStorage as a reminder for the start
+// dialog. Only the name, type, size and time are stored — never the bytes. A browser
+// cannot reopen a local file from its name, so choosing one again goes through the
+// file picker.
 
-const DB_NAME = 'p5js-live-recent-audio';
-const STORE = 'files';
+const KEY = 'p5js-live.recent-audio.v1';
 
-export function createRecentAudio({ indexedDB = globalThis.indexedDB, limit = 5, now = () => Date.now() } = {}) {
-  const memory = new Map(); // name → { name, type, size, at, blob }
-  let dbPromise = null;
-
-  function open() {
-    if (!indexedDB) return Promise.resolve(null);
-    if (!dbPromise) {
-      dbPromise = new Promise((resolve) => {
-        try {
-          const request = indexedDB.open(DB_NAME, 1);
-          request.onupgradeneeded = () => { request.result.createObjectStore(STORE, { keyPath: 'name' }); };
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => resolve(null);
-        } catch { resolve(null); }
-      });
-    }
-    return dbPromise;
-  }
-
-  function tx(db, mode, run) {
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(STORE, mode);
-      const store = transaction.objectStore(STORE);
-      let result;
-      try { result = run(store); } catch (error) { reject(error); return; }
-      transaction.oncomplete = () => resolve(result?.result ?? result);
-      transaction.onerror = () => reject(transaction.error);
-      transaction.onabort = () => reject(transaction.error);
-    });
-  }
-
-  async function readAll() {
-    const db = await open();
-    if (!db) return [...memory.values()];
+export function createRecentAudio({ storage = globalThis.localStorage, limit = 5, now = () => Date.now() } = {}) {
+  function read() {
     try {
-      const rows = await tx(db, 'readonly', store => store.getAll());
-      return Array.isArray(rows) ? rows : [];
+      const data = JSON.parse(storage?.getItem(KEY) ?? 'null');
+      return Array.isArray(data?.files) ? data.files.filter(f => f && typeof f.name === 'string') : [];
     } catch { return []; }
   }
-
-  async function list() {
-    const rows = await readAll();
-    return rows
-      .sort((a, b) => b.at - a.at)
-      .slice(0, limit)
-      .map(({ name, type, size, at }) => ({ name, type, size, at }));
+  function write(files) {
+    try { storage?.setItem(KEY, JSON.stringify({ version: 1, files })); return true; } catch { return false; }
   }
 
-  async function remember(file) {
-    if (!file || typeof file.name !== 'string') return false;
-    const entry = { name: file.name, type: file.type || 'audio/*', size: file.size ?? 0, at: now(), blob: file };
-    const db = await open();
-    if (!db) {
-      memory.set(entry.name, entry);
-      trimMemory();
-      return true;
-    }
-    try {
-      await tx(db, 'readwrite', store => { store.put(entry); });
-      const rows = await readAll();
-      const stale = rows.sort((a, b) => b.at - a.at).slice(limit);
-      if (stale.length) await tx(db, 'readwrite', store => { for (const row of stale) store.delete(row.name); });
-      return true;
-    } catch { return false; }
+  function list() {
+    return read().sort((a, b) => b.at - a.at).slice(0, limit).map(({ name, type, size, at }) => ({ name, type, size, at }));
   }
 
-  function trimMemory() {
-    const rows = [...memory.values()].sort((a, b) => b.at - a.at);
-    for (const row of rows.slice(limit)) memory.delete(row.name);
+  function remember(file) {
+    if (!file || typeof file.name !== 'string' || !file.name) return false;
+    const files = read().filter(f => f.name !== file.name);
+    files.unshift({ name: file.name, type: file.type || 'audio/*', size: file.size ?? 0, at: now() });
+    return write(files.sort((a, b) => b.at - a.at).slice(0, limit));
   }
 
-  async function get(name) {
-    const db = await open();
-    if (!db) {
-      const entry = memory.get(name);
-      return entry ? new File([entry.blob], entry.name, { type: entry.type }) : null;
-    }
-    try {
-      const entry = await tx(db, 'readonly', store => store.get(name));
-      return entry?.blob ? new File([entry.blob], entry.name, { type: entry.type }) : null;
-    } catch { return null; }
+  function forget(name) {
+    const files = read();
+    const next = files.filter(f => f.name !== name);
+    if (next.length === files.length) return false;
+    return write(next);
   }
 
-  async function forget(name) {
-    const db = await open();
-    if (!db) return memory.delete(name);
-    try { await tx(db, 'readwrite', store => { store.delete(name); }); return true; } catch { return false; }
-  }
-
-  return { list, remember, get, forget };
+  return { list, remember, forget };
 }

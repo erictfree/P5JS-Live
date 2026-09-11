@@ -1490,8 +1490,8 @@ normally restores the last editor source and project settings.
 #### Performances
 
 The start dialog lists your recent performances and recent audio files. Click a
-performance to load it, then choose a source as usual; click an audio file to start
-with it straight away.
+performance to load it, then choose a source as usual. The audio names are reminders:
+clicking one opens the file picker so you can choose that file again.
 
 A performance is the whole set: your working source, every saved scene, the pad layout
 and encoder assignments, MIDI control mappings, and tempo and audio settings. In

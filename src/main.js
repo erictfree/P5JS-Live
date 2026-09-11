@@ -779,8 +779,10 @@ async function loadAudioFile(file) {
   }
   try {
     await audio.loadFile(file, { onProgress: renderAudioLoadStatus });
-    void recentAudio.remember(file).then(() => renderWelcomeRecent());
-    void recentAudio.remember(file).then(() => renderWelcomeRecent());
+    recentAudio.remember(file);
+    void renderWelcomeRecent();
+    recentAudio.remember(file);
+    void renderWelcomeRecent();
     await startAudio();
   } catch (error) {
     if (error?.name === 'AbortError') return;
@@ -1824,7 +1826,7 @@ function recentButton({ name, meta, thumbnail = null, glyph = '♪', current = f
   return button;
 }
 
-async function renderWelcomeRecent() {
+function renderWelcomeRecent() {
   const performances = performanceLibrary.list().sort((a, b) => b.updatedAt - a.updatedAt).slice(0, RECENT_LIMIT);
   const currentId = performanceLibrary.currentId();
   welcomeRecentPerformances.replaceChildren(...(performances.length ? performances.map(entry => recentButton({
@@ -1837,20 +1839,21 @@ async function renderWelcomeRecent() {
       renderWelcomeRecent();
     },
   })) : [Object.assign(document.createElement('div'), { className: 'welcome-recent-empty', textContent: 'No saved performances yet.' })]));
-  const files = await recentAudio.list();
+  const files = recentAudio.list();
   welcomeRecentAudio.replaceChildren(...(files.length ? files.map(entry => recentButton({
     name: entry.name,
-    meta: entry.size ? `${(entry.size / 1_048_576).toFixed(1)} MB` : 'audio file',
-    onClick: async () => {
-      const file = await recentAudio.get(entry.name);
-      if (!file) { diagnostics.warn(`${entry.name} is no longer cached`, 'Choose it again with Audio file.'); recentAudio.forget(entry.name); renderWelcomeRecent(); return; }
-      await loadAudioFile(file);
+    meta: entry.size ? `${(entry.size / 1_048_576).toFixed(1)} MB · choose again` : 'choose again',
+    onClick: () => {
+      // Only the name is stored; the browser needs the picker to hand the file over.
+      welcomeNote.textContent = `Pick ${entry.name} in the file dialog.`;
+      welcomeNote.classList.remove('is-error');
+      welcomeFileInput.click();
     },
   })) : [Object.assign(document.createElement('div'), { className: 'welcome-recent-empty', textContent: 'Audio files you load appear here.' })]));
   welcomeRecent.hidden = !performances.length && !files.length;
 }
-performanceLibrary.subscribe(() => { void renderWelcomeRecent(); });
-void renderWelcomeRecent();
+performanceLibrary.subscribe(renderWelcomeRecent);
+renderWelcomeRecent();
 
 function setSafeScene() {
   return controller.actions.setSafeState();
