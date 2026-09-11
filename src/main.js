@@ -15,6 +15,7 @@ import { createEvaluator } from './host/evaluator.js';
 import { createHostLoop } from './host/hostLoop.js';
 import { createAudioEngine } from './audio/audioEngine.js';
 import { createPerformanceLauncher } from './performance/launcher.js';
+import { createPush3DisplayTransport } from './performance/push3DisplayTransport.js';
 import { createPerformanceSurface } from './ui/performanceLauncher.js';
 import { controllerDemoPerformances } from '../starter/controller-demos.js';
 import { LIVE_API_NAMES } from './host/liveApi.js';
@@ -88,6 +89,7 @@ const evaluator = createEvaluator({
 const audio = createAudioEngine({ diagnostics });
 const network = getDefaultNetworkManager();
 const controlManager = createControlManager({ registry, diagnostics });
+const push3Display = createPush3DisplayTransport({ diagnostics });
 
 // Read-only keyboard state, handed to strategies as one of the draw inputs.
 const keyboard = { keys: new Set(), shift: false, alt: false };
@@ -1090,6 +1092,7 @@ controlManager.setDisconnectHandler(() => launcher.disconnect());
 createPerformanceSurface({
   root: document.getElementById('performance-launcher'), launcher, store: performanceStore,
   registry, controlManager,
+  push3Display,
   addDemos() {
     for (const demo of controllerDemoPerformances()) {
       if (!performanceStore.get(demo.id)) {
@@ -1549,6 +1552,8 @@ function connectExample(buttonId, file, sceneName, title, message) {
     } catch (error) { diagnostics.error(`${title} could not start`, error.message); }
   });
 }
+connectExample('run-teapot', 'teapot.js', 'teapotScene', 'Teapot',
+  'Controls has teapotSpin, teapotDots, teapotMotion, and teapotAudio. Load audio for reactive motion; save a named performance to recall this scene.');
 connectExample('run-motion-lab', 'motion-lab.js', 'motionLab', 'Motion Lab',
   'Press Esc, then hold and release H for the ADSR; tap Space for tempo. The Lag cell compares raw steps with smooth motion. Your existing source remains in the project.');
 connectExample('run-image-modulation', 'image-modulation.js', 'imageModulation', 'Image Modulation',

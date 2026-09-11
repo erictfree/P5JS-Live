@@ -1,6 +1,9 @@
 import { SURFACE_PROFILES, renderSurfaceDisplay } from '../performance/surfaceDisplay.js';
+import { decodePush3Bgr565 } from '../performance/push3DisplayTransport.js';
 
-export function createPerformanceSurface({ root, launcher, store, registry, controlManager, recover, addDemos }) {
+const startupImageUrl = new URL('../../assets/brand/startup.bgr565', import.meta.url).href;
+
+export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, recover, addDemos }) {
   root.innerHTML = `
     <div class="surface-heading"><h3>Live launcher</h3><button type="button" data-open>Open controller</button></div>
     <p class="hint">Pads launch visuals and saved values. Your audio, clock and MIDI setup keep running. Recall below restores the whole snapshot.</p>
@@ -12,6 +15,10 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
         <button type="button" data-connect>Connect MIDI</button><span data-midi-status></span>
       </div>
       <canvas width="960" height="160" role="img" aria-label="Controller display preview"></canvas>
+      <div data-display-controls>
+        <div class="surface-toolbar"><button type="button" data-connect-display>Connect Push display</button><button type="button" data-claim-display>Claim interface 0</button><button type="button" data-test-display>Test once</button><button type="button" data-startup-display>Show startup</button><button type="button" data-start-display>Show controller</button><button type="button" data-stop-display>Stop</button><button type="button" data-release-display>Release</button><span data-display-status role="status"></span></div>
+        <p class="hint">Test shows color bars briefly. Startup and controller modes remain visible until stopped.</p>
+      </div>
       <div class="surface-encoders"></div>
       <p><button type="button" data-demos>Add two demo performances</button> <span class="hint">Eight controls each. Plays when you select a pad.</span></p>
       <div class="surface-toolbar">
@@ -28,7 +35,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
         <button type="button" data-assign>Assign pad</button>
         <button type="button" data-recover>Recover previous edits</button></div>
       <details><summary>MIDI Learn and hardware status</summary>
-        <p>Push 1, 2 and 3 are target profiles, unverified on hardware. No automatic maps, LED output or USB display transfer yet. The preview uses a virtual 960 × 160 display.</p>
+        <p>Push 1, 2 and 3 are target profiles. MIDI maps, LEDs and display transfer remain unverified. The preview uses a virtual 960 × 160 display.</p>
         <div class="surface-toolbar"><label>Action <select data-learn-action aria-label="MIDI action"><option value="pad">Pad</option><option value="encoder">Encoder</option><option value="tap">Tap</option><option value="safe">Restore safe</option><option value="bankNext">Next bank</option><option value="bankPrevious">Previous bank</option></select></label>
           <label>Number <input data-learn-index type="number" min="1" max="64" value="1" aria-label="MIDI action number"></label>
           <label>Encoder <select data-learn-mode aria-label="Encoder MIDI mode"><option value="absolute">Absolute · pickup</option><option value="relative">Relative · two’s complement</option></select></label>
@@ -46,7 +53,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   const controlTitle = document.createElement('h3'); controlTitle.className = 'surface-section-label'; controlTitle.textContent = 'Live controls';
   encoderArea.append(controlTitle, root.querySelector('.surface-encoders'), root.querySelector('.surface-status'), root.querySelector('[data-slot]').closest('.surface-toolbar'));
   playArea.append(padArea, encoderArea);
-  root.querySelector('canvas').after(playArea);
+  root.querySelector('canvas').after(root.querySelector('[data-display-controls]'), playArea);
   const demoRow = root.querySelector('[data-demos]').closest('p');
   const setup = root.querySelector('details');
   setup.querySelector('summary').after(root.querySelector('[data-profile]').closest('.surface-toolbar'));
@@ -67,6 +74,29 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   $('[data-close]').onclick = () => modal.close();
   modal.addEventListener('close', () => launcher.cancelLearn());
   $('[data-connect]').onclick = () => controlManager.connectMidi();
+  $('[data-connect-display]').onclick = () => push3Display.connect();
+  $('[data-claim-display]').onclick = () => push3Display.claim();
+  $('[data-test-display]').onclick = () => push3Display.sendTestPattern();
+  let startupFramePromise;
+  const getStartupFrame = () => {
+    startupFramePromise ??= fetch(startupImageUrl)
+      .then(response => {
+        if (!response.ok) throw new Error(`Could not load the Push startup image (${response.status}).`);
+        return response.arrayBuffer();
+      })
+      .then(buffer => decodePush3Bgr565(new Uint8Array(buffer)));
+    return startupFramePromise;
+  };
+  $('[data-startup-display]').onclick = async () => {
+    const frame = await getStartupFrame();
+    return push3Display.startStream(() => frame, { fps: 5, label: 'startup' });
+  };
+  $('[data-start-display]').onclick = () => push3Display.startStream(() => {
+    const canvas = $('canvas');
+    return canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
+  });
+  $('[data-stop-display]').onclick = () => push3Display.stopStream();
+  $('[data-release-display]').onclick = () => push3Display.release();
   $('[data-timing]').onchange = event => launcher.setTiming(event.target.value);
   $('[data-cancel]').onclick = () => launcher.cancel();
   $('[data-demos]').onclick = () => addDemos();
@@ -152,5 +182,18 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   launcher.subscribe(render);
   registry.subscribe(render);
   controlManager.subscribe(() => { const state = controlManager.snapshot(); $('[data-midi-status]').textContent = state.midi.status; });
+  const renderDisplayStatus = () => {
+    const state = push3Display.snapshot();
+    $('[data-display-status]').textContent = state.status;
+    $('[data-connect-display]').disabled = !state.supported || state.status === 'requesting permission';
+    $('[data-claim-display]').disabled = !state.descriptor || state.claimed || state.status === 'claiming interface 0';
+    $('[data-test-display]').disabled = !state.claimed || state.status === 'sending one test frame';
+    $('[data-startup-display]').disabled = !state.claimed || state.status.startsWith('streaming startup');
+    $('[data-start-display]').disabled = !state.claimed || state.status.startsWith('streaming controller preview');
+    $('[data-stop-display]').disabled = !state.streaming;
+    $('[data-release-display]').disabled = !state.claimed;
+  };
+  push3Display.subscribe(renderDisplayStatus);
+  renderDisplayStatus();
   return { render };
 }

@@ -1547,10 +1547,21 @@ MIDI Learn is active. Reconnection rearms pickup and releases held-button state.
 **Clear surface routes** removes only these controller routes.
 
 The **Virtual Push** drives the real scene renderer. **Push 1**, **Push 2**, and
-**Push 3** are unverified target profiles using generic MIDI Learn; selecting one
-does not install a device-specific map. Physical pad LEDs, hardware displays, MPE and
-USB transport are not implemented. The 960 × 160 display is a software preview,
-not a claim of compatibility with every model’s screen.
+**Push 3** use generic MIDI Learn; selecting one does not install a device-specific
+map. Physical pad LEDs, hardware display transfer and MPE remain unverified. The
+960 × 160 display is a software preview.
+
+For a tethered Push 3, **Connect Push display** performs the first safe display test.
+Chrome asks you to select the device, then Astra reads its USB configuration and
+endpoint descriptors. At this stage Astra does not open or claim the display
+interface and sends no data. A successful status reads **permission granted ·
+descriptors read**. Keep Live closed during direct display work so it does not claim
+the same hardware interface.
+
+After permission succeeds, **Claim interface 0** opens the device and reserves only
+the vendor-specific display interface. It still sends no data. Select **Release
+display** to release the interface and close the USB device. Keep the display released
+before opening Live.
 
 Syntax is checked before replacing the runtime. Evaluation or first-frame failures
 restore the preceding runtime. **Recover previous edits** restores the editor text
@@ -2833,3 +2844,26 @@ See [Timing and visual signals](RHYTHM.md) for exact APIs,
 keyboard behavior and live-edit semantics. Rhythm → Auto · experimental offers
 Pulse (PLP) and Onset grid for live comparison; Tap takes over with Manual. The
 algorithm choice is saved with projects and performances.
+
+### Teapot point-cloud example
+
+Open **Tools → Library → Run Teapot example**. This adds editable controls, a
+`teapotPoints` patch, and a `teapotScene` scene, then runs the example. Existing source
+stays in the project. Use **Performances** to save it as a named performance.
+
+The teapot loads a bundled, downloaded Utah teapot OBJ with p5 `loadModel()`, then
+renders its vertices into a private, transparent WebGL canvas. Loading is asynchronous;
+a loading label appears until the file arrives. It runs without audio. In
+**Controls**, adjust `teapotSpin`, `teapotDots`, `teapotMotion`, and `teapotAudio`.
+Load audio or enable mic input for bass-driven displacement. Set motion and audio to
+zero to see the undeformed geometry; set spin to zero to stop rotation.
+
+The scene wraps the patch in `[teapotPoints].opacity(0.95)`. Try `.repeatX(2)` or
+`.rotate(0, 0.1)` after that operation, then run the scene cell. These transform the
+rendered image; `teapotSpin` rotates the actual 3D geometry. The patch handles canvas
+resizing and releases its WebGL buffer when its implementation is disposed.
+
+The model is `starter/models/teapot.obj`; provenance is in that folder’s README.
+To try another OBJ, change `modelUrl` in the patch and run its cell. Use a same-origin
+URL or a server that permits CORS. Vertices are centered, fitted, and sampled to at
+most 8,000 points. A loading failure is reported through the normal patch diagnostics.

@@ -32,6 +32,7 @@ for (const directory of ['src', 'starter', 'vendor']) {
 // repository for design reference; add new runtime assets to this manifest.
 const assets = [
   ['site/assets/editor-preview.jpg', 'assets/editor-preview.jpg'],
+  ['assets/brand/startup.bgr565', 'live/assets/brand/startup.bgr565'],
   ['assets/video/p5jsrobot.mp4', 'live/assets/video/p5jsrobot.mp4'],
 ];
 for (const [source, target] of assets) {

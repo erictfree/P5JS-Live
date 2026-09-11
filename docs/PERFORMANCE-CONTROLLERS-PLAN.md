@@ -28,10 +28,38 @@ automatic message maps, exact LED palettes, display transport, expression settin
 reconnection and coexistence with Live require real-device tests. Generic learned
 MIDI routes may be used experimentally; this does not certify a Push model.
 
-Try WebUSB display access first when a regular, tethered Push 3 is available. If
-necessary, extend the existing Node server. No Swift companion or additional
-background process is introduced now. The display renderer should provide pixels
-independently of the eventual transport.
+The first tethered Push 3 was identified on macOS as USB vendor `0x2982`, product
+`0x1969`, with its vendor-specific display on interface 0. The controller now offers
+**Connect Push display**, which asks Chrome for WebUSB permission and reads the USB
+configuration and endpoint descriptors. This probe deliberately does not open or
+claim the interface and sends no bytes.
+
+The next explicit step opens the permitted device and claims display interface 0.
+It can be released from the same panel. Claiming does not send a control or bulk
+transfer; successful status reads **interface 0 claimed · no data sent**.
+
+The hardware panel also exposes **Send test pattern once** after a successful claim.
+It sends the fixed display-frame header followed by one complete 960×160 BGR565
+frame to bulk OUT endpoint 1. Pixel rows include the required padding and XOR signal
+shaping. This action sends no MIDI, control, diagnostic or firmware messages and
+does not start a stream; Push clears the frame after its display timeout.
+
+After the one-frame hardware check succeeds, **Start display** mirrors the existing
+960×160 controller preview to Push at 15 fps. Frames are serialized so a slow USB
+transfer cannot overlap the next one. **Stop display** ends the timer while retaining
+the claimed interface; **Release** stops the stream, releases interface 0 and closes
+the device.
+
+**Show startup** displays `assets/brand/startup.bgr565` as a persistent five-frame-
+per-second splash. The asset is tightly packed at the Push display's native 960×160
+resolution and BGR565 color format; the transport adds row padding and signal
+shaping. **Show controller** switches the same transport back to the live surface
+preview.
+
+After descriptor verification, try WebUSB display access first. If necessary, extend
+the existing Node server. No Swift companion or additional background process is
+introduced now. The display renderer provides pixels independently of the eventual
+transport.
 
 Crossfades, prewarming a second rendering runtime, expressive MPE routing and native
 hardware display transfer remain later work. The simulator proves application
