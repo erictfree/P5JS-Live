@@ -5,7 +5,7 @@ import { PADS_PER_BANK } from '../performance/launcher.js';
 
 const startupImageUrl = new URL('../../assets/brand/startup.bgr565', import.meta.url).href;
 
-export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, effects, tempo = null, transport = null, recover, addDemos }) {
+export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, effects, tempo = null, transport = null, browser = null, performanceName = null, recover, addDemos }) {
   root.innerHTML = `
     <div class="surface-heading"><h3>Live launcher</h3><button type="button" data-open>Open controller</button></div>
     <p class="hint">Pads launch visuals and saved values. Your audio, clock and MIDI setup keep running. Recall below restores the whole snapshot.</p>
@@ -156,8 +156,21 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   $('[data-clear]').onclick = () => launcher.clearRoutes();
   let optionSignature = '', paramSignature = '';
   let lastSurface = { title: 'Untitled', status: 'Untitled · live', controls: [] };
+  const thumbnails = new Map(); // performance id → Image, decoded once for the screen
+  function browserWithImage() {
+    const state = browser?.() ?? null;
+    if (!state) return null;
+    let image = null;
+    if (state.thumbnail) {
+      image = thumbnails.get(state.id);
+      if (!image || image.src !== state.thumbnail) { image = new Image(); image.src = state.thumbnail; thumbnails.set(state.id, image); }
+    }
+    return { ...state, image };
+  }
   function drawSurface(canvas) {
-    renderSurfaceDisplay(canvas, { ...lastSurface, tempo: tempo?.() ?? null, transport: transport?.() ?? null });
+    const name = performanceName?.() ?? null;
+    const status = name ? `${name} · ${lastSurface.status}` : lastSurface.status;
+    renderSurfaceDisplay(canvas, { ...lastSurface, status, tempo: tempo?.() ?? null, transport: transport?.() ?? null, browser: browserWithImage() });
   }
   function render() {
     const state = launcher.snapshot(), entries = store.list(), params = registry.listParams().filter(p => typeof p.value === 'number');
@@ -214,7 +227,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   // Per-frame hook: keeps the modal's preview beat dot moving. Hardware streaming
   // redraws on its own pull, so nothing happens here unless the modal is open.
   function frame() {
-    if (modal.open && tempo) drawSurface($('canvas'));
+    if (modal.open && (tempo || browser)) drawSurface($('canvas'));
   }
   launcher.subscribe(render);
   registry.subscribe(render);

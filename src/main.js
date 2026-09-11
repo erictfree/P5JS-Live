@@ -21,6 +21,8 @@ import { createPush3TempoLink, describeTempo } from './performance/push3Tempo.js
 import { createPush3Adapter } from './performance/push3Adapter.js';
 import { createEffectsBoard } from './performance/effectsBoard.js';
 import { createPush3AutoConnect } from './performance/push3AutoConnect.js';
+import { createPerformanceLibrary } from './persistence/performanceLibrary.js';
+import { captureSquare, thumbnailFromFile } from './performance/thumbnail.js';
 import { createPerformanceSurface } from './ui/performanceLauncher.js';
 import { controllerDemoPerformances } from '../starter/controller-demos.js';
 import { LIVE_API_NAMES } from './host/liveApi.js';
@@ -194,6 +196,8 @@ const rhythm = host.rhythm;
 audio.connectRhythm(rhythm);
 const projectStore = createProjectStore({ registry, diagnostics, controlManager, rhythm });
 const performanceStore = createPerformanceStore({ diagnostics });
+const performanceLibrary = createPerformanceLibrary({ diagnostics });
+let thumbnailRequest = null; // resolved inside the draw loop so WebGL frames are captured intact
 const projection = createProjection({
   controller,
   onBlocked: () =>
@@ -626,6 +630,7 @@ window.draw = function draw() {
   // The live coder configures the scene as an ordered array of strategy values.
   // Each function or object exposes the current drawing behavior.
   host.drawScene(drawInputs);
+  if (thumbnailRequest) { const capture = thumbnailRequest; thumbnailRequest = null; capture(); }
 
   host.commitPendingChanges();
   if (editor.hasPendingEvaluation()) editor.evaluationFrame(controller.snapshot());
@@ -1114,6 +1119,8 @@ push3Tempo = createPush3TempoLink({ leds: push3Leds, rhythm, tap: () => panels.t
 push3Adapter = createPush3Adapter({
   launcher, leds: push3Leds, store: performanceStore, registry, effects: effectsBoard, diagnostics,
   transport: { toggle: () => toggleAudio(), status: () => audio.status(), setVolume: level => audio.setVolume(level) },
+  library: { list: () => performanceLibrary.list(), currentId: () => performanceLibrary.currentId(), load: id => loadPerformance(id) },
+  onBrowse: () => renderLibrary(),
 });
 push3Leds.onInput(event => { if (!push3Tempo.handleInput(event.decoded)) push3Adapter.handleInput(event.decoded); });
 performanceSurface = createPerformanceSurface({
@@ -1124,6 +1131,8 @@ performanceSurface = createPerformanceSurface({
   effects: effectsBoard,
   tempo: () => describeTempo(rhythm.snapshot(), rhythm.settings()),
   transport: () => audio.status(),
+  browser: () => push3Adapter?.browseState() ?? null,
+  performanceName: () => performanceLibrary.current()?.name ?? null,
   addDemos() {
     for (const demo of controllerDemoPerformances()) {
       if (!performanceStore.get(demo.id)) {
@@ -1459,6 +1468,219 @@ performanceList.addEventListener('click', async (event) => {
 
 renderPerformances();
 
+// --- performance library: save, load, autosave, thumbnails -------------------------
+
+const libraryList = document.getElementById('library-list');
+const libraryNameInput = document.getElementById('library-name');
+const libraryCurrentName = document.getElementById('library-current-name');
+const libraryCurrentThumb = document.getElementById('library-current-thumb');
+const EMPTY_LAUNCHER = () => ({ version: 1, slots: [], known: [], assignments: [], routes: [] });
+
+/** The whole performance as a portable bundle — the same shape as an exported file. */
+function capturePerformanceData() {
+  const json = projectStore.exportProject(editor.value, { performances: performanceStore.list(), launcher: launcher.export() });
+  const parsed = projectStore.parseProject(json);
+  return parsed.ok ? parsed.data : null;
+}
+
+/** Square crop of the stage, taken inside the next draw so WebGL content is intact. */
+function captureThumbnail() {
+  return new Promise((resolve) => {
+    thumbnailRequest = () => {
+      try { resolve(captureSquare(document.querySelector('#stage canvas'))); }
+      catch (error) { diagnostics.warn('Could not capture a thumbnail', error.message); resolve(null); }
+    };
+  });
+}
+
+async function savePerformanceAs(name) {
+  const data = capturePerformanceData();
+  if (!data) { diagnostics.error('Could not save performance', 'The working source could not be packaged.'); return null; }
+  const current = performanceLibrary.current();
+  const thumbnail = await captureThumbnail();
+  if (current && current.name === name.trim()) {
+    const updated = performanceLibrary.update(current.id, { data, thumbnail });
+    if (updated.ok) diagnostics.success(`Performance updated — ${current.name}`);
+    else diagnostics.error('Could not update performance', updated.reason);
+    renderLibrary();
+    return updated.ok ? current.id : null;
+  }
+  const result = performanceLibrary.save({ name, data, thumbnail });
+  if (!result.ok) {
+    diagnostics.error('Could not save performance', result.reason === 'missing-name' ? 'Give it a name first.' : result.reason);
+    return null;
+  }
+  performanceLibrary.setCurrent(result.performance.id);
+  diagnostics.success(`Performance saved — ${result.performance.name}`, `${result.performance.sceneCount} scene${result.performance.sceneCount === 1 ? '' : 's'}, layout, controls and settings. It now updates itself as you work.`);
+  renderLibrary();
+  return result.performance.id;
+}
+
+// Autosave: whenever the working project would persist, the named performance does too.
+let libraryAutosaveTimer = null;
+function autosavePerformanceSoon(delay = 1500) {
+  if (!performanceLibrary.currentId()) return;
+  clearTimeout(libraryAutosaveTimer);
+  libraryAutosaveTimer = setTimeout(() => {
+    const id = performanceLibrary.currentId();
+    const data = id && capturePerformanceData();
+    if (data) { performanceLibrary.update(id, { data }); renderLibrary(); }
+  }, delay);
+}
+{
+  const persistWorking = projectStore.saveSoon;
+  projectStore.saveSoon = (...args) => { persistWorking(...args); autosavePerformanceSoon(); };
+}
+launcher.subscribe(() => autosavePerformanceSoon());
+
+async function loadPerformance(id) {
+  const entry = performanceLibrary.get(id);
+  if (!entry) { diagnostics.warn('That performance is no longer in the library'); return { ok: false, reason: 'missing' }; }
+  if (entry.id === performanceLibrary.currentId()) { diagnostics.info(`${entry.name} is already the current performance`); return { ok: true, current: true }; }
+  const data = entry.data;
+  evaluator.discardPending();
+  evaluator.clearBindings();
+  host.reset();
+  registry.reset();
+  stateStore.clear();
+  controlManager.restoreMappings([]);
+  launcher.reset();
+  performanceRecallSequence++;
+  editor.value = data.source;
+  const result = evaluator.evaluate(data.source, { label: `performance ${entry.name}` });
+  evaluator.applyPending();
+  if (!result.ok) {
+    diagnostics.error(`Could not run ${entry.name}`, result.error?.message);
+    return { ok: false, reason: 'evaluation' };
+  }
+  projectStore.restoreSettings(data);
+  const scenes = performanceStore.replace(data.performances ?? []);
+  launcher.import(data.launcher ?? EMPTY_LAUNCHER());
+  performanceLibrary.setCurrent(entry.id);
+  renderPerformances();
+  renderLibrary();
+  projection.setActiveCode(data.source);
+  projectStore.saveSoon(data.source, 0);
+  diagnostics.success(`Performance loaded — ${entry.name}`, scenes.ok ? `${scenes.count} scene${scenes.count === 1 ? '' : 's'}, layout, controls and settings restored.` : 'Source restored; its scenes could not be read.');
+  return { ok: true };
+}
+
+async function deletePerformance(id) {
+  const entry = performanceLibrary.get(id);
+  if (!entry) return;
+  const count = entry.data.performances?.length ?? 0;
+  const confirmed = await dialog.ask({
+    title: `Delete “${entry.name}”?`,
+    body: `This removes the saved performance and its ${count} scene${count === 1 ? '' : 's'} from this browser. What is running now is not changed.`,
+    warning: 'There is no undo, though exported performance files are unaffected.',
+    confirmLabel: 'Delete performance',
+  });
+  if (!confirmed) return;
+  performanceLibrary.remove(id);
+  diagnostics.info(`Performance deleted — ${entry.name}`);
+  renderLibrary();
+}
+
+async function updateThumbnailFromStage() {
+  const id = performanceLibrary.currentId();
+  if (!id) return;
+  const thumbnail = await captureThumbnail();
+  if (thumbnail) { performanceLibrary.update(id, { thumbnail }); renderLibrary(); diagnostics.success('Thumbnail updated from the stage'); }
+}
+
+async function updateThumbnailFromFile(file) {
+  const id = performanceLibrary.currentId();
+  if (!id || !file) return;
+  try {
+    const thumbnail = await thumbnailFromFile(file);
+    if (thumbnail) { performanceLibrary.update(id, { thumbnail }); renderLibrary(); diagnostics.success(`Thumbnail set from ${file.name}`); }
+  } catch (error) {
+    diagnostics.error('Could not read that image', error.message);
+  }
+}
+
+function renderLibrary() {
+  const entries = performanceLibrary.list();
+  const current = performanceLibrary.current();
+  const browsing = push3Adapter?.browseState() ?? null;
+  libraryCurrentName.textContent = current?.name ?? 'Untitled';
+  libraryCurrentThumb.hidden = !current?.thumbnail;
+  if (current?.thumbnail) libraryCurrentThumb.src = current.thumbnail;
+  document.getElementById('library-snapshot').disabled = !current;
+  document.getElementById('library-upload').disabled = !current;
+  document.getElementById('library-save').textContent = current && libraryNameInput.value.trim() === current.name ? 'Update performance' : 'Save performance';
+  libraryList.replaceChildren();
+  if (!entries.length) {
+    const empty = document.createElement('div');
+    empty.className = 'performance-empty';
+    empty.textContent = 'No saved performances yet. Name this one and save it to keep its scenes, layout and settings together.';
+    libraryList.append(empty);
+    return;
+  }
+  entries.forEach((entry, index) => {
+    const row = document.createElement('div');
+    row.className = 'performance-row';
+    row.dataset.libraryId = entry.id;
+    row.classList.toggle('is-current', entry.id === current?.id);
+    row.classList.toggle('is-browsing', browsing?.id === entry.id);
+    const thumb = document.createElement('img');
+    thumb.className = 'library-thumb'; thumb.alt = '';
+    if (entry.thumbnail) thumb.src = entry.thumbnail; else thumb.style.visibility = 'hidden';
+    const copy = document.createElement('div');
+    copy.className = 'performance-copy';
+    const title = document.createElement('div');
+    title.className = 'performance-title';
+    title.textContent = `${index + 1}. ${entry.name}`;
+    if (entry.id === current?.id) { const badge = document.createElement('span'); badge.className = 'library-badge'; badge.textContent = 'current'; title.append(badge); }
+    const meta = document.createElement('div');
+    meta.className = 'performance-meta';
+    meta.textContent = `${entry.sceneCount} scene${entry.sceneCount === 1 ? '' : 's'} · saved ${new Date(entry.updatedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`;
+    copy.append(title, meta);
+    const actions = document.createElement('div');
+    actions.className = 'performance-actions';
+    for (const [action, label] of [['load', 'Load'], ['delete', 'Delete']]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.libraryAction = action;
+      button.textContent = label;
+      button.title = action === 'load' ? `Load ${entry.name}` : `Delete ${entry.name}`;
+      if (action === 'delete') button.className = 'danger';
+      if (action === 'load' && entry.id === current?.id) button.disabled = true;
+      actions.append(button);
+    }
+    row.append(thumb, copy, actions);
+    libraryList.append(row);
+  });
+}
+
+document.getElementById('library-save-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const name = libraryNameInput.value.trim();
+  if (!name) { diagnostics.warn('Name the performance before saving it'); libraryNameInput.focus(); return; }
+  void savePerformanceAs(name);
+});
+libraryNameInput.addEventListener('input', () => {
+  const current = performanceLibrary.current();
+  document.getElementById('library-save').textContent = current && libraryNameInput.value.trim() === current.name ? 'Update performance' : 'Save performance';
+});
+libraryList.addEventListener('click', (event) => {
+  const button = event.target.closest('button[data-library-action]');
+  const row = button?.closest('[data-library-id]');
+  if (!button || !row) return;
+  if (button.dataset.libraryAction === 'load') void loadPerformance(row.dataset.libraryId);
+  else if (button.dataset.libraryAction === 'delete') void deletePerformance(row.dataset.libraryId);
+});
+document.getElementById('library-snapshot').addEventListener('click', () => { void updateThumbnailFromStage(); });
+document.getElementById('library-upload').addEventListener('click', () => document.getElementById('library-thumb-file').click());
+document.getElementById('library-thumb-file').addEventListener('change', (event) => {
+  const file = event.target.files?.[0];
+  event.target.value = '';
+  void updateThumbnailFromFile(file);
+});
+performanceLibrary.subscribe(() => { libraryNameInput.value = performanceLibrary.current()?.name ?? libraryNameInput.value; });
+libraryNameInput.value = performanceLibrary.current()?.name ?? '';
+renderLibrary();
+
 function setSafeScene() {
   return controller.actions.setSafeState();
 }
@@ -1662,15 +1884,28 @@ async function startNewPerformance() {
     title: 'Start a new performance?',
     body: (strategyCount) =>
       `This replaces the working source, all ${strategyCount} installed patches, ` +
-      `their history, scenes, and state with the default starter. Your saved ` +
-      `scenes stay saved, and the music and canvas keep running.`,
-    warning: 'Unsaved working edits cannot be recovered. Save, update, or export them first if needed.',
+      `their history, scenes, and state with the default starter. The scene list ` +
+      `and pad layout start empty; a saved performance keeps its own copy. ` +
+      `The music and canvas keep running.`,
+    warning: performanceLibrary.current()
+      ? `“${performanceLibrary.current().name}” is saved and up to date. Unsaved working edits cannot be recovered.`
+      : 'This performance is not saved. Save it first if you want its scenes back later.',
     confirmLabel: 'Start fresh',
     message: 'New performance ready — pulsing square',
   });
   if (!started) return;
+  startEmptyPerformance();
   performanceNameInput.value = '';
-  performanceNameInput.focus();
+  document.getElementById('library-name').focus();
+}
+
+/** Forget the current performance and empty its scenes and pad layout. */
+function startEmptyPerformance() {
+  performanceStore.replace([]);
+  launcher.import({ version: 1, slots: [], known: [], assignments: [], routes: [] });
+  performanceLibrary.setCurrent(null);
+  renderPerformances();
+  renderLibrary();
 }
 
 document.getElementById('new-performance').addEventListener('click', startNewPerformance);
@@ -1687,7 +1922,7 @@ document.getElementById('reset-project').addEventListener('click', () => {
     warning: 'There is no undo for this. Export first if you might want it back.',
     confirmLabel: 'Reset to starter',
     message: 'Reset to the starter',
-  });
+  }).then(done => { if (done) startEmptyPerformance(); });
 });
 
 document.getElementById('import-file').addEventListener('change', async (event) => {
@@ -1921,4 +2156,6 @@ window.p5jsLive = {
   push3Adapter: () => push3Adapter,
   push3Auto,
   effectsBoard,
+  performanceLibrary,
+  loadPerformance,
 };

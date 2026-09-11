@@ -123,7 +123,16 @@ export function createPerformanceStore({
     return { ok: true, imported: entries.length, added, updated };
   }
 
-  return { list, get, save, remove, merge };
+  /** Replace the whole scene list — used when a different performance is loaded. */
+  function replace(entries) {
+    if (!Array.isArray(entries) || entries.some((entry) => !validPerformance(entry))) {
+      return { ok: false, reason: 'invalid-performances' };
+    }
+    if (!write(entries.map(clone))) return { ok: false, reason: 'storage' };
+    return { ok: true, count: entries.length };
+  }
+
+  return { list, get, save, remove, merge, replace };
 }
 
 function validPerformance(entry) {

@@ -100,6 +100,34 @@ The code predates this: `performanceStore` holds *scenes*, `projectStore` holds 
 and `launcher.slots` refer to scenes. Storage keys are unchanged so nothing saved is
 lost. User-facing text uses the new words; rename internals opportunistically.
 
+## Performance library
+
+`src/persistence/performanceLibrary.js` stores named performances in localStorage
+(`p5js-live.performance-library.v1`). An entry is `{ id, name, createdAt, updatedAt,
+thumbnail, data }` where `data` is exactly a performance file's parsed bundle
+(`projectStore.parseProject`): working source, params, MIDI control mappings, rhythm,
+safe scene, the scene list, and the launcher layout. One entry can be *current*
+(`p5js-live.current-performance.v1`).
+
+Behaviour, in `src/main.js` under "performance library":
+
+- **Save performance** packages the working state, captures a square thumbnail of the
+  stage inside the next draw (`captureSquare` in `src/performance/thumbnail.js`, 128 px
+  JPEG), saves, and makes it current. Saving under the current name updates instead.
+- **Autosave.** Once a performance is current, every path that persists the working
+  project (`projectStore.saveSoon`) and every launcher change also updates the entry
+  after 1.5 s. Thumbnails are not refreshed by autosave; use **Snapshot** or **Image…**
+  (any image file, centre-cropped) on the current row.
+- **Load** replaces the working source, settings, the *whole scene list*
+  (`performanceStore.replace`) and the launcher layout, then makes it current.
+- **New performance** and **Reset to starter** empty the scene list and layout and clear
+  the current pointer; the dialog says whether the current performance is saved.
+- **Jog wheel on Push** browses the library: turn (or the click buttons beside it) to
+  highlight, press to load. The screen swaps the encoder row for a browser strip with
+  thumbnail, name and position; the browser list highlights the same row. A highlight
+  expires after 8 s without input. Thumbnails are for performances only; scenes keep
+  their text labels.
+
 ## Push 3 status
 
 Real Push 3 display output has been proven on tethered Push 3 hardware. This work is

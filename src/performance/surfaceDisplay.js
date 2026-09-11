@@ -11,7 +11,7 @@ export const SURFACE_PROFILES = Object.freeze([
 // encoder, and mirrors the toolbar BPM readout with a dot that lights on the same
 // 80 ms beat window as the tap button. Title and status shift right to make room.
 const TEMPO_WIDTH = 190;
-export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null }) {
+export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null }) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#171a1c'; ctx.fillRect(0, 0, 960, 160);
   const left = tempo ? 15 + TEMPO_WIDTH + 10 : 15;
@@ -39,6 +39,23 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
     ctx.fillStyle = '#b9bdc1'; ctx.font = '13px monospace';
     ctx.fillText(transport.playing ? 'VOL · playing' : 'VOL · paused', 945, 54);
     ctx.textAlign = 'left';
+  }
+  if (browser) {
+    // Jog-wheel browser replaces the encoder row while active: thumbnail, name, position.
+    ctx.fillStyle = '#0f1213'; ctx.fillRect(0, 68, 960, 92);
+    ctx.fillStyle = '#42474b'; ctx.fillRect(0, 68, 960, 2);
+    const box = 80, bx = 20, by = 74;
+    ctx.fillStyle = '#000'; ctx.fillRect(bx, by, box, box);
+    if (browser.image && browser.image.complete && browser.image.naturalWidth > 0) ctx.drawImage(browser.image, bx, by, box, box);
+    else { ctx.fillStyle = '#25292c'; ctx.fillRect(bx + 1, by + 1, box - 2, box - 2); }
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffb65d'; ctx.font = '13px monospace';
+    ctx.fillText(`PERFORMANCE ${browser.index + 1} / ${browser.count}${browser.isCurrent ? ' · CURRENT' : ''}`, 120, 92);
+    ctx.fillStyle = '#e2e4e5'; ctx.font = 'bold 30px monospace';
+    ctx.fillText(String(browser.name).slice(0, 34), 120, 126);
+    ctx.fillStyle = '#b9bdc1'; ctx.font = '14px monospace';
+    ctx.fillText(`${browser.sceneCount} scene${browser.sceneCount === 1 ? '' : 's'} · turn jog to browse · press to load`, 120, 150);
+    return;
   }
   controls.forEach((control, i) => {
     const x = i * 120;

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PUSH3_COLORS, animationChannel } from '../../src/performance/push3Map.js';
 import { PADS_PER_BANK } from '../../src/performance/launcher.js';
-import { PERFORMANCE_HUES, PLAY_LED, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderPadFrame, renderUpperButtons, slotStatus } from '../../src/performance/push3Adapter.js';
+import { BROWSE_TIMEOUT_MS, PERFORMANCE_HUES, PLAY_LED, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderPadFrame, renderUpperButtons, slotStatus } from '../../src/performance/push3Adapter.js';
 import { PUSH3_BUTTONS } from '../../src/performance/push3Map.js';
 
 const entries = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }];
@@ -22,7 +22,7 @@ function fakeLeds({ output = true } = {}) {
   };
 }
 
-function harness({ state = baseState, effects = [], output = true, audio = { kind: 'none', loaded: false, playing: false, volume: 1 } } = {}) {
+function harness({ state = baseState, effects = [], output = true, audio = { kind: 'none', loaded: false, playing: false, volume: 1 }, performances = null, currentId = null, time = { now: 0 } } = {}) {
   const launcherListeners = new Set();
   const launcher = {
     snapshot: vi.fn(() => ({ ...state })),
@@ -37,9 +37,11 @@ function harness({ state = baseState, effects = [], output = true, audio = { kin
   const leds = fakeLeds({ output });
   const queue = [];
   const transport = { toggle: vi.fn(async () => true), status: vi.fn(() => audio), setVolume: vi.fn(level => { audio.volume = level; return level; }) };
-  const adapter = createPush3Adapter({ launcher, leds, store, registry, effects: board, transport, schedule: fn => queue.push(fn) });
+  const library = performances ? { list: vi.fn(() => performances), currentId: vi.fn(() => currentId), load: vi.fn(async () => ({ ok: true })) } : null;
+  const onBrowse = vi.fn();
+  const adapter = createPush3Adapter({ launcher, leds, store, registry, effects: board, transport, library, onBrowse, now: () => time.now, schedule: fn => queue.push(fn) });
   const flush = () => { while (queue.length) queue.shift()(); };
-  return { adapter, launcher, leds, board, registry, transport, audio, flush };
+  return { adapter, launcher, leds, board, registry, transport, audio, library, onBrowse, time, flush };
 }
 
 describe('Push 3 adapter', () => {
@@ -196,5 +198,49 @@ describe('Push 3 adapter', () => {
     expect(h.transport.toggle).toHaveBeenCalledOnce();
     expect(h.adapter.handleInput({ kind: 'button', name: 'play', cc: PUSH3_BUTTONS.play, pressed: false, value: 0 })).toBe(true);
     expect(h.transport.toggle).toHaveBeenCalledOnce();
+  });
+
+  it('jog wheel browses performances from the current one, wraps, and press loads the highlighted one', () => {
+    const performances = [{ id: 'p1', name: 'One', sceneCount: 2 }, { id: 'p2', name: 'Two', sceneCount: 0, thumbnail: 'data:image/png;base64,AA' }, { id: 'p3', name: 'Three', sceneCount: 5 }];
+    const h = harness({ performances, currentId: 'p2' });
+    expect(h.adapter.browseState()).toBeNull();
+    expect(h.adapter.handleInput({ kind: 'encoder', encoder: 'jog', delta: 1 })).toBe(true);
+    expect(h.adapter.browseState()).toMatchObject({ index: 2, count: 3, id: 'p3', name: 'Three', sceneCount: 5, isCurrent: false });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 'jog', delta: 3 }); // wraps to the first
+    expect(h.adapter.browseState()).toMatchObject({ index: 0, id: 'p1' });
+    h.adapter.handleInput({ kind: 'button', name: 'jogLeft', cc: 93, pressed: true, value: 127 }); // back to the last
+    expect(h.adapter.browseState()).toMatchObject({ index: 2, id: 'p3' });
+    h.adapter.handleInput({ kind: 'button', name: 'jogRight', cc: 95, pressed: true, value: 127 });
+    h.adapter.handleInput({ kind: 'button', name: 'jogRight', cc: 95, pressed: true, value: 127 });
+    expect(h.adapter.browseState()).toMatchObject({ index: 1, id: 'p2', isCurrent: true, thumbnail: 'data:image/png;base64,AA' });
+    expect(h.onBrowse).toHaveBeenCalled();
+
+    expect(h.adapter.handleInput({ kind: 'button', name: 'jogPress', cc: 94, pressed: true, value: 127 })).toBe(true);
+    expect(h.library.load).toHaveBeenCalledWith('p2');
+    expect(h.adapter.browseState()).toBeNull();
+    expect(h.onBrowse).toHaveBeenLastCalledWith(null);
+  });
+
+  it('browse selection expires after the timeout and a press with nothing highlighted does nothing', () => {
+    const h = harness({ performances: [{ id: 'p1', name: 'One', sceneCount: 1 }], currentId: null });
+    h.adapter.handleInput({ kind: 'button', name: 'jogPress', cc: 94, pressed: true, value: 127 });
+    expect(h.library.load).not.toHaveBeenCalled();
+    h.adapter.handleInput({ kind: 'encoder', encoder: 'jog', delta: -1 });
+    expect(h.adapter.browseState()).toMatchObject({ index: 0 });
+    h.time.now = BROWSE_TIMEOUT_MS - 1; h.adapter.frame({});
+    expect(h.adapter.browseState()).not.toBeNull();
+    h.time.now = BROWSE_TIMEOUT_MS + 1; h.adapter.frame({});
+    expect(h.adapter.browseState()).toBeNull();
+    h.adapter.handleInput({ kind: 'button', name: 'jogPress', cc: 94, pressed: true, value: 127 });
+    expect(h.library.load).not.toHaveBeenCalled();
+  });
+
+  it('jog input is consumed but harmless without a library or with an empty one', () => {
+    const none = harness();
+    expect(none.adapter.handleInput({ kind: 'encoder', encoder: 'jog', delta: 1 })).toBe(true);
+    expect(none.adapter.browseState()).toBeNull();
+    const empty = harness({ performances: [] });
+    expect(empty.adapter.handleInput({ kind: 'encoder', encoder: 'jog', delta: 1 })).toBe(true);
+    expect(empty.adapter.browseState()).toBeNull();
   });
 });

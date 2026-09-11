@@ -578,15 +578,46 @@ const publishMain = room.publish({
             data-tool-panel="project"
             hidden
           >
-            <section class="tool-section performance-section">
+            <section class="tool-section library-section">
               <header class="tool-section-heading performance-heading">
-                <h2>Scenes</h2>
+                <h2>Performance</h2>
                 <button
                   id="new-performance"
                   type="button"
                   title="Start a new performance from the default starter (Cmd/Ctrl+Alt+N)"
                   aria-label="Start a new performance from the default starter"
                 >＋ New performance</button>
+              </header>
+              <div class="body">
+                <p class="hint performance-hint">
+                  A performance is the whole set: scenes, pad layout, encoder assignments, controls, tempo and audio settings. Once saved, it updates itself as you work. Browse and load with the Push jog wheel or the list below.
+                </p>
+                <div class="row library-current">
+                  <img id="library-current-thumb" class="library-thumb" alt="" hidden>
+                  <span class="name"><span class="hint">Current</span> <strong id="library-current-name">Untitled</strong></span>
+                  <span class="actions">
+                    <button id="library-snapshot" type="button" title="Capture a new thumbnail from the stage" aria-label="Capture thumbnail from the stage" disabled>Snapshot</button>
+                    <button id="library-upload" type="button" title="Use an image file as the thumbnail" aria-label="Upload a thumbnail image" disabled>Image…</button>
+                  </span>
+                </div>
+                <form id="library-save-form" class="performance-save-row">
+                  <input
+                    id="library-name"
+                    type="text"
+                    maxlength="60"
+                    autocomplete="off"
+                    placeholder="Performance name"
+                    aria-label="Performance name"
+                  />
+                  <button id="library-save" type="submit">Save performance</button>
+                </form>
+                <input id="library-thumb-file" type="file" accept="image/*" hidden />
+                <div id="library-list" class="performance-list library-list" aria-live="polite"></div>
+              </div>
+            </section>
+            <section class="tool-section performance-section">
+              <header class="tool-section-heading performance-heading">
+                <h2>Scenes</h2>
               </header>
               <div class="body">
                 <p class="hint performance-hint">

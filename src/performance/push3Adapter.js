@@ -108,14 +108,19 @@ const ledKey = led => `${led.base}/${led.target ?? ''}/${led.channel}`;
 // shown on Tap Tempo instead.
 export const ANIMATION_CLOCK_BPM = 120;
 
+// Jog wheel: browse the performance library on the screen; press to load.
+export const BROWSE_TIMEOUT_MS = 8000;
+
 export function createPush3Adapter({
   launcher, leds, store, registry, effects, diagnostics, transport = null,
+  library = null, onBrowse = null, now = () => (globalThis.performance?.now?.() ?? Date.now()),
   schedule = callback => (globalThis.requestAnimationFrame ?? setTimeout)(callback),
 } = {}) {
   let shiftHeld = false;
   let lastFrame = new Map();
   let lastButtons = new Map();
   let lastPlay = null;
+  let browse = null; // { index, until } while the jog wheel is browsing performances
   let renderQueued = false;
   let hadOutput = false;
 
@@ -175,10 +180,40 @@ export function createPush3Adapter({
     schedule(render);
   }
 
+  function browseStep(direction) {
+    const entries = library?.list?.() ?? [];
+    if (!entries.length) { diagnostics?.info?.('No saved performances to browse', 'Save one in Tools → Performance first.'); return true; }
+    const currentIndex = Math.max(0, entries.findIndex(entry => entry.id === library.currentId?.()));
+    const start = browse ? browse.index : currentIndex;
+    const index = ((start + direction) % entries.length + entries.length) % entries.length;
+    browse = { index, until: now() + BROWSE_TIMEOUT_MS };
+    onBrowse?.(browseState());
+    return true;
+  }
+
+  function browseLoad() {
+    const entries = library?.list?.() ?? [];
+    if (!browse || !entries[browse.index]) return false;
+    const entry = entries[browse.index];
+    browse = null;
+    onBrowse?.(null);
+    void library.load?.(entry.id);
+    return true;
+  }
+
+  function browseState() {
+    if (!browse) return null;
+    const entries = library?.list?.() ?? [];
+    const entry = entries[browse.index];
+    if (!entry) return null;
+    return { index: browse.index, count: entries.length, id: entry.id, name: entry.name, thumbnail: entry.thumbnail ?? null, sceneCount: entry.sceneCount ?? 0, isCurrent: entry.id === library.currentId?.() };
+  }
+
   // Once per animation frame. Keeps the fixed-rate animation clock running whenever an
-  // output exists (the bench's Clear/Release can stop it), and refreshes the LEDs when
-  // an output appears.
+  // output exists (the bench's Clear/Release can stop it), refreshes the LEDs when an
+  // output appears, and lets a stale browse selection expire.
   function frame() {
+    if (browse && now() > browse.until) { browse = null; onBrowse?.(null); }
     const has = leds.hasOutput();
     if (has && !hadOutput) { lastFrame = new Map(); lastButtons = new Map(); lastPlay = null; scheduleRender(); }
     if (!has && hadOutput) { lastFrame = new Map(); lastButtons = new Map(); lastPlay = null; }
@@ -208,6 +243,9 @@ export function createPush3Adapter({
       launcher.dispatch({ action: 'encoder', index: event.encoder, value: event.delta, relative: true, fine: shiftHeld });
       return true;
     }
+    if (event.kind === 'encoder' && event.encoder === 'jog' && Number.isFinite(event.delta) && event.delta !== 0) {
+      return browseStep(Math.sign(event.delta));
+    }
     // Volume encoder: master output level, 2% per click, 0.5% with Shift.
     if (event.kind === 'encoder' && event.encoder === 'volume' && transport?.setVolume && Number.isFinite(event.delta)) {
       const current = transport.status()?.volume ?? 1;
@@ -220,8 +258,11 @@ export function createPush3Adapter({
       const upper = UPPER_BUTTONS.indexOf(event.cc);
       if (upper >= 0) { upperButton(upper); return true; }
       if (event.name === 'play' && transport) { void transport.toggle(); return true; }
+      if (event.name === 'jogPress') return browseLoad() || true;
+      if (event.name === 'jogLeft') return browseStep(-1);
+      if (event.name === 'jogRight') return browseStep(1);
     }
-    return event.kind === 'button' && (['pageLeft', 'pageRight', 'play'].includes(event.name) || UPPER_BUTTONS.includes(event.cc));
+    return event.kind === 'button' && (['pageLeft', 'pageRight', 'play', 'jogPress', 'jogLeft', 'jogRight'].includes(event.name) || UPPER_BUTTONS.includes(event.cc));
   }
 
   const unsubscribe = [
@@ -234,7 +275,8 @@ export function createPush3Adapter({
     frame,
     handleInput,
     render,
-    snapshot() { return { shiftHeld, lit: lastFrame.size, buttons: lastButtons.size }; },
+    browseState,
+    snapshot() { return { shiftHeld, lit: lastFrame.size, buttons: lastButtons.size, browsing: browseState() }; },
     dispose() { for (const stop of unsubscribe) stop(); },
   };
 }
