@@ -768,7 +768,7 @@ async function chooseFile(input) {
 }
 
 /** Load one audio File as the source: from the pickers, a drop, or the recent list. */
-async function loadAudioFile(file) {
+async function loadAudioFile(file, handle = null) {
   try {
     // Chrome must be unlocked by the file input's trusted change event. Waiting for
     // asynchronous decoding before doing this can leave the audio graph suspended.
@@ -779,15 +779,62 @@ async function loadAudioFile(file) {
   }
   try {
     await audio.loadFile(file, { onProgress: renderAudioLoadStatus });
-    recentAudio.remember(file);
-    void renderWelcomeRecent();
-    recentAudio.remember(file);
-    void renderWelcomeRecent();
+    recentAudio.remember(file, handle);
+    renderWelcomeRecent();
     await startAudio();
   } catch (error) {
     if (error?.name === 'AbortError') return;
     // loadFile already reported the decode failure. Keep the picker open so the
     // performer can choose another source.
+  }
+}
+
+const AUDIO_PICKER_TYPES = [{ description: 'Audio', accept: { 'audio/*': ['.mp3', '.wav', '.ogg', '.m4a', '.aac'] } }];
+
+/** Choose an audio file. With the File System Access API the handle is remembered so a
+ * recent row can reopen the file without a picker; otherwise fall back to the input. */
+async function pickAudioFile(fallbackInput) {
+  if (typeof window.showOpenFilePicker !== 'function') { fallbackInput.click(); return; }
+  let handle;
+  try { [handle] = await window.showOpenFilePicker({ types: AUDIO_PICKER_TYPES, multiple: false }); }
+  catch (error) { if (error?.name !== 'AbortError') fallbackInput.click(); return; }
+  try {
+    await loadAudioFile(await handle.getFile(), handle);
+  } catch (error) {
+    diagnostics.error('Could not open that file', error?.message ?? String(error));
+  }
+}
+
+function welcomeError(text) {
+  welcomeNote.textContent = text;
+  welcomeNote.classList.add('is-error');
+}
+
+/** Reopen a recent file from its stored handle. A missing or moved file is reported in
+ * the start dialog and dropped from the list. */
+async function openRecentAudio(name) {
+  const handle = await recentAudio.handleFor(name);
+  if (!handle) {
+    welcomeNote.textContent = `Pick ${name} in the file dialog.`;
+    welcomeNote.classList.remove('is-error');
+    await pickAudioFile(welcomeFileInput);
+    return false;
+  }
+  try {
+    let permission = await handle.queryPermission?.({ mode: 'read' });
+    if (permission !== 'granted') permission = await handle.requestPermission?.({ mode: 'read' });
+    if (permission !== 'granted') { welcomeError(`Access to ${name} was not allowed. Choose it with Audio file instead.`); return false; }
+    const file = await handle.getFile();
+    await loadAudioFile(file, handle);
+    return true;
+  } catch (error) {
+    const gone = error?.name === 'NotFoundError' || error?.name === 'NotAllowedError';
+    recentAudio.forget(name);
+    renderWelcomeRecent();
+    welcomeError(gone
+      ? `${name} is no longer where it was — it has been removed from Recent. Choose it again with Audio file.`
+      : `${name} could not be opened (${error?.message ?? error}). Removed from Recent.`);
+    return false;
   }
 }
 
@@ -809,11 +856,11 @@ async function enterWithSilence() {
 for (const id of ['audio-file', 'audio-file-2']) {
   document.getElementById(id).addEventListener('change', (event) => chooseFile(event.target));
 }
-welcomeFileButton.addEventListener('click', () => welcomeFileInput.click());
+welcomeFileButton.addEventListener('click', () => { void pickAudioFile(welcomeFileInput); });
 document.getElementById('load-audio').addEventListener('click', () => {
   document.getElementById('audio-file-2').click();
 });
-document.getElementById('tools-load-audio').addEventListener('click', () => document.getElementById('audio-file-2').click());
+document.getElementById('tools-load-audio').addEventListener('click', () => { void pickAudioFile(document.getElementById('audio-file-2')); });
 document.getElementById('start-audio').addEventListener('click', enterWithSilence);
 requestAnimationFrame(() => welcomeFileButton.focus({ preventScroll: true }));
 async function toggleAudio() {
@@ -1842,13 +1889,8 @@ function renderWelcomeRecent() {
   const files = recentAudio.list();
   welcomeRecentAudio.replaceChildren(...(files.length ? files.map(entry => recentButton({
     name: entry.name,
-    meta: entry.size ? `${(entry.size / 1_048_576).toFixed(1)} MB · choose again` : 'choose again',
-    onClick: () => {
-      // Only the name is stored; the browser needs the picker to hand the file over.
-      welcomeNote.textContent = `Pick ${entry.name} in the file dialog.`;
-      welcomeNote.classList.remove('is-error');
-      welcomeFileInput.click();
-    },
+    meta: entry.size ? `${(entry.size / 1_048_576).toFixed(1)} MB` : 'audio file',
+    onClick: () => { void openRecentAudio(entry.name); },
   })) : [Object.assign(document.createElement('div'), { className: 'welcome-recent-empty', textContent: 'Audio files you load appear here.' })]));
   welcomeRecent.hidden = !performances.length && !files.length;
 }
@@ -2165,18 +2207,9 @@ stage.addEventListener('drop', async (event) => {
   event.preventDefault();
   const file = event.dataTransfer?.files?.[0];
   if (!file) return;
-  try {
-    await audio.unlock();
-  } catch (error) {
-    diagnostics.error('Could not start audio', `${error.message} — running on silence.`);
-    return;
-  }
-  try {
-    await audio.loadFile(file, { onProgress: renderAudioLoadStatus });
-    await startAudio();
-  } catch {
-    /* loadFile already reported the decode failure */
-  }
+  const item = event.dataTransfer?.items?.[0];
+  const droppedHandle = typeof item?.getAsFileSystemHandle === 'function' ? await item.getAsFileSystemHandle().catch(() => null) : null;
+  await loadAudioFile(file, droppedHandle);
 });
 
 // --- performer shortcuts (available once editor focus is released) --------------

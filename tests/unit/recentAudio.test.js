@@ -25,6 +25,17 @@ describe('recent audio names', () => {
     expect(recent.remember(null)).toBe(false);
   });
 
+  it('keeps a file handle per name when one is given (memory fallback without IndexedDB)', async () => {
+    const recent = createRecentAudio({ storage: memoryStorage(), indexedDB: null });
+    const handle = { kind: 'file', name: 'a.mp3' };
+    recent.remember({ name: 'a.mp3', size: 1 }, handle);
+    recent.remember({ name: 'b.mp3', size: 1 });
+    expect(await recent.handleFor('a.mp3')).toBe(handle);
+    expect(await recent.handleFor('b.mp3')).toBeNull();
+    recent.forget('a.mp3');
+    expect(await recent.handleFor('a.mp3')).toBeNull();
+  });
+
   it('survives corrupt storage', () => {
     const storage = memoryStorage();
     storage.setItem('p5js-live.recent-audio.v1', '{nope');

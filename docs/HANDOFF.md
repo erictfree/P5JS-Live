@@ -142,10 +142,13 @@ Behaviour, in `src/main.js` under "performance library":
   in the collapsed "Start over" disclosure.
 - **Start dialog "Recent".** `renderWelcomeRecent` in `src/main.js` lists the five most
   recently updated performances (thumbnail, scene count; click loads it and the dialog
-  stays open for the source choice) and the names of the last five audio files
-  (`src/persistence/recentAudio.js`, localStorage, names only). A browser cannot reopen
-  a local file from its name, so clicking an audio row opens the file picker with a
-  note saying which file to choose.
+  stays open for the source choice) and the last five audio files
+  (`src/persistence/recentAudio.js`: names in localStorage; in Chrome the file handle
+  from the File System Access API is kept in IndexedDB, no bytes). Clicking an audio
+  row reopens the file through its handle — at most an Allow prompt — and loads it. A
+  file that has moved is reported in the dialog's note line and dropped from Recent.
+  Without a handle it falls back to the picker with a note naming the file. The Audio
+  file buttons use `showOpenFilePicker` where available so handles get remembered.
 - **Jog wheel on Push** browses the library: turn (or the click buttons beside it) to
   highlight, press to load. The screen swaps the encoder row for a browser strip with
   thumbnail, name and position; the browser list highlights the same row. A highlight
