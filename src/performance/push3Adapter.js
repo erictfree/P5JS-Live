@@ -44,11 +44,7 @@ export function renderLowerButtons({ modulations, editingId = null }) {
   return frame;
 }
 
-export const UPPER_LED = Object.freeze({
-  unassigned: PUSH3_COLORS.off,
-  atDefault: PUSH3_COLORS.darkGray,   // assigned, untouched: findable but quiet
-  moved: PUSH3_COLORS.litWhite,       // value differs from its saved default: press to reset
-});
+export const UPPER_LED = Object.freeze({ unassigned: PUSH3_COLORS.off });
 
 // Play button mirrors the toolbar's audio transport: green while the file plays, dim when
 // a file is loaded but paused, off when there is nothing to play.
@@ -113,16 +109,14 @@ export function renderPadFrame({ state, entries, effects }) {
 
 // Upper button LEDs from the encoder targets: lit when the column has a control, bright
 // when that control has moved away from its default. Pure.
+// Upper button LEDs take their column's colour (the same hue the screen tab uses) when a
+// control is assigned there, and go dark when the column is empty.
 export function renderUpperButtons({ targets, params }) {
   const frame = new Map();
   UPPER_BUTTONS.forEach((cc, index) => {
     const param = params.find(p => p.name === targets[index]);
-    let color = UPPER_LED.unassigned;
-    if (param && typeof param.value === 'number') {
-      const moved = Number.isFinite(param.default) && Math.abs(param.value - param.default) > 1e-9;
-      color = moved ? UPPER_LED.moved : UPPER_LED.atDefault;
-    }
-    frame.set(cc, { base: color, channel: 0 });
+    const assigned = Boolean(param) && typeof param.value === 'number';
+    frame.set(cc, { base: assigned ? PERFORMANCE_HUES[index % PERFORMANCE_HUES.length] : UPPER_LED.unassigned, channel: 0 });
   });
   return frame;
 }

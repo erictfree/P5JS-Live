@@ -161,14 +161,14 @@ describe('Push 3 adapter', () => {
     expect(h.leds.setPad).toHaveBeenCalledTimes(64);
   });
 
-  it('lights the upper button under each assigned encoder, bright when the value has moved', () => {
+  it('lights the upper button under each assigned encoder in its column colour', () => {
     const frame = renderUpperButtons({ targets: baseState.targets, params: baseParams });
-    expect(frame.get(UPPER_BUTTONS[0])).toEqual({ base: UPPER_LED.atDefault, channel: 0 });
-    expect(frame.get(UPPER_BUTTONS[1])).toEqual({ base: UPPER_LED.moved, channel: 0 });
+    expect(frame.get(UPPER_BUTTONS[0])).toEqual({ base: PERFORMANCE_HUES[0], channel: 0 });
+    expect(frame.get(UPPER_BUTTONS[1])).toEqual({ base: PERFORMANCE_HUES[1], channel: 0 });
     expect(frame.get(UPPER_BUTTONS[2])).toEqual({ base: UPPER_LED.unassigned, channel: 0 });
     const h = harness();
     h.adapter.render();
-    expect(h.leds.setButton).toHaveBeenCalledWith(UPPER_BUTTONS[1], UPPER_LED.moved);
+    expect(h.leds.setButton).toHaveBeenCalledWith(UPPER_BUTTONS[1], PERFORMANCE_HUES[1]);
     expect(h.leds.setButton).toHaveBeenCalledTimes(16); // 8 upper + 8 lower
   });
 

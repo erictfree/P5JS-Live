@@ -242,10 +242,17 @@ virtual surface exactly:
   gates its optional drawing on the flag.
 - **Encoders 1–8** drive the eight live controls shown under them on the display
   (Shift for fine steps). Empty encoders pick up newly declared numeric controls.
-- **Upper display buttons** (between each encoder and its column): off when the column
-  is unassigned, dim when assigned and at its saved default, bright when the value has
-  moved. Press resets the control to its default; Shift + press moves the column to
-  the next numeric control.
+- **Upper display buttons** (between each encoder and its column): lit in the column's
+  colour when a control is assigned there (the screen tab above the column uses the same
+  hue), off when empty; a ↺ mark on the tab shows the value has moved from its default.
+  Press resets the control to its default; Shift + press moves the column to the next
+  numeric control.
+- **Screen layout (2026-09-11, after Live's Push 3 design):** top strip = eight tabs
+  naming each encoder's control in its colour; one info line (beat dot + BPM, performance
+  · scene · state, volume); eight columns with a caption (range, or the modulation's
+  glyph and rate), a big value and a knob arc whose marker follows the live modulated
+  value; bottom strip = modulation slots. `COLUMN_COLORS` in `surfaceDisplay.js` mirrors
+  `PERFORMANCE_HUES`.
 - **Play** mirrors the toolbar's audio transport: green while the file plays, dim when
   loaded but paused, off with no file. Pressing it is the same as the toolbar button.
 - **Volume encoder** sets the master output level (2% per click, 0.5% with Shift). The

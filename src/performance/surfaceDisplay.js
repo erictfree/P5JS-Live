@@ -36,14 +36,14 @@ export const SURFACE_PROFILES = Object.freeze([
 
 function drawLowerStrip(ctx, lowerLabels) {
   if (!lowerLabels) return;
-  // Labels for the lower display buttons: one modulation slot per column.
+  // Bottom tabs: one modulation slot per lower button, amber when running.
   const firstEmpty = lowerLabels.findIndex(s => !s);
   lowerLabels.forEach((slot, i) => {
     const x = i * 120;
-    ctx.fillStyle = slot?.on ? '#3a2f0c' : '#1d2122'; ctx.fillRect(x + 3, 144, 114, 14);
-    ctx.fillStyle = slot ? (slot.on ? '#f2c14e' : '#8a8f8d') : '#3c4143'; ctx.font = '11px monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(slot ? `${slot.glyph} ${slot.name} ${slot.rate} ${slot.depth}`.slice(0, 17) : (i === firstEmpty ? '+ new' : ''), x + 7, 155);
+    ctx.fillStyle = slot ? (slot.on ? '#f2c14e' : '#8a8f8d') : '#3c4143'; ctx.font = 'bold 12px monospace';
+    ctx.fillText(slot ? `${slot.glyph} ${slot.name} ${slot.rate} ${slot.depth}`.slice(0, 16) : (i === firstEmpty ? '+ new' : ''), x + 8, 155);
+    ctx.fillStyle = slot ? (slot.on ? '#f2c14e' : '#4a5254') : '#22282a'; ctx.fillRect(x + 4, 142, 112, 2);
   });
 }
 
@@ -83,84 +83,120 @@ function renderEditScreen(ctx, edit, lowerLabels) {
   drawLowerStrip(ctx, lowerLabels);
 }
 
-// `tempo` is optional: { bpm, label, running, lit } as produced by describeTempo(). When
-// present it takes the left-hand 190 px of the header, directly under the Push 3 Tempo
-// encoder, and mirrors the toolbar BPM readout with a dot that lights on the same
-// 80 ms beat window as the tap button. Title and status shift right to make room.
-const TEMPO_WIDTH = 190;
+// Column colours: the same eight hues the pads and upper-button LEDs use (push3Map
+// PERFORMANCE_HUES order: skyBlue, violet, pink, teal, lime, amber, blue, mint).
+export const COLUMN_COLORS = Object.freeze(['#31adff', '#972bff', '#ff2bd4', '#26b98a', '#b6ff0e', '#ffc516', '#3663fc', '#62ff55']);
+const INK = '#e8eaea', DIM = '#6f7776', FAINT = '#2a3032', BG = '#0d1011';
+
+function fmt(value) {
+  if (typeof value !== 'number') return '—';
+  const abs = Math.abs(value);
+  const text = abs >= 100 ? value.toFixed(0) : abs >= 10 ? value.toFixed(1) : Number(value.toFixed(3)).toString();
+  return text.slice(0, 7);
+}
+
+// Knob arc: 270° sweep, filled to `t` (0…1) in `color`, with a marker at `mark` if given.
+function drawArc(ctx, cx, cy, r, t, color, { mark = null, track = FAINT } = {}) {
+  const a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = track; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
+  if (Number.isFinite(t)) {
+    ctx.strokeStyle = color; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + (a1 - a0) * Math.max(0, Math.min(1, t))); ctx.stroke();
+  }
+  if (Number.isFinite(mark)) {
+    const a = a0 + (a1 - a0) * Math.max(0, Math.min(1, mark));
+    ctx.fillStyle = '#fff3cf';
+    ctx.beginPath(); ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.lineCap = 'butt';
+}
+
+// `tempo` ({ bpm, label, running, lit }) and `transport` ({ kind, loaded, playing, volume })
+// feed one compact info line; `controls` are the eight encoder targets (registry params
+// with an optional `modulation` summary); `lowerLabels` are the modulation slots.
 export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null, lowerLabels = null, volume = null, edit = null }) {
   const ctx = canvas.getContext('2d');
   if (edit) { renderEditScreen(ctx, edit, lowerLabels); return; }
-  ctx.fillStyle = '#171a1c'; ctx.fillRect(0, 0, 960, 160);
-  const left = tempo ? 15 + TEMPO_WIDTH + 10 : 15;
-  const titleChars = tempo ? 55 : 65;
-  const statusChars = tempo ? 76 : 92;
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, 960, 160);
   ctx.textAlign = 'left';
-  ctx.fillStyle = '#62d7b1'; ctx.font = '22px monospace'; ctx.fillText(title.slice(0, titleChars), left, 30);
-  ctx.fillStyle = '#b9bdc1'; ctx.font = '16px monospace'; ctx.fillText((status.startsWith(title + ' · ') ? status.slice(title.length + 3) : status).slice(0, statusChars), left, 57);
-  if (tempo) {
-    // Beat dot, then the number, then a small mode line beneath it.
-    ctx.beginPath(); ctx.arc(26, 26, 8, 0, Math.PI * 2);
-    ctx.fillStyle = tempo.lit ? '#ffffff' : tempo.running ? '#42474b' : '#25292c'; ctx.fill();
-    if (tempo.lit) { ctx.beginPath(); ctx.arc(26, 26, 13, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke(); }
-    ctx.fillStyle = tempo.running ? '#ffb65d' : '#6b7075'; ctx.font = 'bold 30px monospace';
-    ctx.fillText(tempo.bpm ? tempo.bpm.toFixed(1) : tempo.label, 44, 36);
-    ctx.fillStyle = '#b9bdc1'; ctx.font = '14px monospace';
-    ctx.fillText(tempo.bpm ? `BPM · ${tempo.label}` : 'Tempo', 44, 58);
-    ctx.fillStyle = '#42474b'; ctx.fillRect(15 + TEMPO_WIDTH, 12, 2, 50);
-  }
-  if (volume?.active) {
-    // The Volume encoder just moved: show the level under it, whatever the source.
-    const level = Math.max(0, Math.min(1, volume.level ?? 1));
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#62d7b1'; ctx.font = 'bold 26px monospace';
-    ctx.fillText(`${Math.round(level * 100)}%`, 945, 34);
-    ctx.fillStyle = '#b9bdc1'; ctx.font = '12px monospace';
-    ctx.fillText('VOLUME', 945, 50);
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#2b3234'; ctx.fillRect(805, 55, 140, 6);
-    ctx.fillStyle = '#62d7b1'; ctx.fillRect(805, 55, 140 * level, 6);
-  } else if (transport && transport.kind === 'file' && transport.loaded) {
-    // Under the Volume encoder at the far right: level and play state.
-    ctx.textAlign = 'right';
-    ctx.fillStyle = transport.playing ? '#62d7b1' : '#8a9390'; ctx.font = 'bold 22px monospace';
-    ctx.fillText(`${Math.round((transport.volume ?? 1) * 100)}%`, 945, 32);
-    ctx.fillStyle = '#b9bdc1'; ctx.font = '13px monospace';
-    ctx.fillText(transport.playing ? 'VOL · playing' : 'VOL · paused', 945, 54);
-    ctx.textAlign = 'left';
-  }
-  if (browser) {
-    // Jog-wheel browser replaces the encoder row while active: thumbnail, name, position.
-    ctx.fillStyle = '#0f1213'; ctx.fillRect(0, 68, 960, 92);
-    ctx.fillStyle = '#42474b'; ctx.fillRect(0, 68, 960, 2);
-    const box = 80, bx = 20, by = 74;
-    ctx.fillStyle = '#000'; ctx.fillRect(bx, by, box, box);
-    if (browser.image && browser.image.complete && browser.image.naturalWidth > 0) ctx.drawImage(browser.image, bx, by, box, box);
-    else { ctx.fillStyle = '#25292c'; ctx.fillRect(bx + 1, by + 1, box - 2, box - 2); }
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#ffb65d'; ctx.font = '13px monospace';
-    ctx.fillText(`PERFORMANCE ${browser.index + 1} / ${browser.count}${browser.isCurrent ? ' · CURRENT' : ''}`, 120, 92);
-    ctx.fillStyle = '#e2e4e5'; ctx.font = 'bold 30px monospace';
-    ctx.fillText(String(browser.name).slice(0, 34), 120, 126);
-    ctx.fillStyle = '#b9bdc1'; ctx.font = '14px monospace';
-    ctx.fillText(`${browser.sceneCount} scene${browser.sceneCount === 1 ? '' : 's'} · turn jog to browse · press to load`, 120, 150);
-    return;
-  }
+
+  // Top strip: one tab per upper button — the control under that encoder, in its colour.
   controls.forEach((control, i) => {
-    const x = i * 120;
-    ctx.fillStyle = '#42474b'; ctx.fillRect(x + 5, 75, 110, 2);
-    ctx.fillStyle = '#e2e4e5'; ctx.font = '14px monospace'; ctx.fillText((control?.name ?? 'Unassigned').slice(0, 12), x + 8, 103);
-    // A modulation shows its waveform glyph and rate; the readout follows the live value.
-    const mod = control?.modulation ?? null;
-    const shown = mod && Number.isFinite(mod.value) ? mod.value : control?.value;
-    ctx.fillStyle = mod?.running ? '#f2c14e' : '#ffb65d'; ctx.font = '20px monospace';
-    ctx.fillText(typeof shown === 'number' ? String(Number(shown.toFixed(3))).slice(0, 9) : '—', x + 8, 137);
-    if (mod) {
-      ctx.textAlign = 'right';
-      ctx.fillStyle = mod.running ? '#f2c14e' : '#7c8886'; ctx.font = '13px monospace';
-      ctx.fillText(`${mod.glyph} ${mod.rate}`, x + 114, 120);
-      ctx.textAlign = 'left';
+    const x = i * 120, color = COLUMN_COLORS[i];
+    const assigned = Boolean(control);
+    ctx.fillStyle = assigned ? color : DIM; ctx.font = 'bold 12px monospace';
+    ctx.fillText((control?.name ?? '—').slice(0, 14), x + 8, 13);
+    ctx.fillStyle = assigned ? color : FAINT; ctx.fillRect(x + 4, 16, 112, 2);
+    if (assigned && Number.isFinite(control.default) && Math.abs(control.value - control.default) > 1e-9) {
+      ctx.fillStyle = color; ctx.font = '11px monospace'; ctx.textAlign = 'right'; ctx.fillText('↺', x + 114, 13); ctx.textAlign = 'left';
     }
   });
+
+  // Info line: tempo · performance and scene · volume.
+  const infoY = 33;
+  if (tempo) {
+    ctx.beginPath(); ctx.arc(11, infoY - 4, 4, 0, Math.PI * 2);
+    ctx.fillStyle = tempo.lit ? '#ffffff' : tempo.running ? '#4a5254' : FAINT; ctx.fill();
+    ctx.fillStyle = tempo.running ? '#ffb65d' : DIM; ctx.font = 'bold 13px monospace';
+    ctx.fillText(tempo.bpm ? `${tempo.bpm.toFixed(1)} BPM` : tempo.label, 20, infoY);
+    ctx.fillStyle = DIM; ctx.font = '11px monospace';
+    if (tempo.bpm) ctx.fillText(tempo.label, 118, infoY);
+  }
+  ctx.fillStyle = '#62d7b1'; ctx.font = 'bold 13px monospace';
+  ctx.fillText(title.slice(0, 28), 190, infoY);
+  ctx.fillStyle = DIM; ctx.font = '11px monospace';
+  const statusText = status.startsWith(title + ' · ') ? status.slice(title.length + 3) : status;
+  ctx.fillText(statusText.slice(0, 48), 190 + Math.min(28, title.length) * 8 + 10, infoY);
+  if (volume?.active || (transport && transport.kind === 'file' && transport.loaded)) {
+    const level = Math.max(0, Math.min(1, (volume?.active ? volume.level : transport.volume) ?? 1));
+    ctx.textAlign = 'right';
+    ctx.fillStyle = volume?.active ? '#62d7b1' : DIM; ctx.font = 'bold 12px monospace';
+    ctx.fillText(`VOL ${Math.round(level * 100)}%${transport?.kind === 'file' ? (transport.playing ? ' ▶' : ' ❚❚') : ''}`, 948, infoY);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = FAINT; ctx.fillRect(868, infoY + 4, 80, 3);
+    ctx.fillStyle = volume?.active ? '#62d7b1' : '#4a5254'; ctx.fillRect(868, infoY + 4, 80 * level, 3);
+  }
+  ctx.fillStyle = FAINT; ctx.fillRect(0, 40, 960, 1);
+
+  if (browser) {
+    // Jog-wheel browser replaces the columns while active: thumbnail, name, position.
+    ctx.fillStyle = BG; ctx.fillRect(0, 42, 960, 100);
+    const box = 80, bx = 20, by = 50;
+    ctx.fillStyle = '#000'; ctx.fillRect(bx, by, box, box);
+    if (browser.image && browser.image.complete && browser.image.naturalWidth > 0) ctx.drawImage(browser.image, bx, by, box, box);
+    else { ctx.fillStyle = FAINT; ctx.fillRect(bx + 1, by + 1, box - 2, box - 2); }
+    ctx.fillStyle = '#ffb65d'; ctx.font = '12px monospace';
+    ctx.fillText(`PERFORMANCE ${browser.index + 1} / ${browser.count}${browser.isCurrent ? ' · CURRENT' : ''}`, 120, 66);
+    ctx.fillStyle = INK; ctx.font = 'bold 30px monospace';
+    ctx.fillText(String(browser.name).slice(0, 34), 120, 102);
+    ctx.fillStyle = DIM; ctx.font = '12px monospace';
+    ctx.fillText(`${browser.sceneCount} scene${browser.sceneCount === 1 ? '' : 's'} · turn jog to browse · press to load`, 120, 126);
+    drawLowerStrip(ctx, lowerLabels);
+    return;
+  }
+
+  // Columns: small caption, big value, knob arc. A modulation shows its glyph and rate in
+  // the caption and drives the arc's marker with the live value.
+  controls.forEach((control, i) => {
+    const x = i * 120, color = COLUMN_COLORS[i];
+    if (!control) {
+      ctx.fillStyle = FAINT; ctx.font = '12px monospace'; ctx.fillText('unassigned', x + 8, 60);
+      drawArc(ctx, x + 60, 108, 22, null, color);
+      return;
+    }
+    const mod = control.modulation ?? null;
+    const min = Number.isFinite(control.min) ? control.min : 0;
+    const max = Number.isFinite(control.max) ? control.max : 1;
+    const range = max > min ? max - min : 1;
+    const shown = mod && Number.isFinite(mod.value) ? mod.value : control.value;
+    ctx.fillStyle = mod ? (mod.running ? '#f2c14e' : DIM) : DIM; ctx.font = '11px monospace';
+    ctx.fillText(mod ? `${mod.glyph} ${mod.rate}` : `${fmt(min)} – ${fmt(max)}`, x + 8, 56);
+    ctx.fillStyle = INK; ctx.font = 'bold 24px monospace';
+    ctx.fillText(fmt(shown), x + 8, 82);
+    drawArc(ctx, x + 60, 112, 22, (control.value - min) / range, color, { mark: mod && Number.isFinite(mod.value) ? (mod.value - min) / range : null });
+  });
+
   drawLowerStrip(ctx, lowerLabels);
 }
