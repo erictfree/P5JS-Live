@@ -1514,11 +1514,14 @@ order, and press it to load.
 **Tools → Modulations** creates signals: an LFO, ramp, square or random step you read
 in a patch by its name — `lfo1` is a live number from −1 to 1 — or point at a live control so it swings that
 control around the value you set. Add one, name it, choose a waveform, set the rate in
-beats (locked to the tempo) or Hz, plus depth and offset, and optionally pick a control. Knobs, sliders and learned MIDI keep moving the base value; the
+beats (locked to the tempo) or Hz, plus depth and offset, and optionally pick a control.
+Modulations are part of the performance, so they stay when you switch scenes. Knobs, sliders and learned MIDI keep moving the base value; the
 swing follows. Modulations save with the scene. On Push 3 the lower display buttons
 are your modulations in list order: press to switch one on or off, Shift-press to step
-its waveform, and press the first empty slot to add a new one. The screen labels each
-slot along its bottom edge.
+its waveform, and press the first empty slot to add a new one. Hold a button and turn
+the encoder above it to set that modulation's depth, or its rate with Shift. The screen
+labels each slot along its bottom edge. Modulations belong to the performance and stay
+as you change scenes.
 
 #### Scenes
 

@@ -622,7 +622,7 @@ window.setup = function setup() {
         'Their source is still in the editor. Installed source remains visible in the library; open the failed cell, fix it, and press Cmd/Ctrl+Enter.',
     );
   }
-  projectStore.restoreSettings(saved);
+  projectStore.restoreSettings(saved, { modulations: true });
   // Panic needs somewhere to go from the first minute, not only after the performer
   // has deliberately designated a safe scene.
   if (registry.safeSceneName() === null) registry.setSafeScene();
@@ -1263,7 +1263,6 @@ async function launchPerformance(performance) {
     for (const param of performance.params ?? []) {
       if (registry.listParams().some(entry => entry.name === param.name)) registry.setParam(param.name, param.value);
     }
-    modulations.import(performance.modulations ?? []);
     projection.setActiveCode(performance.source);
     controller.sourceChanged(); projectStore.saveSoon(performance.source, 0);
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -1295,7 +1294,6 @@ function performanceSnapshot(name) {
       step,
     })),
     controls: controlManager.snapshotMappings(),
-    modulations: modulations.export(),
     rhythm: rhythm.settings(),
     audio: {
       analysis: audio.featureOptions(),
@@ -1380,7 +1378,6 @@ function renderPerformances() {
 
 function applyPerformanceSettings(performance) {
   projectStore.restoreSettings(performance);
-  modulations.import(performance.modulations ?? []);
 
   const analysis = audio.configure(performance.audio?.analysis ?? {});
   smoothingInput.value = analysis.smoothing;
@@ -1686,7 +1683,7 @@ async function loadPerformance(id) {
     diagnostics.error(`Could not run ${entry.name}`, result.error?.message);
     return { ok: false, reason: 'evaluation' };
   }
-  projectStore.restoreSettings(data);
+  projectStore.restoreSettings(data, { modulations: true });
   applyAudioSettings(data.audio);
   const scenes = performanceStore.replace(data.performances ?? []);
   launcher.import(data.launcher ?? EMPTY_LAUNCHER());

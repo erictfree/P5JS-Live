@@ -95,7 +95,9 @@ export function createProjectStore({
    * Put back performer settings that replaying source intentionally does not own.
    * This runs after source evaluation so the referenced safe scene and parameters exist.
    */
-  function restoreSettings(data) {
+  // `modulations` is opt-in: they belong to the performance, so a scene recall must not
+  // replace them, while loading a performance or the saved working project must.
+  function restoreSettings(data, { modulations: withModulations = false } = {}) {
     if (!data) return;
     const rhythmSettings = validateRhythmSettings(data.rhythm);
     if (data.safeScene) registry.setSafeScene(data.safeScene);
@@ -106,7 +108,7 @@ export function createProjectStore({
       registry.setParam(param.name, param.value);
     }
     controlManager?.restoreMappings?.(data.controls ?? []);
-    modulations?.import?.(data.modulations ?? []);
+    if (withModulations) modulations?.import?.(data.modulations ?? []);
     rhythm?.configure(rhythmSettings);
   }
 

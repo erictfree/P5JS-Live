@@ -143,6 +143,7 @@ export function createPush3Adapter({
   let lastButtons = new Map();
   let lastPlay = null;
   let browse = null; // { index, until } while the jog wheel is browsing performances
+  const heldLower = new Map(); // lower button index → { moved } while pressed
   let renderQueued = false;
   let hadOutput = false;
 
@@ -179,10 +180,15 @@ export function createPush3Adapter({
       + sendButtons(renderLowerButtons({ modulations }));
   }
 
-  // Lower button N = modulation N: press toggles it, Shift + press steps its waveform, and a
-  // press on the first empty slot creates a new modulation (lfoN) so playing starts fast.
-  function lowerButton(index) {
-    if (!modulations) return false;
+  // Lower button N = modulation N. Press-and-release toggles it (Shift: steps its
+  // waveform); the first empty slot creates a new modulation (lfoN). While the button is
+  // held, the encoder above it edits the modulation instead of its control: depth by
+  // default, rate with Shift. A press that edited something does not toggle on release.
+  const BEAT_STEPS = [0.25, 0.5, 1, 2, 4, 8, 16];
+  function lowerButtonRelease(index) {
+    const held = heldLower.get(index);
+    heldLower.delete(index);
+    if (!modulations || !held || held.moved) return Boolean(held);
     const slots = modulationSlots(modulations);
     const m = slots[index];
     if (!m) {
@@ -190,6 +196,25 @@ export function createPush3Adapter({
       return index === firstEmpty ? Boolean(modulations.add({})) : false;
     }
     return shiftHeld ? Boolean(modulations.cycleWave(m.id)) : Boolean(modulations.toggle(m.id));
+  }
+  function editHeldModulation(index, delta) {
+    const held = heldLower.get(index);
+    if (!held || !modulations) return false;
+    const m = modulationSlots(modulations)[index];
+    if (!m) return true; // holding an empty slot swallows the turn
+    held.moved = true;
+    if (shiftHeld) {
+      if (m.sync) {
+        const at = BEAT_STEPS.findIndex(b => Math.abs(b - m.beats) < 1e-9);
+        const next = BEAT_STEPS[Math.min(BEAT_STEPS.length - 1, Math.max(0, (at < 0 ? 2 : at) + Math.sign(delta)))];
+        modulations.update(m.id, { beats: next });
+      } else {
+        modulations.update(m.id, { hz: Math.min(30, Math.max(0.01, m.hz + delta * 0.1)) });
+      }
+    } else {
+      modulations.update(m.id, { depth: Math.min(1, Math.max(0, m.depth + delta * 0.02)) });
+    }
+    return true;
   }
 
   // Upper button under encoder N: press resets its control to the saved default;
@@ -276,6 +301,7 @@ export function createPush3Adapter({
       return true;
     }
     if (event.kind === 'encoder' && Number.isInteger(event.encoder)) {
+      if (editHeldModulation(event.encoder, event.delta)) return true;
       launcher.dispatch({ action: 'encoder', index: event.encoder, value: event.delta, relative: true, fine: shiftHeld });
       return true;
     }
@@ -294,12 +320,13 @@ export function createPush3Adapter({
       const upper = UPPER_BUTTONS.indexOf(event.cc);
       if (upper >= 0) { upperButton(upper); return true; }
       const lower = LOWER_BUTTONS.indexOf(event.cc);
-      if (lower >= 0) { lowerButton(lower); return true; }
+      if (lower >= 0) { heldLower.set(lower, { moved: false }); return true; }
       if (event.name === 'play' && transport) { void transport.toggle(); return true; }
       if (event.name === 'jogPress') return browseLoad() || true;
       if (event.name === 'jogLeft') return browseStep(-1);
       if (event.name === 'jogRight') return browseStep(1);
     }
+    if (event.kind === 'button' && !event.pressed && LOWER_BUTTONS.includes(event.cc)) { lowerButtonRelease(LOWER_BUTTONS.indexOf(event.cc)); return true; }
     return event.kind === 'button' && (['pageLeft', 'pageRight', 'play', 'jogPress', 'jogLeft', 'jogRight'].includes(event.name) || UPPER_BUTTONS.includes(event.cc) || LOWER_BUTTONS.includes(event.cc));
   }
 
@@ -315,7 +342,7 @@ export function createPush3Adapter({
     handleInput,
     render,
     browseState,
-    snapshot() { return { shiftHeld, lit: lastFrame.size, buttons: lastButtons.size, browsing: browseState() }; },
+    snapshot() { return { shiftHeld, lit: lastFrame.size, buttons: lastButtons.size, browsing: browseState(), heldLower: [...heldLower.keys()] }; },
     dispose() { for (const stop of unsubscribe) stop(); },
   };
 }

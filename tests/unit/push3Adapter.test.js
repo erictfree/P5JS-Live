@@ -39,7 +39,7 @@ function harness({ state = baseState, effects = [], output = true, audio = { kin
   const transport = { toggle: vi.fn(async () => true), status: vi.fn(() => audio), setVolume: vi.fn(level => { audio.volume = level; return level; }) };
   const library = performances ? { list: vi.fn(() => performances), currentId: vi.fn(() => currentId), load: vi.fn(async () => ({ ok: true })) } : null;
   const onBrowse = vi.fn();
-  const modulations = mods ? { list: vi.fn(() => mods), forTarget: vi.fn(t => mods.filter(m => m.target === t)), add: vi.fn(() => ({ id: 'new' })), toggle: vi.fn(() => ({ ok: true })), cycleWave: vi.fn(() => ({ ok: true })), subscribe: vi.fn(() => () => {}) } : null;
+  const modulations = mods ? { list: vi.fn(() => mods), forTarget: vi.fn(t => mods.filter(m => m.target === t)), add: vi.fn(() => ({ id: 'new' })), toggle: vi.fn(() => ({ ok: true })), cycleWave: vi.fn(() => ({ ok: true })), update: vi.fn((id, changes) => Object.assign(mods.find(m => m.id === id), changes)), subscribe: vi.fn(() => () => {}) } : null;
   const adapter = createPush3Adapter({ launcher, leds, store, registry, effects: board, transport, library, onBrowse, modulations, now: () => time.now, schedule: fn => queue.push(fn) });
   const flush = () => { while (queue.length) queue.shift()(); };
   return { adapter, launcher, leds, board, registry, transport, audio, library, onBrowse, modulations, time, flush };
@@ -245,8 +245,8 @@ describe('Push 3 adapter', () => {
     expect(empty.adapter.browseState()).toBeNull();
   });
 
-  it('lower buttons are modulation slots: LEDs by state, press toggles, Shift steps, empty slot adds', () => {
-    const mods = [{ id: 'a', name: 'lfo1', target: '', on: true, wave: 'sine' }, { id: 'b', name: 'wobble', target: 'size', on: false, wave: 'square' }];
+  it('lower buttons are modulation slots: LEDs by state, press-release toggles, Shift steps, empty slot adds', () => {
+    const mods = [{ id: 'a', name: 'lfo1', target: '', on: true, wave: 'sine', depth: 0.25, beats: 1, hz: 1, sync: true }, { id: 'b', name: 'wobble', target: 'size', on: false, wave: 'square', depth: 0.5, beats: 1, hz: 1, sync: true }];
     const frame = renderLowerButtons({ modulations: { list: () => mods } });
     expect(frame.get(LOWER_BUTTONS[0])).toEqual({ base: LOWER_LED.running, channel: 0 });
     expect(frame.get(LOWER_BUTTONS[1])).toEqual({ base: LOWER_LED.defined, channel: 0 });
@@ -254,15 +254,40 @@ describe('Push 3 adapter', () => {
     expect(renderLowerButtons({ modulations: null }).get(LOWER_BUTTONS[0])).toEqual({ base: LOWER_LED.none, channel: 0 });
 
     const h = harness({ mods });
-    expect(h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: true, value: 127 })).toBe(true);
+    const press = (i) => h.adapter.handleInput({ kind: 'button', name: `lower${i + 1}`, cc: LOWER_BUTTONS[i], pressed: true, value: 127 });
+    const release = (i) => h.adapter.handleInput({ kind: 'button', name: `lower${i + 1}`, cc: LOWER_BUTTONS[i], pressed: false, value: 0 });
+    expect(press(0)).toBe(true);
+    expect(h.modulations.toggle).not.toHaveBeenCalled(); // nothing until release
+    expect(release(0)).toBe(true);
     expect(h.modulations.toggle).toHaveBeenCalledWith('a');
     h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
-    h.adapter.handleInput({ kind: 'button', name: 'lower2', cc: LOWER_BUTTONS[1], pressed: true, value: 127 });
+    press(1); release(1);
     expect(h.modulations.cycleWave).toHaveBeenCalledWith('b');
     h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: false, value: 0 });
-    expect(h.adapter.handleInput({ kind: 'button', name: 'lower3', cc: LOWER_BUTTONS[2], pressed: true, value: 127 })).toBe(true);
+    press(2); release(2);
     expect(h.modulations.add).toHaveBeenCalledTimes(1); // first empty slot creates one
-    h.adapter.handleInput({ kind: 'button', name: 'lower5', cc: LOWER_BUTTONS[4], pressed: true, value: 127 });
+    press(4); release(4);
     expect(h.modulations.add).toHaveBeenCalledTimes(1); // later empty slots do nothing
+  });
+
+  it('holding a lower button makes the encoder above edit depth, or rate with Shift, without toggling', () => {
+    const mods = [{ id: 'a', name: 'lfo1', target: '', on: true, wave: 'sine', depth: 0.25, beats: 1, hz: 1, sync: true }];
+    const h = harness({ mods });
+    h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: true, value: 127 });
+    expect(h.adapter.handleInput({ kind: 'encoder', encoder: 0, delta: 5 })).toBe(true);
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { depth: 0.35 });
+    expect(h.launcher.dispatch).not.toHaveBeenCalled(); // the control under the encoder is untouched
+    h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 0, delta: 1 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { beats: 2 });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 0, delta: -1 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { beats: 1 });
+    h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: false, value: 0 });
+    h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: false, value: 0 });
+    expect(h.modulations.toggle).not.toHaveBeenCalled(); // edited, so the release does not toggle
+    // Other encoders keep driving their controls while a button is held.
+    h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: true, value: 127 });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 3, delta: 1 });
+    expect(h.launcher.dispatch).toHaveBeenCalledWith({ action: 'encoder', index: 3, value: 1, relative: true, fine: false });
   });
 });

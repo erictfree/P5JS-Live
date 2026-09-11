@@ -271,7 +271,11 @@ control binding), and their tests.
 `src/performance/modulations.js` runs LFOs (sine, triangle, ramps, square, random step).
 Every modulation is a named signal: a live global getter (`lfo1`, via
 `createGlobalBindings`, skipping live-API/p5 names) and `modulations.<name>` on the draw
-inputs (via `host.setModulationSource`); −1…1. A control target is optional. The registry keeps the performer's base value; the engine
+inputs (via `host.setModulationSource`); −1…1. A control target is optional.
+**Modulations belong to the performance, not the scene** (decided 2026-09-11 after they
+vanished on scene changes): they live in the project/performance bundle, are restored
+by `restoreSettings(data, { modulations: true })` on performance load and startup, and
+are left alone by scene launch/recall. The registry keeps the performer's base value; the engine
 computes a per-frame output and `registry.setModulator` applies it when patches read
 their controls, so knobs, sliders, MIDI Learn and saved values all see the base and a
 knob always wins. Rates lock to the rhythm clock (`beats`) or free-run (`hz`). Depth and
@@ -280,8 +284,11 @@ last frame's clock. Modulations save with the scene (`modulations` on the scene 
 and in the project/performance bundle).
 
 UI: the **Modulations** tab (`src/ui/modulationsPanel.js`). Push: the **lower display
-buttons** are modulation slots in list order — button N toggles modulation N, Shift +
-press steps its waveform, and a press on the first empty slot adds a new one (lfoN).
+buttons** are modulation slots in list order — press-and-release toggles modulation N,
+Shift + press-release steps its waveform, and a press on the first empty slot adds a
+new one (lfoN). **Hold** the button and turn the encoder above it to set depth (2% per
+click) or, with Shift, the rate (beat steps ¼…16, or ±0.1 Hz when free-running); an
+edit suppresses the toggle on release.
 LED off/dim/amber for empty/defined/running. The screen's bottom strip labels each slot
 (glyph, name, rate; the next empty slot reads "+ new"); a modulation that targets a
 control also shows its glyph and rate in that control's column and the readout follows

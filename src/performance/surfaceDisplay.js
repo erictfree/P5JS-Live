@@ -79,7 +79,7 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
       const x = i * 120;
       ctx.fillStyle = slot?.on ? '#3a2f0c' : '#1d2122'; ctx.fillRect(x + 3, 144, 114, 14);
       ctx.fillStyle = slot ? (slot.on ? '#f2c14e' : '#8a8f8d') : '#3c4143'; ctx.font = '11px monospace';
-      ctx.fillText(slot ? `${slot.glyph} ${slot.name} ${slot.rate}`.slice(0, 16) : (i === (lowerLabels.findIndex(s => !s)) ? '+ new' : ''), x + 7, 155);
+      ctx.fillText(slot ? `${slot.glyph} ${slot.name} ${slot.rate} ${slot.depth}`.slice(0, 17) : (i === (lowerLabels.findIndex(s => !s)) ? '+ new' : ''), x + 7, 155);
     });
   }
 }

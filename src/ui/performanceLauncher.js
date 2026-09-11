@@ -177,7 +177,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     return button;
   });
   function slotLabels() {
-    return modulationSlots().map(m => (m ? { name: m.name, glyph: WAVE_GLYPHS[m.wave], rate: m.sync ? `${m.beats}b` : `${m.hz}Hz`, on: Boolean(m.on) } : null));
+    return modulationSlots().map(m => (m ? { name: m.name, glyph: WAVE_GLYPHS[m.wave], rate: m.sync ? `${m.beats}b` : `${m.hz}Hz`, depth: `${Math.round(m.depth * 100)}%`, on: Boolean(m.on) } : null));
   }
   function modulationInfo(name) {
     if (!modulations || !name) return null;
