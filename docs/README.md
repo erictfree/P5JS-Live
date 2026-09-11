@@ -26,6 +26,7 @@ Library; they are not additional complete programs to paste into one buffer.
 
 | Document | Purpose |
 | --- | --- |
+| [Project handoff](HANDOFF.md) | Current status, setup, design constraints, Push 3 verification, and recommended next work. |
 | [Contributing](../CONTRIBUTING.md) | Setup, tests, and contribution expectations. |
 | [Architecture](ARCHITECTURE.md) | Evaluation, rendering, identity, persistence, and UI boundaries. |
 | [Render groups](NESTED-RENDER-GROUPS.md) | Offscreen targets, nesting, and occurrence state. |
