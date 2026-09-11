@@ -125,9 +125,22 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     }
   }
 
+  function notice(text) {
+    render();
+    const note = document.createElement('div');
+    note.className = 'performance-empty modulation-notice';
+    note.setAttribute('role', 'alert');
+    note.textContent = text;
+    root.prepend(note);
+  }
+
   addButton.addEventListener('click', () => {
     const params = numericParams();
-    if (!params.length) { diagnostics?.warn('No numeric controls to modulate', 'Declare a control() in the scene first.'); return; }
+    if (!params.length) {
+      notice('Nothing to modulate yet: the running scene has no numeric live controls. Add one in a patch — control(\'size\', 50, { min: 10, max: 110 }) — or use ＋ Live control on the Controls tab, then come back.');
+      diagnostics?.warn('No numeric controls to modulate', 'Declare a control() in the scene first.');
+      return;
+    }
     const used = new Set(engine.list().map(m => m.target));
     const target = params.find(p => !used.has(p.name))?.name ?? params[0].name;
     engine.add({ target });

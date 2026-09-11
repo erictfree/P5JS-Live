@@ -2149,6 +2149,19 @@ button.glyph.danger { color: #ffb3bb; }
   color: #164e48;
   text-decoration-color: currentColor;
 }
+.welcome-recent { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; padding: 0 40px 24px; background: #fbfbfa; }
+@media (max-width: 560px) { .welcome-recent { grid-template-columns: 1fr; } }
+#start-overlay .welcome-recent h2 { margin: 0 0 8px; font-family: 'Space Grotesk', sans-serif; font-size: 14px; font-weight: 700; color: #1a1a1a; }
+.welcome-recent-list { display: flex; flex-direction: column; gap: 4px; }
+#start-overlay .welcome-recent-list button { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; width: 100%; padding: 6px 8px; text-align: left; background: transparent; border: 1px solid transparent; border-radius: 6px; color: #1f6b63; font: inherit; font-size: 14px; }
+#start-overlay .welcome-recent-list button:hover { background: #f1f1ef; border-color: #e2e2df; }
+#start-overlay .welcome-recent-list button.is-current { border-color: #1f6b63; }
+#start-overlay .welcome-recent-list img { width: 32px; height: 32px; object-fit: cover; border-radius: 4px; background: #111; }
+#start-overlay .welcome-recent-list .welcome-recent-glyph { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 4px; background: #eceeeb; color: #4a4a47; font-size: 16px; }
+#start-overlay .welcome-recent-list .welcome-recent-copy { min-width: 0; display: flex; flex-direction: column; }
+#start-overlay .welcome-recent-list .welcome-recent-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#start-overlay .welcome-recent-list .welcome-recent-meta { color: #6b6b68; font-size: 12px; }
+#start-overlay .welcome-recent-list .welcome-recent-empty { color: #8a8a86; font-size: 13px; padding: 4px 8px; }
 .welcome-start {
   padding: 24px 40px 28px;
   border-top: 1px solid #e2e2df;
@@ -2640,6 +2653,7 @@ button.glyph.danger { color: #ffb3bb; }
 #side [data-tool-view='project'] { --section-color: #b2a0de; }
 #side [data-tool-view='modulations'] { --section-color: #f2c14e; }
 .modulation-list { display: grid; gap: 10px; }
+.modulation-notice { border: 1px solid #f2c14e; color: #fff3cf; }
 .modulation-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 10px 12px; background: #191e1f; border: 1px solid #343c3e; border-radius: 6px; }
 .modulation-row.is-on { border-color: #f2c14e; }
 .modulation-row .modulation-name { font: 600 13px var(--mono); display: flex; align-items: center; gap: 8px; min-width: 0; }

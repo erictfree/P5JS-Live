@@ -115,3 +115,28 @@ test('performances export one at a time or all at once, and a library file impor
   await expect(page.locator('#library-list')).toContainText('Beta');
   expect(await page.evaluate(() => window.p5jsLive.performanceLibrary.list().map(e => e.name))).toEqual(['Alpha', 'Beta']);
 });
+
+test('the start dialog lists recent performances and loads one before the source is chosen', async ({ page }) => {
+  await boot(page);
+  await page.getByLabel('Performance name', { exact: true }).fill('Late set');
+  await page.getByRole('button', { name: 'Save performance', exact: true }).click();
+  await expect(page.locator('#library-current-name')).toHaveText('Late set');
+  await saveScene(page, 'Opener');
+  await tab(page, 'Performance');
+  await expect.poll(() => page.evaluate(() => window.p5jsLive.performanceLibrary.list()[0].sceneCount), { timeout: 10_000 }).toBe(1);
+  await page.getByRole('button', { name: /Start a new performance/ }).click();
+  await page.getByRole('button', { name: 'Start fresh', exact: true }).click();
+  await expect(page.locator('#library-current-name')).toHaveText('Untitled');
+
+  await page.reload();
+  await page.waitForFunction(() => window.p5jsLive?.performanceLibrary);
+  const overlay = page.locator('#start-overlay');
+  await expect(overlay).toBeVisible();
+  await expect(overlay.locator('#welcome-recent')).toBeVisible();
+  await overlay.getByRole('button', { name: /^Late set — 1 scene/ }).click();
+  await expect(overlay.locator('#start-note')).toContainText('Late set is loaded');
+  await overlay.getByRole('button', { name: 'Start silent', exact: true }).click();
+  await expect(overlay).toBeHidden();
+  expect(await page.evaluate(() => window.p5jsLive.performanceLibrary.current()?.name)).toBe('Late set');
+  expect(await page.evaluate(() => window.p5jsLive.performanceStore.list().map(s => s.name))).toEqual(['Opener']);
+});

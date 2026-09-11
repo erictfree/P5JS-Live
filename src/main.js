@@ -22,6 +22,7 @@ import { createPush3Adapter } from './performance/push3Adapter.js';
 import { createEffectsBoard } from './performance/effectsBoard.js';
 import { createPush3AutoConnect } from './performance/push3AutoConnect.js';
 import { createPerformanceLibrary } from './persistence/performanceLibrary.js';
+import { createRecentAudio } from './persistence/recentAudio.js';
 import { captureSquare, thumbnailFromFile } from './performance/thumbnail.js';
 import { createModulationEngine } from './performance/modulations.js';
 import { createModulationsPanel } from './ui/modulationsPanel.js';
@@ -202,6 +203,7 @@ registry.setModulator((name, base) => modulations.modulate(name, base));
 const projectStore = createProjectStore({ registry, diagnostics, controlManager, rhythm, modulations });
 const performanceStore = createPerformanceStore({ diagnostics });
 const performanceLibrary = createPerformanceLibrary({ diagnostics });
+const recentAudio = createRecentAudio();
 let thumbnailRequest = null; // resolved inside the draw loop so WebGL frames are captured intact
 const projection = createProjection({
   controller,
@@ -762,6 +764,11 @@ async function startAudio() {
 async function chooseFile(input) {
   const file = input.files?.[0];
   if (!file) return;
+  return loadAudioFile(file);
+}
+
+/** Load one audio File as the source: from the pickers, a drop, or the recent list. */
+async function loadAudioFile(file) {
   try {
     // Chrome must be unlocked by the file input's trusted change event. Waiting for
     // asynchronous decoding before doing this can leave the audio graph suspended.
@@ -772,6 +779,8 @@ async function chooseFile(input) {
   }
   try {
     await audio.loadFile(file, { onProgress: renderAudioLoadStatus });
+    void recentAudio.remember(file).then(() => renderWelcomeRecent());
+    void recentAudio.remember(file).then(() => renderWelcomeRecent());
     await startAudio();
   } catch (error) {
     if (error?.name === 'AbortError') return;
@@ -1793,6 +1802,56 @@ performanceLibrary.subscribe(() => { libraryNameInput.value = performanceLibrary
 libraryNameInput.value = performanceLibrary.current()?.name ?? '';
 renderLibrary();
 
+// --- start dialog: recent performances and audio ---------------------------------
+
+const welcomeRecent = document.getElementById('welcome-recent');
+const welcomeRecentPerformances = document.getElementById('welcome-recent-performances');
+const welcomeRecentAudio = document.getElementById('welcome-recent-audio');
+const RECENT_LIMIT = 5;
+
+function recentButton({ name, meta, thumbnail = null, glyph = '♪', current = false, onClick }) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.classList.toggle('is-current', current);
+  if (thumbnail) { const img = document.createElement('img'); img.src = thumbnail; img.alt = ''; button.append(img); }
+  else { const icon = document.createElement('span'); icon.className = 'welcome-recent-glyph'; icon.textContent = glyph; button.append(icon); }
+  const copy = document.createElement('span'); copy.className = 'welcome-recent-copy';
+  const title = document.createElement('span'); title.className = 'welcome-recent-name'; title.textContent = name;
+  const sub = document.createElement('span'); sub.className = 'welcome-recent-meta'; sub.textContent = meta;
+  copy.append(title, sub); button.append(copy);
+  button.setAttribute('aria-label', `${name} — ${meta}`);
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+async function renderWelcomeRecent() {
+  const performances = performanceLibrary.list().sort((a, b) => b.updatedAt - a.updatedAt).slice(0, RECENT_LIMIT);
+  const currentId = performanceLibrary.currentId();
+  welcomeRecentPerformances.replaceChildren(...(performances.length ? performances.map(entry => recentButton({
+    name: entry.name,
+    meta: `${entry.sceneCount} scene${entry.sceneCount === 1 ? '' : 's'}${entry.id === currentId ? ' · current' : ''}`,
+    thumbnail: entry.thumbnail, glyph: '▣', current: entry.id === currentId,
+    onClick: async () => {
+      const result = await loadPerformance(entry.id);
+      if (result.ok) { welcomeNote.textContent = `${entry.name} is loaded — now choose a source.`; welcomeNote.classList.remove('is-error'); }
+      renderWelcomeRecent();
+    },
+  })) : [Object.assign(document.createElement('div'), { className: 'welcome-recent-empty', textContent: 'No saved performances yet.' })]));
+  const files = await recentAudio.list();
+  welcomeRecentAudio.replaceChildren(...(files.length ? files.map(entry => recentButton({
+    name: entry.name,
+    meta: entry.size ? `${(entry.size / 1_048_576).toFixed(1)} MB` : 'audio file',
+    onClick: async () => {
+      const file = await recentAudio.get(entry.name);
+      if (!file) { diagnostics.warn(`${entry.name} is no longer cached`, 'Choose it again with Audio file.'); recentAudio.forget(entry.name); renderWelcomeRecent(); return; }
+      await loadAudioFile(file);
+    },
+  })) : [Object.assign(document.createElement('div'), { className: 'welcome-recent-empty', textContent: 'Audio files you load appear here.' })]));
+  welcomeRecent.hidden = !performances.length && !files.length;
+}
+performanceLibrary.subscribe(() => { void renderWelcomeRecent(); });
+void renderWelcomeRecent();
+
 function setSafeScene() {
   return controller.actions.setSafeState();
 }
@@ -2264,4 +2323,5 @@ window.p5jsLive = {
   performanceLibrary,
   loadPerformance,
   modulations,
+  recentAudio,
 };

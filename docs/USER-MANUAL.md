@@ -1489,6 +1489,10 @@ normally restores the last editor source and project settings.
 
 #### Performances
 
+The start dialog lists your recent performances and recent audio files. Click a
+performance to load it, then choose a source as usual; click an audio file to start
+with it straight away.
+
 A performance is the whole set: your working source, every saved scene, the pad layout
 and encoder assignments, MIDI control mappings, and tempo and audio settings. In
 **Tools → Performance**, type a name and select **Save performance**. The app captures a
