@@ -290,8 +290,8 @@ Shift + press-release steps its waveform, and a press on the first empty slot ad
 new one (lfoN). **Hold** the button and turn the encoder above it to set depth (2% per
 click); an edit suppresses the toggle on release. **Shift + press-release enters edit
 mode** for that modulation (again to leave; LED white): the eight encoders become Wave,
-Rate, Rate mode (beats/Hz), Depth, Offset, Moves (target control), On, spare, and the
-screen shows those columns with an EDIT header. Other encoders never touch controls
+Rate, Rate mode (beats/Hz), Depth, Offset, Control (target), On, spare, and the
+screen shows those columns; the EDIT banner replaces the status line. Other encoders never touch controls
 while editing.
 LED off/dim/amber for empty/defined/running. The screen's bottom strip labels each slot
 (glyph, name, rate; the next empty slot reads "+ new"); a modulation that targets a

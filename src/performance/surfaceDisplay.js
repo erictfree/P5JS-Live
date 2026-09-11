@@ -19,7 +19,13 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
   const statusChars = tempo ? 76 : 92;
   ctx.textAlign = 'left';
   ctx.fillStyle = '#62d7b1'; ctx.font = '22px monospace'; ctx.fillText(title.slice(0, titleChars), left, 30);
-  ctx.fillStyle = '#b9bdc1'; ctx.font = '16px monospace'; ctx.fillText((status.startsWith(title + ' · ') ? status.slice(title.length + 3) : status).slice(0, statusChars), left, 57);
+  if (edit) {
+    // While editing a modulation the banner takes the status line's place.
+    ctx.fillStyle = '#f2c14e'; ctx.font = 'bold 15px monospace';
+    ctx.fillText(`EDIT ${edit.glyph} ${edit.name} · Shift + button to leave`.slice(0, tempo ? 60 : 78), left, 57);
+  } else {
+    ctx.fillStyle = '#b9bdc1'; ctx.font = '16px monospace'; ctx.fillText((status.startsWith(title + ' · ') ? status.slice(title.length + 3) : status).slice(0, statusChars), left, 57);
+  }
   if (tempo) {
     // Beat dot, then the number, then a small mode line beneath it.
     ctx.beginPath(); ctx.arc(26, 26, 8, 0, Math.PI * 2);
@@ -71,15 +77,13 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
   if (edit) {
     // Modulation edit mode: each column is one parameter of the chosen modulation.
     ctx.fillStyle = '#3a2f0c'; ctx.fillRect(0, 66, 960, 2);
-    ctx.fillStyle = '#f2c14e'; ctx.font = 'bold 13px monospace';
-    ctx.fillText(`EDIT ${edit.glyph} ${edit.name} — Shift + button to leave`, 15, 64);
     const cells = [
       ['Wave', `${edit.glyph} ${edit.wave}`],
       ['Rate', edit.sync ? `${edit.beats} beat${edit.beats === 1 ? '' : 's'}` : `${edit.hz} Hz`],
       ['Rate mode', edit.sync ? 'Beats' : 'Hz'],
       ['Depth', `${Math.round(edit.depth * 100)}%`],
       ['Offset', `${Math.round(edit.offset * 100)}%`],
-      ['Moves', edit.target || 'nothing'],
+      ['Control', edit.target || 'none'],
       ['On', edit.on ? 'On' : 'Off'],
       ['', ''],
     ];

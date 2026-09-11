@@ -81,7 +81,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     fields.className = 'modulation-fields';
 
     const target = document.createElement('select'); target.setAttribute('aria-label', 'Control this modulation moves'); target.title = 'Optionally swing a live control around its knob value';
-    option(target, '', 'Nothing — use it in code', !m.target);
+    option(target, '', 'None — use it in code', !m.target);
     if (m.target && !params.some(p => p.name === m.target)) option(target, m.target, `${m.target} (missing)`, true);
     for (const p of params) option(target, p.name, p.name, p.name === m.target);
     target.addEventListener('change', () => engine.update(m.id, { target: target.value }));
@@ -116,7 +116,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     const depthField = field(`Depth ${Math.round(m.depth * 100)}%`, depth);
     const offsetField = field(`Offset ${Math.round(m.offset * 100)}%`, offset);
     fields.append(
-      field('Moves', target), field('Wave', wave), field('Rate', sync),
+      field('Control', target), field('Wave', wave), field('Rate', sync),
       field(m.sync ? 'Beats' : 'Hz', m.sync ? beats : hz),
       depthField, offsetField,
     );
