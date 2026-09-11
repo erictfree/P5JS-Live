@@ -12,8 +12,7 @@ function fakeLeds({ output = true } = {}) {
     hasOutput: vi.fn(() => output),
     setPad: vi.fn(() => ({ ok: true })),
     animatePad: vi.fn(() => ({ ok: true })),
-    startClock: vi.fn(() => ({ ok: true })),
-    stopClock: vi.fn(() => ({ ok: true })),
+    startAnimations: vi.fn(() => ({ ok: true })),
     subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
     _notify: () => listeners.forEach(fn => fn()),
   };
@@ -48,9 +47,9 @@ describe('Push 3 adapter', () => {
     expect(slotStatus({ ...baseState, error: { id: 'a' } }, entries, 0)).toBe('failed');
   });
 
-  it('lights a ready pad steadily in its hue and blinks the playing one on the beat', () => {
+  it('lights a ready pad steadily in its hue and pulses the playing one slowly', () => {
     expect(padLed('ready', 0)).toEqual({ base: PERFORMANCE_HUES[0], channel: 0 });
-    expect(padLed('playing', 1)).toEqual({ base: PERFORMANCE_HUES[1], target: PUSH3_COLORS.off, channel: animationChannel('blink', '1/4') });
+    expect(padLed('playing', 1)).toEqual({ base: PERFORMANCE_HUES[1], target: PUSH3_COLORS.off, channel: animationChannel('pulse', '1/2') });
     expect(padLed('queued', 0)).toMatchObject({ base: PUSH3_COLORS.amber, channel: animationChannel('pulse', '1/8') });
     expect(padLed('loading', 0)).toMatchObject({ base: PUSH3_COLORS.litWhite, channel: animationChannel('blink', '1/8') });
     expect(padLed('failed', 0)).toEqual({ base: PUSH3_COLORS.warmRed, channel: 0 });
@@ -81,7 +80,7 @@ describe('Push 3 adapter', () => {
     state = { ...state, active: 'a' };
     h.launcher._notify(); h.flush();
     expect(h.leds.animatePad).toHaveBeenCalledTimes(1);
-    expect(h.leds.animatePad).toHaveBeenCalledWith(0, PERFORMANCE_HUES[0], PUSH3_COLORS.off, animationChannel('blink', '1/4'));
+    expect(h.leds.animatePad).toHaveBeenCalledWith(0, PERFORMANCE_HUES[0], PUSH3_COLORS.off, animationChannel('pulse', '1/2'));
     expect(h.leds.setPad).not.toHaveBeenCalled();
 
     h.launcher._notify(); h.flush();
@@ -115,18 +114,13 @@ describe('Push 3 adapter', () => {
     expect(h.adapter.handleInput({ kind: 'button', name: 'play', pressed: true })).toBe(false);
   });
 
-  it('keeps the hardware animation clock on the app tempo', () => {
+  it('sends Start once when the output appears so animations run on Push timing, never a tempo clock', () => {
     const h = harness();
     h.adapter.frame({ running: true, bpm: 120 });
-    expect(h.leds.startClock).toHaveBeenCalledWith(120);
-    h.adapter.frame({ running: true, bpm: 120.2 });
-    expect(h.leds.startClock).toHaveBeenCalledTimes(1);
     h.adapter.frame({ running: true, bpm: 128 });
-    expect(h.leds.startClock).toHaveBeenLastCalledWith(128);
     h.adapter.frame({ running: false, bpm: null });
-    expect(h.leds.stopClock).toHaveBeenCalledTimes(1);
-    h.adapter.frame({ running: false, bpm: null });
-    expect(h.leds.stopClock).toHaveBeenCalledTimes(1);
+    expect(h.leds.startAnimations).toHaveBeenCalledTimes(1);
+    expect(h.leds.startClock).toBeUndefined();
   });
 
   it('does nothing without an output and refreshes fully when one appears', () => {

@@ -156,7 +156,7 @@ virtual surface exactly:
 
 - **Rows 1–4 (pads 1–32): performances.** Each bank holds 32 slots (`PADS_PER_BANK`
   in `launcher.js`, 128 banks). A pad with a performance is lit steadily in a hue
-  chosen by its position; the playing one blinks in that hue once per beat on the hardware clock;
+  chosen by its position; the playing one pulses slowly in that hue (hardware half-note pulse toward off);
   queued pulses amber; loading blinks white; failed is red; empty is off. Pressing a
   pad launches it with the current timing setting (Shift forces immediate). Page ◀ ▶
   change bank.
@@ -167,9 +167,11 @@ virtual surface exactly:
   gates its optional drawing on the flag.
 - **Encoders 1–8** drive the eight live controls shown under them on the display
   (Shift for fine steps).
-- The **hardware animation clock** follows the app tempo (Start + 24 ticks per beat,
-  re-anchored when the BPM moves by more than 0.5), so pulses land on the beat. With
-  the clock off Push falls back to 120 BPM for animations.
+- **Pad animations run on Push's own timing.** The adapter sends a bare MIDI Start
+  when the output appears and never sends clock ticks, so Push animates at its
+  built-in fallback rate (about 120 BPM) and a playing pad pulses slowly and steadily
+  whatever the app tempo. Tap Tempo carries the beat. The bench's Pulse button still
+  starts a real clock for testing; Release stops it.
 
 The adapter sends the full 64-pad frame when an output appears and only changed
 LEDs afterwards. Relevant files: `src/performance/push3Adapter.js` (input routing,

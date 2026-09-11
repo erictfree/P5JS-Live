@@ -214,6 +214,14 @@ export function createPush3MidiTransport({
     return { ok: true, bpm };
   }
 
+  // Start without clock ticks: Push then runs LED animations at its built-in fallback
+  // tempo (about 120 BPM), independent of the app's beat. Used for steady pulses.
+  function startAnimations() {
+    if (!output) return { ok: false, reason: 'no output selected' };
+    stopClock({ send: false });
+    return send([CLOCK_START]);
+  }
+
   function stopClock({ send: sendStop = true } = {}) {
     if (clockTimer !== null) cancel(clockTimer);
     const wasRunning = clockTimer !== null;
@@ -269,6 +277,7 @@ export function createPush3MidiTransport({
     animatePad,
     animateButton,
     startClock,
+    startAnimations,
     stopClock,
     clearOwnedLeds,
     disconnect,

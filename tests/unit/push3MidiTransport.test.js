@@ -114,6 +114,17 @@ describe('Push 3 MIDI transport', () => {
     vi.useRealTimers();
   });
 
+  it('starts animations with a bare Start and no clock ticks', async () => {
+    vi.useFakeTimers();
+    const { transport, user } = connected({ options: { setInterval, clearInterval } });
+    await transport.connect();
+    expect(transport.startAnimations()).toEqual({ ok: true });
+    expect([...user.send.mock.calls.at(-1)[0]]).toEqual([0xfa]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(user.send.mock.calls.filter(([bytes]) => bytes[0] === 0xf8)).toHaveLength(0);
+    vi.useRealTimers();
+  });
+
   it('clears only the LEDs it lit and forgets ones already turned off', async () => {
     const { transport, user } = connected();
     await transport.connect();

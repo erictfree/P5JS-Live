@@ -14,7 +14,7 @@ export const PERFORMANCE_HUES = Object.freeze([
 ]);
 
 export const PAD_LED = Object.freeze({
-  playingBlink: animationChannel('blink', '1/4'), // hard on/off each beat reads as a pulse; the soft fade read as a dim
+  playingPulse: animationChannel('pulse', '1/2'), // slowest hardware pulse; runs on Push's own timing, not the app beat
   queuedPulse: animationChannel('pulse', '1/8'),
   loadingBlink: animationChannel('blink', '1/8'),
   effectOn: PUSH3_COLORS.green,
@@ -41,8 +41,8 @@ export function slotStatus(state, entries, slot) {
 export function padLed(status, index) {
   const hue = PERFORMANCE_HUES[index % PERFORMANCE_HUES.length];
   switch (status) {
-    // Blink in the pad's own hue on the beat, never toward white.
-    case 'playing': return { base: hue, target: PAD_LED.off, channel: PAD_LED.playingBlink };
+    // Slow breathe in the pad's own hue, never toward white.
+    case 'playing': return { base: hue, target: PAD_LED.off, channel: PAD_LED.playingPulse };
     case 'queued': return { base: PAD_LED.queued, target: PAD_LED.queuedTarget, channel: PAD_LED.queuedPulse };
     case 'loading': return { base: PAD_LED.loading, target: PAD_LED.off, channel: PAD_LED.loadingBlink };
     case 'failed': return { base: PAD_LED.failed, channel: 0 };
@@ -75,7 +75,6 @@ export function createPush3Adapter({
   let shiftHeld = false;
   let lastFrame = new Map();
   let renderQueued = false;
-  let clockBpm = null;
   let hadOutput = false;
 
   function sendFrame(frame) {
@@ -103,21 +102,14 @@ export function createPush3Adapter({
     schedule(render);
   }
 
-  // Keep the hardware animation clock on the app tempo so pulses land on the beat.
-  function syncClock(clock) {
-    if (!leds.hasOutput()) { clockBpm = null; return; }
-    const bpm = clock?.running && Number.isFinite(clock.bpm) && clock.bpm >= 30 && clock.bpm <= 300 ? clock.bpm : null;
-    if (bpm === null) { if (clockBpm !== null) { leds.stopClock(); clockBpm = null; } return; }
-    if (clockBpm === null || Math.abs(bpm - clockBpm) > 0.5) { leds.startClock(bpm); clockBpm = bpm; }
-  }
-
-  // Once per animation frame with the rhythm clock snapshot.
-  function frame(clock) {
+  // Once per animation frame. Pad animations deliberately run on Push's own internal
+  // timing (Start with no clock ticks), so a playing pad pulses slowly and steadily
+  // regardless of the app tempo. Tap Tempo carries the beat instead.
+  function frame() {
     const has = leds.hasOutput();
-    if (has && !hadOutput) { lastFrame = new Map(); scheduleRender(); }
-    if (!has && hadOutput) { lastFrame = new Map(); clockBpm = null; }
+    if (has && !hadOutput) { lastFrame = new Map(); leds.startAnimations(); scheduleRender(); }
+    if (!has && hadOutput) lastFrame = new Map();
     hadOutput = has;
-    syncClock(clock);
   }
 
   // Decoded Push input. Returns true when consumed.
@@ -155,7 +147,7 @@ export function createPush3Adapter({
     frame,
     handleInput,
     render,
-    snapshot() { return { shiftHeld, clockBpm, lit: lastFrame.size }; },
+    snapshot() { return { shiftHeld, lit: lastFrame.size }; },
     dispose() { for (const stop of unsubscribe) stop(); },
   };
 }
