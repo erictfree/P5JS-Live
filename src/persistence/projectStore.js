@@ -13,6 +13,7 @@
 
 import { validateLauncher } from '../performance/launcher.js';
 import { validateRhythmSettings } from '../rhythm/clock.js';
+import { validThumbnail } from './performanceLibrary.js';
 
 const KEY = 'p5js-live.project.v5';
 const PROJECT_FORMAT = 'p5js-live-project';
@@ -191,6 +192,12 @@ export function createProjectStore({
     catch (error) { return { ok: false, error: error.message }; }
     try { data.rhythm = validateRhythmSettings(data.rhythm); }
     catch (error) { return { ok: false, error: error.message }; }
+    // Performance-level extras are optional and tolerated when malformed.
+    const audio = data.audio && typeof data.audio === 'object' ? {
+      analysis: data.audio.analysis && typeof data.audio.analysis === 'object' ? data.audio.analysis : {},
+      loop: Boolean(data.audio.loop),
+      volume: Number.isFinite(data.audio.volume) ? Math.min(1, Math.max(0, data.audio.volume)) : 1,
+    } : null;
     return {
       ok: true,
       data: {
@@ -201,6 +208,9 @@ export function createProjectStore({
         rhythm: data.rhythm,
         performances: data.performances ?? [],
         ...(data.launcher ? { launcher: data.launcher } : {}),
+        ...(audio ? { audio } : {}),
+        ...(typeof data.name === 'string' && data.name.trim() ? { name: data.name.trim().slice(0, 60) } : {}),
+        ...(validThumbnail(data.thumbnail) ? { thumbnail: data.thumbnail } : {}),
       },
     };
   }

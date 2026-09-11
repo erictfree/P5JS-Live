@@ -1495,9 +1495,13 @@ and encoder assignments, MIDI control mappings, and tempo and audio settings. In
 square thumbnail of the stage, saves everything, and from then on keeps that
 performance up to date as you work. **Load** on any row brings back its scenes,
 layout and settings, replacing the current ones. **Snapshot** retakes the thumbnail
-from the stage; **Image…** uses a picture file instead. **New performance** starts an
-empty set, so save the current one first if you want its scenes back. On Push 3, turn
-the jog wheel to browse performances on the screen and press it to load.
+from the stage; **Image…** uses a picture file instead. **Rename** applies the name you
+typed to the current performance; the arrows on each row change the order. **New
+performance** starts an empty set, so save the current one first if you want its scenes
+back. **Performance files → export** writes the current performance, including its
+name, thumbnail, scenes, layout and settings; **import** adds a file to the library and
+loads it. On Push 3, turn the jog wheel to browse performances on the screen, in list
+order, and press it to load.
 
 #### Scenes
 

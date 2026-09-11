@@ -99,6 +99,20 @@ export function createPerformanceLibrary({
     return true;
   }
 
+  /** Reorder: move an entry by `delta` positions (negative = up). Jog browsing follows this order. */
+  function move(id, delta) {
+    const entries = read();
+    const from = entries.findIndex(entry => entry.id === id);
+    if (from < 0 || !Number.isInteger(delta) || delta === 0) return false;
+    const to = Math.min(entries.length - 1, Math.max(0, from + delta));
+    if (to === from) return false;
+    const [entry] = entries.splice(from, 1);
+    entries.splice(to, 0, entry);
+    if (!write(entries)) return false;
+    notify();
+    return true;
+  }
+
   function currentId() {
     try { const id = storage?.getItem(CURRENT_KEY); return id && read().some(entry => entry.id === id) ? id : null; }
     catch { return null; }
@@ -115,7 +129,7 @@ export function createPerformanceLibrary({
   }
 
   return {
-    list, get, save, update, remove, currentId, setCurrent,
+    list, get, save, update, remove, move, currentId, setCurrent,
     current: () => { const id = currentId(); return id ? summary(get(id)) : null; },
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
   };

@@ -63,6 +63,19 @@ describe('performance library', () => {
     expect(validBundle({ source: 's', performances: 'no' })).toBe(false);
   });
 
+  it('reorders entries and clamps at the ends', () => {
+    const ids = ['a', 'b', 'c'];
+    const lib = createPerformanceLibrary({ storage: memoryStorage(), makeId: () => ids.shift() });
+    for (const name of ['A', 'B', 'C']) lib.save({ name, data: bundle() });
+    expect(lib.move('c', -1)).toBe(true);
+    expect(lib.list().map(e => e.id)).toEqual(['a', 'c', 'b']);
+    expect(lib.move('a', -1)).toBe(false);
+    expect(lib.move('b', 5)).toBe(false);
+    expect(lib.move('a', 2)).toBe(true);
+    expect(lib.list().map(e => e.id)).toEqual(['c', 'b', 'a']);
+    expect(lib.move('zzz', 1)).toBe(false);
+  });
+
   it('survives corrupt storage', () => {
     const storage = memoryStorage();
     storage.setItem('p5js-live.performance-library.v1', '{not json');

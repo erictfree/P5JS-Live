@@ -122,6 +122,15 @@ Behaviour, in `src/main.js` under "performance library":
   (`performanceStore.replace`) and the launcher layout, then makes it current.
 - **New performance** and **Reset to starter** empty the scene list and layout and clear
   the current pointer; the dialog says whether the current performance is saved.
+- **Bundle contents.** Besides the project fields, a performance file and library entry
+  carry `audio: { analysis, loop, volume }` (analysis smoothing/auto-gain, file loop,
+  master volume) and, in files, `name` and `thumbnail`. `parseProject` tolerates and
+  drops malformed extras.
+- **Export / Import** work on whole performances: export writes the current one with
+  its name and thumbnail; import adds the file to the library (after the trusted-code
+  confirmation) and loads it, replacing the current scenes and layout rather than
+  merging. **Rename** applies the typed name to the current entry; **↑ ↓** reorder the
+  list, which is also the jog-wheel browsing order.
 - **Jog wheel on Push** browses the library: turn (or the click buttons beside it) to
   highlight, press to load. The screen swaps the encoder row for a browser strip with
   thumbnail, name and position; the browser list highlights the same row. A highlight

@@ -232,6 +232,21 @@ describe('export is human-readable', () => {
 });
 
 describe('import parsing is separate from running', () => {
+  it('carries performance name, thumbnail and audio settings through a file, ignoring bad ones', () => {
+    const { store } = setup();
+    const extras = { name: '  Friday set ', thumbnail: 'data:image/jpeg;base64,AAAA', audio: { analysis: { smoothing: 0.5, autoGain: true }, loop: true, volume: 0.4 } };
+    const parsed = store.parseProject(store.exportProject(SOURCE, extras));
+    expect(parsed.ok).toBe(true);
+    expect(parsed.data).toMatchObject({ name: 'Friday set', thumbnail: extras.thumbnail, audio: { analysis: { smoothing: 0.5, autoGain: true }, loop: true, volume: 0.4 } });
+
+    const junk = store.parseProject(store.exportProject(SOURCE, { name: '   ', thumbnail: 'http://x/y.png', audio: { volume: 9, loop: 'yes' } }));
+    expect(junk.ok).toBe(true);
+    expect(junk.data.name).toBeUndefined();
+    expect(junk.data.thumbnail).toBeUndefined();
+    expect(junk.data.audio).toEqual({ analysis: {}, loop: true, volume: 1 });
+    expect(store.parseProject(store.exportProject(SOURCE)).data.audio).toBeUndefined();
+  });
+
   it('round-trips an exported project without inventing composition data', () => {
     const { store } = setup();
     const parsed = store.parseProject(store.exportProject(SOURCE));

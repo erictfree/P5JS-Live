@@ -1477,8 +1477,33 @@ const libraryCurrentThumb = document.getElementById('library-current-thumb');
 const EMPTY_LAUNCHER = () => ({ version: 1, slots: [], known: [], assignments: [], routes: [] });
 
 /** The whole performance as a portable bundle — the same shape as an exported file. */
+function performanceAudioSettings() {
+  const status = audio.status();
+  return { analysis: audio.featureOptions(), loop: status.looping, volume: status.volume };
+}
+
+function applyAudioSettings(settings) {
+  if (!settings) return;
+  const analysis = audio.configure(settings.analysis ?? {});
+  smoothingInput.value = analysis.smoothing;
+  smoothingValue.textContent = Number(analysis.smoothing).toFixed(2);
+  document.getElementById('auto-gain').checked = Boolean(analysis.autoGain);
+  setLoop(Boolean(settings.loop));
+  if (Number.isFinite(settings.volume)) audio.setVolume(settings.volume);
+}
+
+function performanceFileExtras() {
+  const current = performanceLibrary.current();
+  return {
+    performances: performanceStore.list(),
+    launcher: launcher.export(),
+    audio: performanceAudioSettings(),
+    ...(current ? { name: current.name, thumbnail: current.thumbnail ?? undefined } : {}),
+  };
+}
+
 function capturePerformanceData() {
-  const json = projectStore.exportProject(editor.value, { performances: performanceStore.list(), launcher: launcher.export() });
+  const json = projectStore.exportProject(editor.value, performanceFileExtras());
   const parsed = projectStore.parseProject(json);
   return parsed.ok ? parsed.data : null;
 }
@@ -1554,6 +1579,7 @@ async function loadPerformance(id) {
     return { ok: false, reason: 'evaluation' };
   }
   projectStore.restoreSettings(data);
+  applyAudioSettings(data.audio);
   const scenes = performanceStore.replace(data.performances ?? []);
   launcher.import(data.launcher ?? EMPTY_LAUNCHER());
   performanceLibrary.setCurrent(entry.id);
@@ -1608,6 +1634,7 @@ function renderLibrary() {
   if (current?.thumbnail) libraryCurrentThumb.src = current.thumbnail;
   document.getElementById('library-snapshot').disabled = !current;
   document.getElementById('library-upload').disabled = !current;
+  document.getElementById('library-rename').disabled = !current;
   document.getElementById('library-save').textContent = current && libraryNameInput.value.trim() === current.name ? 'Update performance' : 'Save performance';
   libraryList.replaceChildren();
   if (!entries.length) {
@@ -1638,14 +1665,22 @@ function renderLibrary() {
     copy.append(title, meta);
     const actions = document.createElement('div');
     actions.className = 'performance-actions';
-    for (const [action, label] of [['load', 'Load'], ['delete', 'Delete']]) {
+    for (const [action, label, title] of [
+      ['load', 'Load', `Load ${entry.name}`],
+      ['up', '↑', `Move ${entry.name} up`],
+      ['down', '↓', `Move ${entry.name} down`],
+      ['delete', 'Delete', `Delete ${entry.name}`],
+    ]) {
       const button = document.createElement('button');
       button.type = 'button';
       button.dataset.libraryAction = action;
       button.textContent = label;
-      button.title = action === 'load' ? `Load ${entry.name}` : `Delete ${entry.name}`;
+      button.title = title;
+      button.setAttribute('aria-label', title);
       if (action === 'delete') button.className = 'danger';
       if (action === 'load' && entry.id === current?.id) button.disabled = true;
+      if (action === 'up' && index === 0) button.disabled = true;
+      if (action === 'down' && index === entries.length - 1) button.disabled = true;
       actions.append(button);
     }
     row.append(thumb, copy, actions);
@@ -1669,6 +1704,20 @@ libraryList.addEventListener('click', (event) => {
   if (!button || !row) return;
   if (button.dataset.libraryAction === 'load') void loadPerformance(row.dataset.libraryId);
   else if (button.dataset.libraryAction === 'delete') void deletePerformance(row.dataset.libraryId);
+  else if (button.dataset.libraryAction === 'up' || button.dataset.libraryAction === 'down') {
+    performanceLibrary.move(row.dataset.libraryId, button.dataset.libraryAction === 'up' ? -1 : 1);
+    renderLibrary();
+  }
+});
+document.getElementById('library-rename').addEventListener('click', () => {
+  const current = performanceLibrary.current();
+  const name = libraryNameInput.value.trim();
+  if (!current) return;
+  if (!name) { diagnostics.warn('Type the new name in the Performance name field first'); libraryNameInput.focus(); return; }
+  if (name === current.name) { diagnostics.info('That is already its name'); return; }
+  const result = performanceLibrary.update(current.id, { name });
+  if (result.ok) { diagnostics.success(`Performance renamed — ${name}`); renderLibrary(); }
+  else diagnostics.error('Could not rename performance', result.reason);
 });
 document.getElementById('library-snapshot').addEventListener('click', () => { void updateThumbnailFromStage(); });
 document.getElementById('library-upload').addEventListener('click', () => document.getElementById('library-thumb-file').click());
@@ -1826,7 +1875,7 @@ connectExample('run-code-scene', 'code-scene.js', 'codeScene', 'Code Scene',
 
 document.getElementById('export-project').addEventListener('click', () => {
   const performances = performanceStore.list();
-  const name = projectStore.download(editor.value, { performances, launcher: launcher.export() });
+  const name = projectStore.download(editor.value, performanceFileExtras());
   diagnostics.success(
     `Exported ${name}`,
     `${performances.length} scene${performances.length === 1 ? '' : 's'} included. Audio files remain separate.`,
@@ -1939,14 +1988,15 @@ document.getElementById('import-file').addEventListener('change', async (event) 
 
   // Importing runs someone else's JavaScript on this machine. Error boundaries are
   // not a sandbox, so confirmation shows the actual source and defaults to Cancel.
+  const importedName = parsed.data.name ?? file.name.replace(/\.json$/i, '');
   const confirmed = await dialog.ask({
-    title: `Import "${file.name}"?`,
+    title: `Import "${importedName}"?`,
     body:
       `This performance contains ${importedSource.split('\n').length} lines of JavaScript ` +
       `including its scene arrays and ${parsed.data.performances.length} saved ` +
-      `scene${parsed.data.performances.length === 1 ? '' : 's'}. Importing replaces ` +
-      `your current editor contents, runs this code immediately, and merges the saved ` +
-      `scenes with those already in this browser.`,
+      `scene${parsed.data.performances.length === 1 ? '' : 's'}. Importing adds it to your ` +
+      `performance library and loads it, replacing the current scenes, layout and settings ` +
+      `(a saved current performance keeps its own copy).`,
     preview: importedSource.slice(0, 1200),
     warning:
       'p5js live runs imported code with the same privileges as your own. It is not a ' +
@@ -1958,38 +2008,14 @@ document.getElementById('import-file').addEventListener('change', async (event) 
     return;
   }
 
-  evaluator.discardPending();
-  evaluator.clearBindings();
-  host.reset();
-  registry.reset();
-  stateStore.clear();
-  controlManager.restoreMappings([]);
-  launcher.reset();
-  performanceRecallSequence++;
-  editor.value = importedSource;
-  const result = evaluator.evaluate(importedSource, { label: file.name });
-  evaluator.applyPending();
-  if (!result.ok) {
-    diagnostics.error(`Could not run ${file.name}`, result.error?.message);
+  const saved = performanceLibrary.save({ name: importedName, data: parsed.data, thumbnail: parsed.data.thumbnail ?? null });
+  if (!saved.ok) {
+    diagnostics.error(`Could not import ${file.name}`, saved.reason);
     return;
   }
-  projectStore.restoreSettings(parsed.data);
-  const performanceImport = performanceStore.merge(parsed.data.performances);
-  if (parsed.data.launcher) launcher.import(parsed.data.launcher);
-  if (!performanceImport.ok) {
-    diagnostics.warn(
-      `Imported ${file.name}, but could not restore its scenes`,
-      performanceImport.reason,
-    );
-  }
-  renderPerformances();
-  projection.setActiveCode(importedSource);
-  diagnostics.success(
-    `Imported ${file.name}`,
-    performanceImport.ok
-      ? `${performanceImport.imported} scene${performanceImport.imported === 1 ? '' : 's'} restored.`
-      : 'Working source and parameters restored.',
-  );
+  renderLibrary();
+  const loaded = await loadPerformance(saved.performance.id);
+  if (!loaded.ok) diagnostics.warn(`Imported ${importedName} into the library, but it did not run`, 'Fix the source and load it from the list.');
 });
 
 // Drop an audio file anywhere on the stage.
