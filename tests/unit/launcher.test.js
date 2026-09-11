@@ -81,6 +81,16 @@ describe('performance controller', () => {
     h.launcher.disconnect(); manager.receive(input, [0x90, 36, 100]); await flush();
     expect(h.launch).toHaveBeenCalledTimes(2);
   });
+  it('fills empty knobs with controls declared after the first look, without moving assigned ones', () => {
+    const h = harness();
+    expect(h.launcher.snapshot().targets).toEqual(['size', null, null, null, null, null, null, null]);
+    h.registry.declareParam('speed', 1, { min: 0, max: 2 });
+    h.registry.declareParam('label', 'x');
+    expect(h.launcher.snapshot().targets.slice(0, 3)).toEqual(['size', 'speed', null]);
+    h.launcher.assignEncoder(0, 'speed');
+    h.registry.declareParam('hue', 0, { min: 0, max: 360 });
+    expect(h.launcher.snapshot().targets.slice(0, 3)).toEqual(['speed', 'speed', 'size']);
+  });
   it('marks a performance recalled outside the pads as active and selects its pad and bank', () => {
     const h = harness(); h.launcher.assign(1, null); h.launcher.assign(33, 'b');
     expect(h.launcher.setActive('b')).toBe(true);

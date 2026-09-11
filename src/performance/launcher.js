@@ -43,13 +43,17 @@ export function createPerformanceLauncher({ store, registry, launch, clock, tap,
   function targets() {
     const id = assignmentId();
     let entry = saved.assignments.find(item => item.id === id);
-    if (!entry) {
-      const names = registry.listParams().filter(p => typeof p.value === 'number').slice(0, 8).map(p => p.name);
-      entry = { id, targets: Array.from({ length: 8 }, (_, i) => names[i] ?? null) };
-      saved.assignments.push(entry);
-      // Persist lazily without notifying: this may be called during a UI render.
-      try { storage?.setItem(LAUNCHER_KEY, JSON.stringify(saved)); } catch (e) { warn(e.message); }
+    let changed = false;
+    if (!entry) { entry = { id, targets: Array(8).fill(null) }; saved.assignments.push(entry); changed = true; }
+    // Empty knobs pick up numeric controls that are not yet targeted, in declaration
+    // order, so a control added to a running scene lands on the next free knob.
+    const used = new Set(entry.targets);
+    const free = registry.listParams().filter(p => typeof p.value === 'number' && !used.has(p.name)).map(p => p.name);
+    for (let i = 0; i < 8 && free.length; i += 1) {
+      if (entry.targets[i] === null) { entry.targets[i] = free.shift(); changed = true; }
     }
+    // Persist lazily without notifying: this may be called during a UI render.
+    if (changed) { try { storage?.setItem(LAUNCHER_KEY, JSON.stringify(saved)); } catch (e) { warn(e.message); } }
     return entry.targets;
   }
   function sync() {

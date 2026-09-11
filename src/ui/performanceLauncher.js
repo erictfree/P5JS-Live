@@ -47,7 +47,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
           <label>Encoder <select data-learn-mode aria-label="Encoder MIDI mode"><option value="absolute">Absolute · pickup</option><option value="relative">Relative · two’s complement</option></select></label>
           <button type="button" data-learn>Learn</button><button type="button" data-clear>Clear surface routes</button></div>
         <p data-learn-status></p><ul data-routes></ul>
-        <p class="hint">Pads 1–32 launch performances in the current bank; pads 33–64 switch the scene's toggle controls (<code>control(name, false, { mode: 'toggle' })</code>) on and off. Pad numbers are relative to the current bank. For encoders, turn the knob; touch messages are ignored. Surface routes take priority over parameter mappings. Select an encoder’s target above; use − / + or arrow keys to adjust it (Shift for fine steps).</p>
+        <p class="hint">Encoders take the scene's numeric controls in order; an empty encoder picks up the next control you add. Pads 1–32 launch performances in the current bank; pads 33–64 switch the scene's toggle controls (<code>control(name, false, { mode: 'toggle' })</code>) on and off. Pad numbers are relative to the current bank. For encoders, turn the knob; touch messages are ignored. Surface routes take priority over parameter mappings. Select an encoder’s target above; use − / + or arrow keys to adjust it (Shift for fine steps).</p>
       </details>
     </dialog>`;
   // Keep all 64 pads visible beside the encoders on a laptop-sized display.
