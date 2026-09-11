@@ -20,6 +20,7 @@ import { createPush3MidiTransport } from './performance/push3MidiTransport.js';
 import { createPush3TempoLink, describeTempo } from './performance/push3Tempo.js';
 import { createPush3Adapter } from './performance/push3Adapter.js';
 import { createEffectsBoard } from './performance/effectsBoard.js';
+import { createPush3AutoConnect } from './performance/push3AutoConnect.js';
 import { createPerformanceSurface } from './ui/performanceLauncher.js';
 import { controllerDemoPerformances } from '../starter/controller-demos.js';
 import { LIVE_API_NAMES } from './host/liveApi.js';
@@ -1131,6 +1132,13 @@ performanceSurface = createPerformanceSurface({
     } catch (error) { diagnostics.warn('Could not recover previous edits', error.message); }
   },
 });
+// Bring the Push up silently when Chrome already remembers it (display + MIDI). The
+// chooser is still needed once per origin; after that, reloads just work.
+const push3Auto = createPush3AutoConnect({
+  display: push3Display, leds: push3Leds, diagnostics,
+  showController: () => performanceSurface.showController(),
+});
+setTimeout(() => { void push3Auto.start(); }, 0);
 
 async function launchPerformance(performance) {
   // Syntax preparation does not execute user code or replace the current runtime.
@@ -1898,5 +1906,6 @@ window.p5jsLive = {
   push3Leds,
   push3Tempo: () => push3Tempo,
   push3Adapter: () => push3Adapter,
+  push3Auto,
   effectsBoard,
 };

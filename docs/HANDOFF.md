@@ -98,7 +98,15 @@ The tested device identifies as USB vendor `0x2982`, product `0x1969`. Its displ
 2048 bytes, including padding. The implementation sends the fixed frame header and
 applies the required XOR shaping to pixel bytes.
 
-To test it:
+**Auto-connect.** After the Push has been chosen once in Chrome's WebUSB chooser (and
+Web MIDI allowed), every later load of the same origin brings it up on its own:
+`push3AutoConnect.js` finds the remembered device, claims interface 0, starts the
+controller stream on the screen, connects MIDI, and releases everything on page
+hide. A "Push 3 ready" message reports what came up. The manual buttons below remain
+for the first run and for debugging. Note the origin includes the port, so a dev
+server on a new port means one more chooser click.
+
+To test it the first time:
 
 1. Connect Push 3 by USB and use desktop Chrome. Safari has no WebUSB or Web MIDI, and
    the browser pane embedded in the Claude desktop app cannot show Chrome's device

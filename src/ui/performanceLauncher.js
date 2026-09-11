@@ -99,11 +99,12 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   };
   // The hardware stream pulls at 15 fps; redraw the surface on each pull so the BPM
   // readout and beat dot stay live on the Push even while the modal is closed.
-  $('[data-start-display]').onclick = () => push3Display.startStream(() => {
+  const showController = () => push3Display.startStream(() => {
     const canvas = $('canvas');
     drawSurface(canvas);
     return canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
   });
+  $('[data-start-display]').onclick = showController;
   $('[data-stop-display]').onclick = () => push3Display.stopStream();
   $('[data-release-display]').onclick = () => push3Display.release();
   $('[data-timing]').onchange = event => launcher.setTiming(event.target.value);
@@ -267,5 +268,5 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     push3Leds.subscribe(renderLedStatus);
     renderLedStatus();
   }
-  return { render, frame };
+  return { render, frame, showController };
 }
