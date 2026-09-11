@@ -82,7 +82,7 @@ describe('performance controller', () => {
     expect(h.launch).toHaveBeenCalledTimes(2);
   });
   it('marks a performance recalled outside the pads as active and selects its pad and bank', () => {
-    const h = harness(); h.launcher.assign(33, 'b');
+    const h = harness(); h.launcher.assign(1, null); h.launcher.assign(33, 'b');
     expect(h.launcher.setActive('b')).toBe(true);
     expect(h.launcher.snapshot()).toMatchObject({ active: 'b', selected: 33, bank: 1, queued: null, error: null });
     expect(h.launcher.setActive('missing')).toBe(false);
