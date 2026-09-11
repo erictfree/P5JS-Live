@@ -247,6 +247,9 @@ virtual surface exactly:
   hue), off when empty; a ↺ mark on the tab shows the value has moved from its default.
   Press resets the control to its default; Shift + press moves the column to the next
   numeric control.
+- **Screen style** is documented in [PUSH3-DISPLAY-STYLE.md](PUSH3-DISPLAY-STYLE.md); tokens
+  live in `src/performance/displayTheme.js`, and **Show style sheet** on the display row
+  streams a specimen screen to the Push for judging type, colour and strokes in situ.
 - **Screen layout (2026-09-11, after Live's Push 3 design):** top strip = eight tabs
   naming each encoder's control in its colour; one info line (beat dot + BPM, performance
   · scene · state, volume); eight columns with a caption (range, or the modulation's

@@ -1,5 +1,6 @@
 // Pixel output is independent of any future USB transport. No device I/O here.
 import { waveValue } from './modulations.js';
+import { COLORS, FONTS, STROKES, TYPE, font, reverseTab } from './displayTheme.js';
 
 const WAVE_NAMES = { sine: 'sine', triangle: 'triangle', rampUp: 'ramp up', rampDown: 'ramp down', square: 'square', random: 'random' };
 
@@ -87,9 +88,9 @@ function renderEditScreen(ctx, edit, lowerLabels) {
 
 // Column colours: the same eight hues the pads and upper-button LEDs use (push3Map
 // PERFORMANCE_HUES order: skyBlue, violet, pink, teal, lime, amber, blue, mint).
-export const COLUMN_COLORS = Object.freeze(['#5aa9ff', '#b07cff', '#ff6fb0', '#3fd3b0', '#b5e853', '#ffbe55', '#7f96ff', '#6ff0c4']);
-const INK = '#ffffff', DIM = '#9a9f9f', FAINT = '#262a2c', BG = '#000000', AMBER = '#ffbe55';
-const SANS = '"Work Sans", "Helvetica Neue", Arial, sans-serif';
+export const COLUMN_COLORS = COLORS.columns;
+const INK = COLORS.ink, DIM = COLORS.dim, FAINT = COLORS.faint, BG = COLORS.bg, AMBER = COLORS.amber;
+const SANS = FONTS.sans;
 
 function fmt(value) {
   if (typeof value !== 'number') return '—';
@@ -204,3 +205,64 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
 
   drawLowerStrip(ctx, lowerLabels);
 }
+
+// A specimen screen for judging the tokens on the real panel: type at the scale sizes and
+// families, the colour set as text and as strokes, reverse highlights, and stroke weights.
+// Reachable from the controller dialog's display row ("Show style sheet").
+export function renderStyleSheet(canvas) {
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = COLORS.bg; ctx.fillRect(0, 0, 960, 160);
+  ctx.textAlign = 'left';
+
+  // Row 1 (y 0–40): type specimens, one family per pair of columns.
+  const specimens = [
+    ['Work Sans 400', `400 22px ${FONTS.sans}`, `500 12px ${FONTS.sans}`],
+    ['Space Grotesk 500', `500 22px ${FONTS.display}`, `500 12px ${FONTS.display}`],
+    ['Plex Mono 500', `500 22px ${FONTS.mono}`, `500 12px ${FONTS.mono}`],
+    ['System mono', '500 22px ui-monospace, Menlo, monospace', '500 12px ui-monospace, Menlo, monospace'],
+  ];
+  specimens.forEach(([name, big, small], i) => {
+    const x = i * 240;
+    ctx.fillStyle = COLORS.dim; ctx.font = small; ctx.fillText(name, x + 8, 13);
+    ctx.fillStyle = COLORS.ink; ctx.font = big; ctx.fillText('Orbits 124.0 0.62', x + 8, 36);
+  });
+  ctx.fillStyle = COLORS.hair; ctx.fillRect(0, 42, 960, 1);
+
+  // Row 2 (y 44–96): the eight column colours as tab text + rule, arc, and reverse block.
+  COLORS.columns.forEach((color, i) => {
+    const x = i * 120;
+    ctx.fillStyle = color; ctx.font = font('tab'); ctx.fillText(`hue ${i + 1}`, x + 8, 58);
+    ctx.fillStyle = color; ctx.fillRect(x + 4, 62, 112, STROKES.rule);
+    // arc at the token weight and one heavier for comparison
+    const a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;
+    ctx.strokeStyle = COLORS.faint; ctx.lineWidth = STROKES.arcTrack; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(x + 30, 82, 12, a0, a1); ctx.stroke();
+    ctx.strokeStyle = color; ctx.lineWidth = STROKES.arc;
+    ctx.beginPath(); ctx.arc(x + 30, 82, 12, a0, a0 + (a1 - a0) * 0.65); ctx.stroke();
+    ctx.strokeStyle = color; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x + 62, 82, 12, a0, a0 + (a1 - a0) * 0.65); ctx.stroke();
+    ctx.lineCap = 'butt';
+    reverseTab(ctx, x + 80, 70, 36, 16, color, 'sel', font('caption'));
+  });
+  ctx.fillStyle = COLORS.hair; ctx.fillRect(0, 98, 960, 1);
+
+  // Row 3 (y 100–140): greys and accents as text, plus reverse white/amber, plus hairlines.
+  const inks = [['ink', COLORS.ink], ['text', COLORS.text], ['dim', COLORS.dim], ['amber', COLORS.amber], ['teal', COLORS.teal], ['danger', COLORS.danger]];
+  inks.forEach(([name, color], i) => {
+    const x = i * 120;
+    ctx.fillStyle = color; ctx.font = font('value'); ctx.fillText('0.62', x + 8, 128);
+    ctx.fillStyle = color; ctx.font = font('caption'); ctx.fillText(name, x + 8, 108);
+  });
+  reverseTab(ctx, 728, 106, 100, 18, COLORS.ink, 'white block', font('tab'));
+  reverseTab(ctx, 728, 128, 100, 18, COLORS.amber, 'amber block', font('tab'));
+  ctx.fillStyle = COLORS.dim; ctx.font = font('caption'); ctx.fillText('1px', 848, 110); ctx.fillText('2px', 848, 124); ctx.fillText('3px', 848, 138);
+  ctx.fillStyle = COLORS.ink; ctx.fillRect(876, 107, 70, 1); ctx.fillRect(876, 120, 70, 2); ctx.fillRect(876, 133, 70, 3);
+
+  // Bottom strip: a running tab, a defined tab, an empty slot — as the real strip draws them.
+  drawLowerStrip(ctx, [
+    { name: 'lfo1', glyph: '∿', rate: '1b', depth: '25%', on: true },
+    { name: 'wobble', glyph: '⊓', rate: '2b', depth: '50%', on: false },
+    null, null, null, null, null, null,
+  ]);
+}
+

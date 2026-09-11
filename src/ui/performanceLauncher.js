@@ -1,4 +1,4 @@
-import { SURFACE_PROFILES, renderSurfaceDisplay } from '../performance/surfaceDisplay.js';
+import { SURFACE_PROFILES, renderStyleSheet, renderSurfaceDisplay } from '../performance/surfaceDisplay.js';
 import { decodePush3Bgr565 } from '../performance/push3DisplayTransport.js';
 import { PUSH3_BUTTONS, PUSH3_COLORS, animationChannel } from '../performance/push3Map.js';
 import { PADS_PER_BANK } from '../performance/launcher.js';
@@ -20,7 +20,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
       <canvas width="960" height="160" role="img" aria-label="Controller display preview"></canvas>
       <div class="surface-lower-buttons" aria-label="Lower display buttons: modulations"></div>
       <div data-display-controls>
-        <div class="surface-toolbar"><button type="button" data-connect-display>Connect Push display</button><button type="button" data-claim-display>Claim interface 0</button><button type="button" data-test-display>Test once</button><button type="button" data-startup-display>Show startup</button><button type="button" data-start-display>Show controller</button><button type="button" data-stop-display>Stop</button><button type="button" data-release-display>Release</button><span data-display-status role="status"></span></div>
+        <div class="surface-toolbar"><button type="button" data-connect-display>Connect Push display</button><button type="button" data-claim-display>Claim interface 0</button><button type="button" data-test-display>Test once</button><button type="button" data-startup-display>Show startup</button><button type="button" data-start-display>Show controller</button><button type="button" data-style-display title="Type, colour and stroke specimens for judging the look on the real panel">Show style sheet</button><button type="button" data-stop-display>Stop</button><button type="button" data-release-display>Release</button><span data-display-status role="status"></span></div>
         <p class="hint">Test shows color bars briefly. Startup and controller modes remain visible until stopped.</p>
       </div>
       <div data-led-controls>
@@ -107,6 +107,12 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     return canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
   });
   $('[data-start-display]').onclick = showController;
+  // Style sheet: a specimen screen drawn to an offscreen canvas, streamed at a slow rate.
+  const styleCanvas = document.createElement('canvas'); styleCanvas.width = 960; styleCanvas.height = 160;
+  $('[data-style-display]').onclick = () => push3Display.startStream(() => {
+    renderStyleSheet(styleCanvas);
+    return styleCanvas.getContext('2d').getImageData(0, 0, styleCanvas.width, styleCanvas.height);
+  }, { fps: 4, label: 'style sheet' });
   $('[data-stop-display]').onclick = () => push3Display.stopStream();
   $('[data-release-display]').onclick = () => push3Display.release();
   $('[data-timing]').onchange = event => launcher.setTiming(event.target.value);
@@ -285,6 +291,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     $('[data-test-display]').disabled = !state.claimed || state.status === 'sending one test frame';
     $('[data-startup-display]').disabled = !state.claimed || state.status.startsWith('streaming startup');
     $('[data-start-display]').disabled = !state.claimed || state.status.startsWith('streaming controller preview');
+    $('[data-style-display]').disabled = !state.claimed || state.status.startsWith('streaming style sheet');
     $('[data-stop-display]').disabled = !state.streaming;
     $('[data-release-display]').disabled = !state.claimed;
   };
