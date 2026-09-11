@@ -1,5 +1,6 @@
-// Mirrors the browser's tempo controls onto Push 3: the Tap Tempo button LED flashes on
-// each beat exactly like the toolbar tap button, pressing it taps tempo, and the Tempo
+// Mirrors the browser's tempo controls onto Push 3. The Metronome button (directly below
+// Tap Tempo) ticks on each beat using the same 80 ms window as the toolbar beat light.
+// Tap Tempo stays lit so it is findable, flashes when pressed, and taps tempo. The Tempo
 // encoder nudges the manual BPM. Pure logic over the LED transport; no DOM, no timers.
 
 import { PUSH3_BUTTONS, PUSH3_COLORS } from './push3Map.js';
@@ -28,23 +29,34 @@ export function describeTempo(clock, settings) {
   };
 }
 
-export function createPush3TempoLink({ leds, rhythm, tap, flashMs = TAP_FLASH_MS, idleColor = PUSH3_COLORS.darkGray, litColor = PUSH3_COLORS.litWhite } = {}) {
-  let lastSent = null; // palette index last written to the Tap Tempo LED, null = nothing
+export function createPush3TempoLink({
+  leds, rhythm, tap,
+  now = () => (globalThis.performance?.now?.() ?? Date.now()),
+  flashMs = TAP_FLASH_MS,
+  colors: {
+    metronomeIdle = PUSH3_COLORS.darkGray, metronomeOff = PUSH3_COLORS.off, metronomeBeat = PUSH3_COLORS.litWhite,
+    tapIdle = PUSH3_COLORS.litWhite, tapPressed = PUSH3_COLORS.brightGreen,
+  } = {},
+} = {}) {
+  const lastSent = { metronome: null, tap: null }; // palette index last written per LED
   let shiftHeld = false;
   let taps = 0;
   let nudges = 0;
+  let tappedAt = -Infinity;
 
-  function write(color) {
-    if (lastSent === color) return;
-    const result = leds.setButton(PUSH3_BUTTONS.tapTempo, color);
-    lastSent = result.ok ? color : null;
+  function write(key, cc, color) {
+    if (lastSent[key] === color) return;
+    const result = leds.setButton(cc, color);
+    lastSent[key] = result.ok ? color : null;
   }
 
-  // Call once per animation frame with the rhythm clock snapshot.
+  // Call once per animation frame with the rhythm clock snapshot. Returns true while
+  // the metronome LED is lit for this beat.
   function frame(clock) {
-    if (!leds.hasOutput()) { lastSent = null; return false; }
+    if (!leds.hasOutput()) { lastSent.metronome = null; lastSent.tap = null; return false; }
     const lit = beatLit(clock, flashMs);
-    write(lit ? litColor : idleColor);
+    write('metronome', PUSH3_BUTTONS.metronome, lit ? metronomeBeat : clock?.running ? metronomeIdle : metronomeOff);
+    write('tap', PUSH3_BUTTONS.tapTempo, now() - tappedAt < flashMs ? tapPressed : tapIdle);
     return lit;
   }
 
@@ -63,7 +75,7 @@ export function createPush3TempoLink({ leds, rhythm, tap, flashMs = TAP_FLASH_MS
     if (!event) return false;
     if (event.kind === 'button' && event.name === 'shift') { shiftHeld = event.pressed; return false; }
     if (event.kind === 'button' && event.name === 'tapTempo') {
-      if (event.pressed) { tap(); taps += 1; }
+      if (event.pressed) { tap(); taps += 1; tappedAt = now(); }
       return true;
     }
     if (event.kind === 'encoder' && event.encoder === 'tempo' && Number.isFinite(event.delta) && event.delta !== 0) {
@@ -76,6 +88,6 @@ export function createPush3TempoLink({ leds, rhythm, tap, flashMs = TAP_FLASH_MS
   return {
     frame,
     handleInput,
-    snapshot() { return { ledColor: lastSent, shiftHeld, taps, nudges }; },
+    snapshot() { return { metronomeColor: lastSent.metronome, tapColor: lastSent.tap, shiftHeld, taps, nudges }; },
   };
 }

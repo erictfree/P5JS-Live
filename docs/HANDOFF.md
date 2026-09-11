@@ -153,10 +153,11 @@ reference when convenient.
 
 Once Push MIDI is connected, tempo is mirrored both ways without any bench button:
 
-- The Push **Tap Tempo** LED flashes lit-white for the first 80 ms of every beat, the
-  same rule as the toolbar tap button, and sits dark gray otherwise. It goes dark when
-  the clock is off.
-- Pressing **Tap Tempo** on the Push calls the same tap action as the toolbar button.
+- The Push **Metronome** LED (directly below Tap Tempo) ticks lit-white for the first
+  80 ms of every beat, the same rule as the toolbar beat light, and sits dark gray
+  between beats. It goes off when the clock is off.
+- **Tap Tempo** stays lit white so it is findable and flashes green for 80 ms when
+  pressed. Pressing it calls the same tap action as the toolbar button.
 - Turning the **Tempo** encoder nudges the manual BPM by 1 per click, or 0.1 with
   Shift held. In Auto mode it starts from the tracked tempo and switches to Manual.
 - The Push screen (**Show controller** on the display row) shows the BPM, the mode

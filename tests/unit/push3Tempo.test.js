@@ -21,9 +21,9 @@ describe('Push 3 tempo link', () => {
     expect(beatLit(null)).toBe(false);
   });
 
-  it('flashes the Tap Tempo LED on the beat and sends only on change', () => {
+  it('ticks the Metronome LED on the beat, sends only on change, and keeps Tap lit', () => {
     const leds = fakeLeds();
-    const link = createPush3TempoLink({ leds, rhythm: fakeRhythm(), tap: vi.fn() });
+    const link = createPush3TempoLink({ leds, rhythm: fakeRhythm(), tap: vi.fn(), now: () => 1000 });
 
     expect(link.frame(clockAt(0))).toBe(true);
     link.frame(clockAt(0.05));
@@ -32,19 +32,23 @@ describe('Push 3 tempo link', () => {
     link.frame(clockAt(0.01));
 
     expect(leds.setButton.mock.calls).toEqual([
+      [PUSH3_BUTTONS.metronome, PUSH3_COLORS.litWhite],
       [PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.litWhite],
-      [PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.darkGray],
-      [PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.litWhite],
+      [PUSH3_BUTTONS.metronome, PUSH3_COLORS.darkGray],
+      [PUSH3_BUTTONS.metronome, PUSH3_COLORS.litWhite],
     ]);
+    expect(link.snapshot()).toMatchObject({ metronomeColor: PUSH3_COLORS.litWhite, tapColor: PUSH3_COLORS.litWhite });
   });
 
-  it('keeps the button dim when the clock is off and sends nothing without an output', () => {
+  it('turns the Metronome LED off when the clock is off and sends nothing without an output', () => {
     const leds = fakeLeds();
-    const link = createPush3TempoLink({ leds, rhythm: fakeRhythm(), tap: vi.fn() });
+    const link = createPush3TempoLink({ leds, rhythm: fakeRhythm(), tap: vi.fn(), now: () => 1000 });
     link.frame(clockAt(0, 120, false));
     link.frame(clockAt(0.5, 120, false));
-    expect(leds.setButton).toHaveBeenCalledTimes(1);
-    expect(leds.setButton).toHaveBeenCalledWith(PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.darkGray);
+    expect(leds.setButton.mock.calls).toEqual([
+      [PUSH3_BUTTONS.metronome, PUSH3_COLORS.off],
+      [PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.litWhite],
+    ]);
 
     const silent = fakeLeds({ output: false });
     const idle = createPush3TempoLink({ leds: silent, rhythm: fakeRhythm(), tap: vi.fn() });
@@ -52,14 +56,27 @@ describe('Push 3 tempo link', () => {
     expect(silent.setButton).not.toHaveBeenCalled();
   });
 
-  it('re-sends the LED after the output comes back', () => {
+  it('flashes Tap Tempo green for the flash window after a press', () => {
+    let time = 1000;
+    const leds = fakeLeds();
+    const link = createPush3TempoLink({ leds, rhythm: fakeRhythm(), tap: vi.fn(), now: () => time });
+    link.frame(clockAt(0.5));
+    link.handleInput({ kind: 'button', name: 'tapTempo', cc: 3, pressed: true, value: 127 });
+    link.frame(clockAt(0.5));
+    time += 50; link.frame(clockAt(0.5));
+    time += 50; link.frame(clockAt(0.5));
+    const tapWrites = leds.setButton.mock.calls.filter(([cc]) => cc === PUSH3_BUTTONS.tapTempo).map(([, color]) => color);
+    expect(tapWrites).toEqual([PUSH3_COLORS.litWhite, PUSH3_COLORS.brightGreen, PUSH3_COLORS.litWhite]);
+  });
+
+  it('re-sends the LEDs after the output comes back', () => {
     let output = true;
     const leds = { hasOutput: () => output, setButton: vi.fn(() => ({ ok: true })) };
-    const link = createPush3TempoLink({ leds, rhythm: fakeRhythm(), tap: vi.fn() });
+    const link = createPush3TempoLink({ leds, rhythm: fakeRhythm(), tap: vi.fn(), now: () => 1000 });
     link.frame(clockAt(0.5));
     output = false; link.frame(clockAt(0.5));
     output = true; link.frame(clockAt(0.5));
-    expect(leds.setButton).toHaveBeenCalledTimes(2);
+    expect(leds.setButton).toHaveBeenCalledTimes(4);
   });
 
   it('taps tempo on Tap Tempo press only, not release', () => {
