@@ -215,6 +215,7 @@ export function createPush3Adapter({
     return {
       id: m.id, name: m.name, wave: m.wave, glyph: WAVE_GLYPHS[m.wave], sync: m.sync, beats: m.beats, hz: m.hz,
       depth: m.depth, offset: m.offset, target: m.target || '', on: m.on, targets: numeric,
+      phase: modulations.phase?.(m.id) ?? null, signal: modulations.signal?.(m.name),
       columns: EDIT_COLUMNS,
     };
   }
