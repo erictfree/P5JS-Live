@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PUSH3_BUTTONS, PUSH3_COLORS } from '../../src/performance/push3Map.js';
 import { beatLit, createPush3TempoLink, describeTempo } from '../../src/performance/push3Tempo.js';
 
-const clockAt = (phase, bpm = 120, running = true) => ({ running, bpm, phase, status: running ? 'running' : 'off', source: 'manual' });
+const clockAt = (phase, bpm = 120, running = true, beat = phase) => ({ running, bpm, phase, beat, status: running ? 'running' : 'off', source: 'manual' });
 
 function fakeLeds({ output = true } = {}) {
   return { hasOutput: vi.fn(() => output), setButton: vi.fn(() => ({ ok: true })) };
@@ -21,33 +21,39 @@ describe('Push 3 tempo link', () => {
     expect(beatLit(null)).toBe(false);
   });
 
-  it('ticks the Metronome LED on the beat, sends only on change, and keeps Tap lit', () => {
+  it('blinks Tap Tempo on the beat and swings the Metronome LED every beat, sending only on change', () => {
     const leds = fakeLeds();
     const link = createPush3TempoLink({ leds, rhythm: fakeRhythm(), tap: vi.fn(), now: () => 1000 });
 
-    expect(link.frame(clockAt(0))).toBe(true);
-    link.frame(clockAt(0.05));
-    link.frame(clockAt(0.5));
-    link.frame(clockAt(0.9));
-    link.frame(clockAt(0.01));
+    expect(link.frame(clockAt(0, 120, true, 0))).toBe(true);
+    link.frame(clockAt(0.05, 120, true, 0.05));
+    link.frame(clockAt(0.5, 120, true, 0.5));
+    link.frame(clockAt(0.9, 120, true, 0.9));
+    link.frame(clockAt(0.01, 120, true, 1.01));
+    link.frame(clockAt(0.5, 120, true, 1.5));
+    link.frame(clockAt(0.01, 120, true, 2.01));
 
     expect(leds.setButton.mock.calls).toEqual([
-      [PUSH3_BUTTONS.metronome, PUSH3_COLORS.litWhite],
       [PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.litWhite],
-      [PUSH3_BUTTONS.metronome, PUSH3_COLORS.darkGray],
+      [PUSH3_BUTTONS.metronome, PUSH3_COLORS.litWhite],
+      [PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.darkGray],
+      [PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.litWhite],
+      [PUSH3_BUTTONS.metronome, PUSH3_COLORS.mediumGray],
+      [PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.darkGray],
+      [PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.litWhite],
       [PUSH3_BUTTONS.metronome, PUSH3_COLORS.litWhite],
     ]);
     expect(link.snapshot()).toMatchObject({ metronomeColor: PUSH3_COLORS.litWhite, tapColor: PUSH3_COLORS.litWhite });
   });
 
-  it('turns the Metronome LED off when the clock is off and sends nothing without an output', () => {
+  it('dims Tap and turns the Metronome off when the clock is off; sends nothing without an output', () => {
     const leds = fakeLeds();
     const link = createPush3TempoLink({ leds, rhythm: fakeRhythm(), tap: vi.fn(), now: () => 1000 });
     link.frame(clockAt(0, 120, false));
     link.frame(clockAt(0.5, 120, false));
     expect(leds.setButton.mock.calls).toEqual([
+      [PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.darkGray],
       [PUSH3_BUTTONS.metronome, PUSH3_COLORS.off],
-      [PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.litWhite],
     ]);
 
     const silent = fakeLeds({ output: false });
@@ -66,7 +72,7 @@ describe('Push 3 tempo link', () => {
     time += 50; link.frame(clockAt(0.5));
     time += 50; link.frame(clockAt(0.5));
     const tapWrites = leds.setButton.mock.calls.filter(([cc]) => cc === PUSH3_BUTTONS.tapTempo).map(([, color]) => color);
-    expect(tapWrites).toEqual([PUSH3_COLORS.litWhite, PUSH3_COLORS.brightGreen, PUSH3_COLORS.litWhite]);
+    expect(tapWrites).toEqual([PUSH3_COLORS.darkGray, PUSH3_COLORS.brightGreen, PUSH3_COLORS.darkGray]);
   });
 
   it('re-sends the LEDs after the output comes back', () => {
