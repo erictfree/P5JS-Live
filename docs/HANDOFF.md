@@ -100,7 +100,11 @@ applies the required XOR shaping to pixel bytes.
 
 To test it:
 
-1. Connect Push 3 by USB and use desktop Chrome.
+1. Connect Push 3 by USB and use desktop Chrome. Safari has no WebUSB or Web MIDI, and
+   the browser pane embedded in the Claude desktop app cannot show Chrome's device
+   chooser or permission prompts, so Connect fails there with "not selected" or
+   "denied" even when the hardware is fine. Confirm the Mac sees the device with
+   `system_profiler SPUSBDataType | grep -A5 Push` before debugging the app.
 2. Open **Tools → Performances → Open controller**.
 3. Choose **Connect Push display** and select the Push device in Chrome's chooser.
 4. Choose **Claim interface 0**.
@@ -121,8 +125,37 @@ device interfaces, so test browser ownership carefully before expanding MIDI or
 display behavior. Do not send undocumented control, firmware, or diagnostic USB
 messages.
 
+### LED bench (pads and buttons)
+
+Pad and button LEDs are driven over Web MIDI with three-byte messages, separate from
+the WebUSB display. The controller modal has an **LED bench** row under the display
+controls that runs the safety sequence from [PUSH3-LED-REFERENCE.md](PUSH3-LED-REFERENCE.md):
+
+1. **Connect Push MIDI** requests Web MIDI without sysex. If exactly one output named
+   like `Ableton Push 3 … User Port` exists it is selected; otherwise pick it in the
+   **Output** menu. Never use the Live Port while Ableton Live is running.
+2. **Light pad 1** sends Note On 92 with palette index 11 (green); **Pad 1 off** clears it.
+3. **Light Play + Tap** sends CC 85 green and CC 3 lit-white.
+4. **Fade upper 1** is a one-shot from off to pink on channel 5 (1/2 note).
+5. **Pulse pad 64** starts a 120 BPM MIDI clock (Start + 24 ticks per beat) and pulses
+   bottom-right between blue and sky blue on channel 9.
+6. **Clear LEDs** turns off only the LEDs the app lit and stops the clock; **Release**
+   does that and drops the output.
+
+The hint line shows the last raw message from the paired User Port input, decoded
+(pad index, button name, encoder delta), for verifying the input map. The full bench
+sequence was verified on Eric's tethered Push 3 on 2026-09-11 in desktop Chrome: pad 1
+lights top-left, the named colors match, one-shot and pulse animations run from the
+sent clock, and input decodes. Firmware version was not recorded; add it to the LED
+reference when convenient.
+
 Relevant files:
 
+- `src/performance/push3Map.js` — pad notes, button CCs, encoder CCs, palette names,
+  animation channels, and `decodePushMessage`. Pure and unit-tested.
+- `src/performance/push3MidiTransport.js` — Web MIDI output/input, LED send with
+  validation, hardware animation, clock sender, owned-LED clearing, reconnect.
+- `tests/unit/push3Map.test.js`, `tests/unit/push3MidiTransport.test.js`.
 - `src/performance/push3DisplayTransport.js` — permission, claim/release, BGR565
   encoding, framing, and serialized streaming.
 - `src/performance/surfaceDisplay.js` — hardware-independent 960×160 surface

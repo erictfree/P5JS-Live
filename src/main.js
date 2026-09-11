@@ -16,6 +16,7 @@ import { createHostLoop } from './host/hostLoop.js';
 import { createAudioEngine } from './audio/audioEngine.js';
 import { createPerformanceLauncher } from './performance/launcher.js';
 import { createPush3DisplayTransport } from './performance/push3DisplayTransport.js';
+import { createPush3MidiTransport } from './performance/push3MidiTransport.js';
 import { createPerformanceSurface } from './ui/performanceLauncher.js';
 import { controllerDemoPerformances } from '../starter/controller-demos.js';
 import { LIVE_API_NAMES } from './host/liveApi.js';
@@ -90,6 +91,7 @@ const audio = createAudioEngine({ diagnostics });
 const network = getDefaultNetworkManager();
 const controlManager = createControlManager({ registry, diagnostics });
 const push3Display = createPush3DisplayTransport({ diagnostics });
+const push3Leds = createPush3MidiTransport({ diagnostics });
 
 // Read-only keyboard state, handed to strategies as one of the draw inputs.
 const keyboard = { keys: new Set(), shift: false, alt: false };
@@ -1093,6 +1095,7 @@ createPerformanceSurface({
   root: document.getElementById('performance-launcher'), launcher, store: performanceStore,
   registry, controlManager,
   push3Display,
+  push3Leds,
   addDemos() {
     for (const demo of controllerDemoPerformances()) {
       if (!performanceStore.get(demo.id)) {

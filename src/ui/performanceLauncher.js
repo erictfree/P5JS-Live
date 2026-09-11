@@ -1,9 +1,10 @@
 import { SURFACE_PROFILES, renderSurfaceDisplay } from '../performance/surfaceDisplay.js';
 import { decodePush3Bgr565 } from '../performance/push3DisplayTransport.js';
+import { PUSH3_BUTTONS, PUSH3_COLORS, animationChannel } from '../performance/push3Map.js';
 
 const startupImageUrl = new URL('../../assets/brand/startup.bgr565', import.meta.url).href;
 
-export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, recover, addDemos }) {
+export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, recover, addDemos }) {
   root.innerHTML = `
     <div class="surface-heading"><h3>Live launcher</h3><button type="button" data-open>Open controller</button></div>
     <p class="hint">Pads launch visuals and saved values. Your audio, clock and MIDI setup keep running. Recall below restores the whole snapshot.</p>
@@ -18,6 +19,10 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
       <div data-display-controls>
         <div class="surface-toolbar"><button type="button" data-connect-display>Connect Push display</button><button type="button" data-claim-display>Claim interface 0</button><button type="button" data-test-display>Test once</button><button type="button" data-startup-display>Show startup</button><button type="button" data-start-display>Show controller</button><button type="button" data-stop-display>Stop</button><button type="button" data-release-display>Release</button><span data-display-status role="status"></span></div>
         <p class="hint">Test shows color bars briefly. Startup and controller modes remain visible until stopped.</p>
+      </div>
+      <div data-led-controls>
+        <div class="surface-toolbar"><button type="button" data-connect-leds>Connect Push MIDI</button><label>Output <select data-led-output aria-label="Push MIDI output"></select></label><button type="button" data-led-pad>Light pad 1</button><button type="button" data-led-pad-off>Pad 1 off</button><button type="button" data-led-buttons>Light Play + Tap</button><button type="button" data-led-fade>Fade upper 1</button><button type="button" data-led-pulse>Pulse pad 64</button><button type="button" data-led-clear>Clear LEDs</button><button type="button" data-led-release>Release</button><span data-led-status role="status"></span></div>
+        <p class="hint">LED bench uses three-byte MIDI on the Push User Port; no sysex. Pulse starts a 120 BPM clock. Last input: <span data-led-input>—</span></p>
       </div>
       <div class="surface-encoders"></div>
       <p><button type="button" data-demos>Add two demo performances</button> <span class="hint">Eight controls each. Plays when you select a pad.</span></p>
@@ -53,7 +58,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   const controlTitle = document.createElement('h3'); controlTitle.className = 'surface-section-label'; controlTitle.textContent = 'Live controls';
   encoderArea.append(controlTitle, root.querySelector('.surface-encoders'), root.querySelector('.surface-status'), root.querySelector('[data-slot]').closest('.surface-toolbar'));
   playArea.append(padArea, encoderArea);
-  root.querySelector('canvas').after(root.querySelector('[data-display-controls]'), playArea);
+  root.querySelector('canvas').after(root.querySelector('[data-display-controls]'), root.querySelector('[data-led-controls]'), playArea);
   const demoRow = root.querySelector('[data-demos]').closest('p');
   const setup = root.querySelector('details');
   setup.querySelector('summary').after(root.querySelector('[data-profile]').closest('.surface-toolbar'));
@@ -195,5 +200,43 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   };
   push3Display.subscribe(renderDisplayStatus);
   renderDisplayStatus();
+  const ledControls = $('[data-led-controls]');
+  if (!push3Leds) ledControls.hidden = true;
+  else {
+    const ledOutput = $('[data-led-output]');
+    $('[data-connect-leds]').onclick = () => push3Leds.connect();
+    ledOutput.onchange = () => { if (ledOutput.value) push3Leds.selectOutput(ledOutput.value); };
+    $('[data-led-pad]').onclick = () => push3Leds.setPad(0, PUSH3_COLORS.green);
+    $('[data-led-pad-off]').onclick = () => push3Leds.setPad(0, PUSH3_COLORS.off);
+    $('[data-led-buttons]').onclick = () => { push3Leds.setButton(PUSH3_BUTTONS.play, PUSH3_COLORS.green); push3Leds.setButton(PUSH3_BUTTONS.tapTempo, PUSH3_COLORS.litWhite); };
+    $('[data-led-fade]').onclick = () => push3Leds.animateButton(PUSH3_BUTTONS.upper1, PUSH3_COLORS.off, PUSH3_COLORS.pink, animationChannel('oneShot', '1/2'));
+    $('[data-led-pulse]').onclick = () => { push3Leds.startClock(120); push3Leds.animatePad(63, PUSH3_COLORS.blue, PUSH3_COLORS.skyBlue, animationChannel('pulse', '1/4')); };
+    $('[data-led-clear]').onclick = () => { push3Leds.clearOwnedLeds(); push3Leds.stopClock(); };
+    $('[data-led-release]').onclick = () => push3Leds.disconnect();
+    let ledPortSignature = '';
+    const renderLedStatus = () => {
+      const state = push3Leds.snapshot();
+      $('[data-led-status]').textContent = state.status + (state.owned ? ` · ${state.owned} lit` : '') + (state.clockBpm ? ` · clock ${state.clockBpm}` : '');
+      const signature = JSON.stringify(state.ports.outputs.map(p => [p.id, p.name, p.state]));
+      if (signature !== ledPortSignature) {
+        ledPortSignature = signature;
+        ledOutput.replaceChildren(new Option(state.ports.outputs.length ? 'Choose output' : 'No outputs', ''));
+        state.ports.outputs.forEach(p => ledOutput.add(new Option(p.name, p.id)));
+      }
+      ledOutput.value = state.output?.id ?? '';
+      const ready = Boolean(state.output);
+      $('[data-connect-leds]').disabled = !state.supported || state.status === 'connecting';
+      ledOutput.disabled = !state.hasAccess;
+      for (const selector of ['[data-led-pad]', '[data-led-pad-off]', '[data-led-buttons]', '[data-led-fade]', '[data-led-pulse]']) $(selector).disabled = !ready;
+      $('[data-led-clear]').disabled = !ready || (!state.owned && !state.clockBpm);
+      $('[data-led-release]').disabled = !ready;
+      const last = state.lastInput;
+      $('[data-led-input]').textContent = last
+        ? `${last.raw.map(b => b.toString(16).padStart(2, '0')).join(' ')} → ${last.decoded ? Object.entries(last.decoded).map(([k, v]) => `${k}=${v}`).join(' ') : 'unknown'}`
+        : '—';
+    };
+    push3Leds.subscribe(renderLedStatus);
+    renderLedStatus();
+  }
   return { render };
 }

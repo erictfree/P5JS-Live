@@ -1,6 +1,6 @@
 # Push 3 bidirectional control — plan
 
-Status: draft v2 for discussion, September 11, 2026. Builds on [HANDOFF.md](HANDOFF.md) §"Push 3 status" and [PERFORMANCE-CONTROLLERS-PLAN.md](PERFORMANCE-CONTROLLERS-PLAN.md). Addresses, palette indices and animation semantics come from [PUSH3-LED-REFERENCE.md](PUSH3-LED-REFERENCE.md), which is the ground truth for this plan; do not use Push 2 numbers where the two differ. Display output over WebUSB is already proven; this plan covers the other direction and the loop back: pads, buttons and encoders as input, and LED color as feedback.
+Status: draft v2, September 11, 2026. M0 and M1 code landed the same day (`push3Map.js`, `push3MidiTransport.js`, LED bench row in the controller modal); verified on hardware the same day; M2 (input → launcher actions) is next. Builds on [HANDOFF.md](HANDOFF.md) §"Push 3 status" and [PERFORMANCE-CONTROLLERS-PLAN.md](PERFORMANCE-CONTROLLERS-PLAN.md). Addresses, palette indices and animation semantics come from [PUSH3-LED-REFERENCE.md](PUSH3-LED-REFERENCE.md), which is the ground truth for this plan; do not use Push 2 numbers where the two differ. Display output over WebUSB is already proven; this plan covers the other direction and the loop back: pads, buttons and encoders as input, and LED color as feedback.
 
 ## Short answer to "can we light the buttons?"
 
@@ -81,9 +81,9 @@ Mode switching stays explicit: startup splash while idle or on connect, performa
 
 ## Milestones
 
-M0 — MIDI output plumbing in `controlManager`: outputs enumeration, raw data byte in parsed messages, Push port-pair discovery, disconnect handling for outputs. Unit tests with a fake `MIDIAccess`.
+M0 — **Done (variant).** Instead of extending `controlManager`, `push3MidiTransport.js` requests its own Web MIDI access (still `sysex: false`), enumerates outputs, pairs the User Port input by name, and handles output disconnect. `controlManager` is unchanged, so generic MIDI Learn is unaffected. Raw data bytes reach patches later via the adapter (M2).
 
-M1 — Transport + bench mode: `push3MidiTransport.js` and `push3Map.js` with tests; a "Push bench" panel in the controller modal that runs the reference's eight-step safety sequence (light one pad, clear it, light an RGB and a white button, one-shot without clock, Start + clock then pulse/blink, clear owned, disconnect) and logs raw incoming messages. One hardware session verifies the map and colors on Eric's unit and records firmware, port name and observations in PUSH3-LED-REFERENCE.md.
+M1 — **Done, verified on hardware 2026-09-11.** `push3MidiTransport.js` and `push3Map.js` with tests; an LED bench row in the controller modal that runs the reference's eight-step safety sequence (light one pad, clear it, light an RGB and a white button, one-shot without clock, Start + clock then pulse/blink, clear owned, disconnect) and logs raw incoming messages. One hardware session verifies the map and colors on Eric's unit and records firmware, port name and observations in PUSH3-LED-REFERENCE.md.
 
 M2 — Input: `push3Adapter.js` decoding pads, encoders, modifiers and the default button map into launcher actions; passthrough for other devices; Learn overrides still win.
 
