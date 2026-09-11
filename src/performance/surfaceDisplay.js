@@ -7,25 +7,29 @@ export const SURFACE_PROFILES = Object.freeze([
 ]);
 
 // `tempo` is optional: { bpm, label, running, lit } as produced by describeTempo(). When
-// present it takes the right-hand 200 px of the header and mirrors the toolbar BPM
-// readout, with a dot that lights on the same 80 ms beat window as the tap button.
+// present it takes the left-hand 190 px of the header, directly under the Push 3 Tempo
+// encoder, and mirrors the toolbar BPM readout with a dot that lights on the same
+// 80 ms beat window as the tap button. Title and status shift right to make room.
+const TEMPO_WIDTH = 190;
 export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null }) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#171a1c'; ctx.fillRect(0, 0, 960, 160);
-  const headerWidth = tempo ? 50 : 65;
-  ctx.fillStyle = '#62d7b1'; ctx.font = '22px monospace'; ctx.fillText(title.slice(0, headerWidth), 15, 30);
-  ctx.fillStyle = '#b9bdc1'; ctx.font = '16px monospace'; ctx.fillText((status.startsWith(title + ' · ') ? status.slice(title.length + 3) : status).slice(0, tempo ? 72 : 92), 15, 57);
+  const left = tempo ? 15 + TEMPO_WIDTH + 10 : 15;
+  const titleChars = tempo ? 55 : 65;
+  const statusChars = tempo ? 76 : 92;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#62d7b1'; ctx.font = '22px monospace'; ctx.fillText(title.slice(0, titleChars), left, 30);
+  ctx.fillStyle = '#b9bdc1'; ctx.font = '16px monospace'; ctx.fillText((status.startsWith(title + ' · ') ? status.slice(title.length + 3) : status).slice(0, statusChars), left, 57);
   if (tempo) {
-    const right = 945;
-    ctx.textAlign = 'right';
-    ctx.fillStyle = tempo.running ? '#ffb65d' : '#6b7075'; ctx.font = 'bold 30px monospace';
-    ctx.fillText(tempo.bpm ? `${tempo.bpm.toFixed(1)} BPM` : tempo.label, right, 36);
-    ctx.fillStyle = '#b9bdc1'; ctx.font = '14px monospace';
-    if (tempo.bpm) ctx.fillText(tempo.label, right, 58);
-    ctx.textAlign = 'left';
-    ctx.beginPath(); ctx.arc(760, 28, 9, 0, Math.PI * 2);
+    // Beat dot, then the number, then a small mode line beneath it.
+    ctx.beginPath(); ctx.arc(26, 26, 8, 0, Math.PI * 2);
     ctx.fillStyle = tempo.lit ? '#ffffff' : tempo.running ? '#42474b' : '#25292c'; ctx.fill();
-    if (tempo.lit) { ctx.beginPath(); ctx.arc(760, 28, 14, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke(); }
+    if (tempo.lit) { ctx.beginPath(); ctx.arc(26, 26, 13, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke(); }
+    ctx.fillStyle = tempo.running ? '#ffb65d' : '#6b7075'; ctx.font = 'bold 30px monospace';
+    ctx.fillText(tempo.bpm ? tempo.bpm.toFixed(1) : tempo.label, 44, 36);
+    ctx.fillStyle = '#b9bdc1'; ctx.font = '14px monospace';
+    ctx.fillText(tempo.bpm ? `BPM · ${tempo.label}` : 'Tempo', 44, 58);
+    ctx.fillStyle = '#42474b'; ctx.fillRect(15 + TEMPO_WIDTH, 12, 2, 50);
   }
   controls.forEach((control, i) => {
     const x = i * 120;
