@@ -60,12 +60,11 @@ async function selectTool(page, name) {
   if (name === 'Performance') await page.locator('.project-file').evaluate((details) => { details.open = true; });
 }
 
-/** Scenes are saved from the Scene tab; come back to the Performance tab afterwards. */
+/** Scenes are saved and listed on the Scene tab; stay there afterwards. */
 async function saveScene(page, name) {
   await selectTool(page, 'Scene');
   await page.locator('#performance-name').fill(name);
   await page.getByRole('button', { name: 'Save scene', exact: true }).click();
-  await selectTool(page, 'Performance');
 }
 
 async function openReference(page) {
@@ -2211,6 +2210,7 @@ test.describe('named Performance recall', () => {
       window.p5jsLive.editor.evaluateBuffer();
     }, alternate);
 
+    await selectTool(page, 'Performance');
     await expect(
       page.getByRole('button', { name: 'Start a new performance from the default starter' }),
     ).toBeVisible();
@@ -2229,7 +2229,7 @@ test.describe('named Performance recall', () => {
     );
     await expect(page.locator('#code')).toHaveValue(/scene\.draw\(\)/);
     await expect(page.locator('#code')).not.toHaveValue(/\/\/ %% patch effects/);
-    await expect(page.locator('#library-name')).toBeFocused();
+    await selectTool(page, 'Scene');
     await expect(page.locator('#performance-list')).toContainText('No saved scenes yet');
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.controller.snapshot().safeState))
@@ -2278,7 +2278,7 @@ test.describe('named Performance recall', () => {
     });
     await selectTool(page, 'Settings');
     await page.locator('#code-size').fill('12');
-    await selectTool(page, 'Performance');
+    await selectTool(page, 'Scene');
 
     await page.locator('.performance-row').getByRole('button', { name: 'Recall' }).click();
     await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeSceneName())).toBe('scene');

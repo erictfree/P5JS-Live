@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test';
 
+const tab = (page, name) => page.getByRole('tab', { name, exact: true }).click();
+
+// Scenes are saved and listed on the Scene tab.
 async function saveScene(page, name) {
-  await page.getByRole('tab', { name: 'Scene', exact: true }).click();
+  await tab(page, 'Scene');
   await page.getByLabel('Scene name', { exact: true }).fill(name);
   await page.getByRole('button', { name: 'Save scene', exact: true }).click();
-  await page.getByRole('tab', { name: 'Performance', exact: true }).click();
+  await expect(page.locator('#performance-list')).toContainText(name);
 }
 
 async function boot(page) {
@@ -21,7 +24,7 @@ test('a performance saves with its scenes, survives New performance, and loads b
 
   // Save a scene, then save the whole performance.
   await saveScene(page, 'Opening');
-  await expect(page.locator('#performance-list')).toContainText('Opening');
+  await tab(page, 'Performance');
   await page.getByLabel('Performance name', { exact: true }).fill('Friday set');
   await page.getByRole('button', { name: 'Save performance', exact: true }).click();
   await expect(page.locator('#library-current-name')).toHaveText('Friday set');
@@ -31,18 +34,22 @@ test('a performance saves with its scenes, survives New performance, and loads b
 
   // Autosave picks up a second scene.
   await saveScene(page, 'Second');
+  await tab(page, 'Performance');
   await expect.poll(() => page.evaluate(() => window.p5jsLive.performanceLibrary.list()[0].sceneCount), { timeout: 10_000 }).toBe(2);
 
   // New performance empties the set but the saved one keeps its copy.
   await page.getByRole('button', { name: /Start a new performance/ }).click();
   await page.getByRole('button', { name: 'Start fresh', exact: true }).click();
   await expect(page.locator('#library-current-name')).toHaveText('Untitled');
+  await tab(page, 'Scene');
   await expect(page.locator('#performance-list')).toContainText('No saved scenes yet');
   expect(await page.evaluate(() => window.p5jsLive.performanceStore.list().length)).toBe(0);
+  await tab(page, 'Performance');
 
   // Load brings scenes, layout and current pointer back.
   await page.getByRole('button', { name: 'Load Friday set', exact: true }).click();
   await expect(page.locator('#library-current-name')).toHaveText('Friday set');
+  await tab(page, 'Scene');
   await expect(page.locator('#performance-list')).toContainText('Opening');
   await expect(page.locator('#performance-list')).toContainText('Second');
   expect(await page.evaluate(() => window.p5jsLive.performanceStore.list().length)).toBe(2);

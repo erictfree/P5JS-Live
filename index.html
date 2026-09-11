@@ -264,7 +264,8 @@
                 />
                 <button id="save-performance" type="submit">Save scene</button>
               </form>
-              <p class="hint">Saving keeps this window — source, tuned values, audio analysis and view — as a scene. It becomes a pad and appears under Tools → Performance.</p>
+              <p class="hint">Saving keeps this window — source, tuned values, audio analysis and view — as a scene and a pad. Recall, update or delete saved scenes below.</p>
+              <div id="performance-list" class="performance-list" aria-live="polite"></div>
               <p class="hint">Sources and effects run from top to bottom. Each group processes its own image.</p>
               <div id="scene-inspector-status" class="scene-inspector-status" role="status"></div>
               <div id="scene-pending" class="library-pending" hidden><strong>Scene edits are waiting to run</strong><p>The tree below shows the live composition.</p><button id="scene-review-source" type="button">Review scene &amp; run</button></div>
@@ -641,15 +642,9 @@ const publishMain = room.publish({
               </div>
             </section>
             <section class="tool-section performance-section">
-              <header class="tool-section-heading performance-heading">
-                <h2>Scenes</h2>
-              </header>
               <div class="body">
-                <p class="hint performance-hint">
-                  Scenes are saved from the Scene tab. Pads and the list below recall them. Audio files stay separate.
-                </p>
                 <div id="performance-launcher"></div>
-                <div id="performance-list" class="performance-list" aria-live="polite"></div>
+                <p class="hint performance-hint">Pads launch the scenes saved from the Scene tab. Audio files stay separate.</p>
               </div>
             </section>
             <section class="tool-section recovery-section">

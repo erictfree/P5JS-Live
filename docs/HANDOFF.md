@@ -134,8 +134,9 @@ Behaviour, in `src/main.js` under "performance library":
   the library and loaded after the trusted-code confirmation; a library file is added
   without running anything. **Rename** applies the typed name to the current entry;
   **↑ ↓** reorder the list, which is also the jog-wheel browsing order.
-- **Scenes are saved from the Scene tab** (form at the top of the composition view); the
-  Performance tab lists and recalls them. **Reset to starter** is the only thing left
+- **Scenes live on the Scene tab**: the save form and the recall/update/delete list sit
+  at the top of the composition view. The Performance tab keeps the Live launcher
+  (Open controller) next to the library. **Reset to starter** is the only thing left
   in the collapsed "Start over" disclosure.
 - **Jog wheel on Push** browses the library: turn (or the click buttons beside it) to
   highlight, press to load. The screen swaps the encoder row for a browser strip with

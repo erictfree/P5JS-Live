@@ -100,6 +100,18 @@ M5 — Docs and tests: USER-MANUAL Push section, e2e test with a fake MIDI devic
 
 ## Later, once the loop works
 
+**Modulators on the lower display buttons (decided 2026-09-11).** Treat an LFO, ramp,
+envelope or random walk as something you *play*: the eight lower display buttons, one
+under each display column, toggle a modulator on the control shown in that column, the
+button LED shows it running, and pressing it in the browser (or Shift + button on Push)
+opens its attributes — rate (free or beat-synced to the rhythm clock),
+waveform (sine, triangle, ramp up/down, square, random), depth and offset, and the
+target control. Modulators would live in the performance bundle beside the encoder
+assignments, run in the host frame loop writing through `registry.setParam`, and pause
+when their control is touched by a knob so the performer always wins. Open questions:
+whether modulators are per scene or per performance, and how they show on the display
+(a small waveform glyph in the control's column would do).
+
 Pads as performance input to patches: expose pad pressure (and MPE slide if it arrives on the User Port) in the live context so a patch can react to the performer's hands. Touch strip as a ninth assignable control. Jog wheel to browse performances or scrub a parameter. Per-performance colors chosen in the launcher UI and mirrored on the pads via the measured palette.
 
 ## Decisions needed

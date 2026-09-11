@@ -1509,7 +1509,7 @@ order, and press it to load.
 A saved scene is a recallable snapshot of the current window, including source,
 the active scene, controls and mappings, audio-analysis settings, and view settings.
 
-Open **Tools → Scene**, enter a name at the top, and select **Save scene**. The scene appears under **Tools → Performance**, where each row can be:
+Open **Tools → Scene**, enter a name at the top, and select **Save scene**. The scene appears in the list right below, where each row can be:
 
 - recalled;
 - updated from the current window;

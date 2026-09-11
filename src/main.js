@@ -1965,7 +1965,8 @@ async function startNewPerformance() {
   if (!started) return;
   startEmptyPerformance();
   performanceNameInput.value = '';
-  document.getElementById('library-name').focus();
+  const nameField = document.getElementById('library-name');
+  if (nameField.offsetParent !== null) nameField.focus();
 }
 
 /** Forget the current performance and empty its scenes and pad layout. */
