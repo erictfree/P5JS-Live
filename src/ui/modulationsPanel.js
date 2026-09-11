@@ -176,6 +176,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
       root.append(empty);
       return;
     }
+    for (const stale of root.querySelectorAll(':scope > .performance-empty')) stale.remove();
     const next = new Map();
     for (const m of list) {
       const existing = rows.get(m.id);
@@ -191,8 +192,13 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     }
     for (const [id, built] of rows) if (!next.has(id)) built.row.remove();
     rows = next;
-    // Keep DOM order equal to list order; append moves existing nodes without rebuilding.
-    for (const built of rows.values()) root.append(built.row);
+    // Keep DOM order equal to list order, but never move a node that is already in
+    // place: re-inserting an element cancels an in-progress slider drag inside it.
+    const wanted = [...rows.values()].map(built => built.row);
+    const current = [...root.children].filter(node => node.classList.contains('modulation-row'));
+    if (wanted.some((row, index) => current[index] !== row)) {
+      for (const row of wanted) root.append(row);
+    }
     for (const [id, built] of rows) { const m = engine.get(id); if (m) drawScope(built.scope, m, engine.phase(id), engine.signal(m.name)); }
   }
 
