@@ -22,7 +22,9 @@ test('task navigation, secondary settings, width and scroll survive switching', 
   await expect(page.locator('#tools-opacity')).toHaveValue('1');
   await page.getByRole('tab', { name: 'Library', exact: true }).click();
   expect(await page.locator('#panels').evaluate((node) => node.scrollTop)).toBe(scroll);
-  await page.getByRole('tab', { name: 'Library', exact: true }).press('ArrowRight');
+  // Tab order is Scene, Performance, Controls, Modulations, Audio, Library.
+  await page.getByRole('tab', { name: 'Performance', exact: true }).click();
+  await page.getByRole('tab', { name: 'Performance', exact: true }).press('ArrowRight');
   await expect(page.getByRole('tab', { name: 'Controls', exact: true })).toBeFocused();
   await page.getByRole('button', { name: 'Close Tools', exact: true }).click();
   await expect(page.locator('#tools-toggle')).toBeFocused();

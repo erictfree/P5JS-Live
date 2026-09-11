@@ -32,8 +32,8 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     nameInput.value = m.name; nameInput.setAttribute('aria-label', 'Modulation name'); nameInput.maxLength = 40;
     nameInput.addEventListener('change', () => engine.update(m.id, { name: nameInput.value }));
     const value = document.createElement('span'); value.className = 'modulation-value';
-    const code = document.createElement('code'); code.className = 'modulation-code'; code.textContent = `modulations.${m.name}`;
-    code.title = 'Read this signal in a patch: ({ modulations }) => modulations.' + m.name;
+    const code = document.createElement('code'); code.className = 'modulation-code'; code.textContent = m.name;
+    code.title = `Use it in a patch as ${m.name} — a live number from −1 to 1`;
     name.append(glyph, nameInput, code, value);
 
     const actions = document.createElement('div');
@@ -105,7 +105,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     if (!list.length) {
       const empty = document.createElement('div');
       empty.className = 'performance-empty';
-      empty.textContent = 'No modulations yet. Add one, then read it in code as modulations.<name>, or point it at a live control.';
+      empty.textContent = 'No modulations yet. Add one and use its name in code — lfo1 is a live number from −1 to 1 — or point it at a live control.';
       root.append(empty);
       return;
     }
@@ -131,7 +131,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
   addButton.addEventListener('click', () => {
     // Modulations exist on their own; a control target is optional.
     const created = engine.add({});
-    if (created) diagnostics?.info?.(`Modulation ${created.name} added`, `Read it in a patch as modulations.${created.name}, or pick a control for it to move.`);
+    if (created) diagnostics?.info?.(`Modulation ${created.name} added`, `Use ${created.name} in a patch as a live number from −1 to 1, or pick a control for it to move.`);
   });
 
   engine.subscribe(render);

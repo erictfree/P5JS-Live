@@ -87,7 +87,7 @@ supplies the object on each frame.
 | `time` | Seconds since the host started |
 | `sceneTime` | Seconds since the active scene changed |
 | `controls` | Values declared with `control()` |
-| `modulations` | Signals created in **Tools → Modulations**, by name, −1…1 (see Modulations) |
+| `modulations` | Signals created in **Tools → Modulations**, by name, −1…1; each is also a bare global (`lfo1`) |
 | `keyboard` | Read-only physical keyboard state |
 
 A patch may ignore the input:
@@ -380,13 +380,15 @@ Create LFOs, ramps, squares and random steps in **Tools → Modulations** and re
 a patch by name:
 
 ```js
-const breathe = ({ modulations }) => {
-  const size = 100 + 60 * (modulations.wobble ?? 0); // −1…1, scaled by depth, shifted by offset
-  circle(width / 2, height / 2, size);
+const breathe = () => {
+  circle(width / 2, height / 2, 100 + 60 * lfo1); // lfo1 is a live number from −1 to 1
 };
 ```
 
-A modulation that has no target is just a signal. Give it a target control and it also
+The name you give a modulation is available directly in patch code, as `lfo1` above,
+and also as `modulations.lfo1` on the draw input. Names that collide with the live API,
+p5, or other globals are reported in Messages and must be renamed before they work as
+bare names. A modulation that has no target is just a signal. Give it a target control and it also
 swings that control around the value the performer set; the control's stored value stays
 the base, so knobs, sliders and saved scenes see the base and a knob always wins. Rates
 are in beats (locked to the rhythm clock) or Hz. Modulations save with the scene. On

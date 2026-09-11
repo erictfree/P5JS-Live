@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { WAVEFORMS, createModulationEngine, identifierName, validateModulation, waveValue } from '../../src/performance/modulations.js';
+import { WAVEFORMS, createGlobalBindings, createModulationEngine, identifierName, validateModulation, waveValue } from '../../src/performance/modulations.js';
 
 function fakeRegistry(params) {
   const map = new Map(params.map(p => [p.name, { ...p }]));
@@ -31,7 +31,7 @@ describe('modulation waveforms', () => {
     expect(validateModulation({})).toMatchObject({ target: '', wave: 'sine', on: true });
     expect(identifierName('Slow wobble!')).toBe('Slow_wobble');
     expect(identifierName('2fast')).toBe('m_2fast');
-    expect(identifierName('')).toBe('mod');
+    expect(identifierName('')).toBe('lfo1');
     expect(validateModulation({ target: 'size', wave: 'weird', beats: 999, depth: 4, offset: -3, sync: 'yes' })).toMatchObject({ target: 'size', wave: 'sine', beats: 64, depth: 1, offset: -1, sync: true, on: true });
   });
 });
@@ -122,7 +122,7 @@ describe('modulation engine', () => {
   it('creates modulations with no target as named signals patches can read', () => {
     const registry = fakeRegistry([]);
     const engine = createModulationEngine({ registry, makeId: ids() });
-    expect(engine.add({})).toMatchObject({ id: 'm1', name: 'mod1', target: '' });
+    expect(engine.add({})).toMatchObject({ id: 'm1', name: 'lfo1', target: '' });
     expect(engine.add({ name: 'wobble', wave: 'square', depth: 0.5, offset: 0.25 })).toMatchObject({ name: 'wobble' });
     expect(engine.add({ name: 'wobble' }).name).toBe('wobble2'); // names stay unique
     engine.frame({ running: true, beat: 0.25 }, 1);
@@ -130,10 +130,36 @@ describe('modulation engine', () => {
     expect(engine.readSignals(inputs)).toBe(inputs);
     expect(inputs.stale).toBeUndefined();
     expect(inputs.wobble).toBeCloseTo(0.75); // square +1 * 0.5 + 0.25
-    expect(inputs.mod1).toBeCloseTo(0.25); // sine at 0.25 → +1 * 0.25
+    expect(inputs.lfo1).toBeCloseTo(0.25); // sine at 0.25 → +1 * 0.25
     expect(engine.signal('wobble2')).toBeCloseTo(0.25);
     engine.setOn('m2', false);
     engine.frame({ running: true, beat: 0.25 }, 2);
     expect(engine.readSignals({}).wobble).toBeUndefined();
+  });
+
+  it('numbers default names lfo1, lfo2, lfo3', () => {
+    const engine = createModulationEngine({ registry: fakeRegistry([]), makeId: ids() });
+    expect(engine.add({}).name).toBe('lfo1');
+    expect(engine.add({}).name).toBe('lfo2');
+    expect(engine.add({}).name).toBe('lfo3');
+    engine.remove('m2');
+    expect(engine.add({}).name).toBe('lfo2');
+  });
+});
+
+describe('modulation global bindings', () => {
+  it('defines live getters for names, removes stale ones, and skips reserved or taken names', () => {
+    const values = { lfo1: 0.5, width: 1 };
+    const globalObject = { width: 400 };
+    const bindings = createGlobalBindings({ globalObject, reserved: ['control'], read: name => values[name] });
+    expect(bindings.sync(['lfo1', 'width', 'control'])).toEqual({ defined: ['lfo1'], skipped: ['width', 'control'] });
+    expect(globalObject.lfo1).toBe(0.5);
+    values.lfo1 = -0.25;
+    expect(globalObject.lfo1).toBe(-0.25);
+    expect(globalObject.width).toBe(400);
+    bindings.sync(['wobble']);
+    expect('lfo1' in globalObject).toBe(false);
+    expect(globalObject.wobble).toBeUndefined();
+    expect(bindings.owned()).toEqual(['wobble']);
   });
 });

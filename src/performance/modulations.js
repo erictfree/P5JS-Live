@@ -10,7 +10,7 @@ export const WAVE_GLYPHS = Object.freeze({ sine: '∿', triangle: '⋀', rampUp:
 export const DEFAULT_MODULATION = Object.freeze({ wave: 'sine', beats: 1, hz: 1, sync: true, depth: 0.25, offset: 0, on: true, target: '' });
 
 // Names are read in code as `modulations.name`, so they must be identifiers.
-export function identifierName(value, fallback = 'mod') {
+export function identifierName(value, fallback = 'lfo1') {
   const cleaned = String(value ?? '').trim().replace(/[^A-Za-z0-9_$]+/g, '_').replace(/^_+|_+$/g, '');
   const name = cleaned && !/^[0-9]/.test(cleaned) ? cleaned : (cleaned ? `m_${cleaned}` : fallback);
   return name.slice(0, 40);
@@ -55,6 +55,30 @@ export function validateModulation(value) {
   };
 }
 
+// Bare-name access from patch code: each modulation name becomes a live getter on the
+// global object, so `circle(x, y, 100 + 60 * lfo1)` reads the current signal. Names that
+// belong to the live API, p5, or anything else already global are left alone.
+export function createGlobalBindings({ globalObject = globalThis, reserved = [], read }) {
+  const owned = new Set();
+  const blocked = new Set(reserved);
+  function sync(names) {
+    for (const name of [...owned]) {
+      if (!names.includes(name)) { try { delete globalObject[name]; } catch { /* non-configurable */ } owned.delete(name); }
+    }
+    const skipped = [];
+    for (const name of names) {
+      if (owned.has(name)) continue;
+      if (blocked.has(name) || (name in globalObject)) { skipped.push(name); continue; }
+      try {
+        Object.defineProperty(globalObject, name, { configurable: true, enumerable: false, get: () => read(name) });
+        owned.add(name);
+      } catch { skipped.push(name); }
+    }
+    return { defined: [...owned], skipped };
+  }
+  return { sync, owned: () => [...owned] };
+}
+
 export function createModulationEngine({
   registry,
   now = () => (globalThis.performance?.now?.() ?? Date.now()) / 1000,
@@ -67,12 +91,15 @@ export function createModulationEngine({
   let signals = {};          // name → raw signal (−1…1) for this frame
 
   function uniqueName(base) {
-    const wanted = identifierName(base, 'mod');
+    const wanted = identifierName(base, 'lfo1');
     const taken = new Set(modulations.map(m => m.name));
     if (!taken.has(wanted)) return wanted;
-    let n = 2;
-    while (taken.has(`${wanted}${n}`)) n += 1;
-    return `${wanted}${n}`;
+    // lfo1 → lfo2 → lfo3; wobble → wobble2 → wobble3
+    const stem = wanted.replace(/\d+$/, '') || wanted;
+    let n = Number(wanted.slice(stem.length)) || 1;
+    let candidate = wanted;
+    while (taken.has(candidate)) { n += 1; candidate = `${stem}${n}`; }
+    return candidate;
   }
   const listeners = new Set();
   const notify = () => listeners.forEach(fn => fn());
@@ -85,7 +112,7 @@ export function createModulationEngine({
     const entry = validateModulation({ ...DEFAULT_MODULATION, ...value });
     if (!entry) return null;
     entry.id = makeId();
-    entry.name = uniqueName(entry.name || entry.target || `mod${modulations.length + 1}`);
+    entry.name = uniqueName(entry.name || entry.target || 'lfo1');
     modulations.push(entry);
     notify();
     return { ...entry };
@@ -186,7 +213,7 @@ export function createModulationEngine({
       const entry = validateModulation(raw);
       if (!entry) continue;
       entry.id = entry.id ?? makeId();
-      entry.name = uniqueName(entry.name || entry.target || `mod${modulations.length + 1}`);
+      entry.name = uniqueName(entry.name || entry.target || 'lfo1');
       modulations.push(entry);
     }
     notify();

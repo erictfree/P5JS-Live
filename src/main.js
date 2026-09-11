@@ -24,7 +24,7 @@ import { createPush3AutoConnect } from './performance/push3AutoConnect.js';
 import { createPerformanceLibrary } from './persistence/performanceLibrary.js';
 import { createRecentAudio } from './persistence/recentAudio.js';
 import { captureSquare, thumbnailFromFile } from './performance/thumbnail.js';
-import { createModulationEngine } from './performance/modulations.js';
+import { createGlobalBindings, createModulationEngine } from './performance/modulations.js';
 import { createModulationsPanel } from './ui/modulationsPanel.js';
 import { createPerformanceSurface } from './ui/performanceLauncher.js';
 import { controllerDemoPerformances } from '../starter/controller-demos.js';
@@ -201,6 +201,12 @@ audio.connectRhythm(rhythm);
 const modulations = createModulationEngine({ registry });
 registry.setModulator((name, base) => modulations.modulate(name, base));
 host.setModulationSource(target => modulations.readSignals(target));
+// Bare names in patch code: `lfo1` reads the live signal (0 while stopped or undefined).
+const modulationGlobals = createGlobalBindings({ reserved: LIVE_API_NAMES, read: name => modulations.signal(name) ?? 0 });
+modulations.subscribe(() => {
+  const { skipped } = modulationGlobals.sync(modulations.list().map(m => m.name));
+  if (skipped.length) diagnostics.warn(`Modulation name${skipped.length === 1 ? '' : 's'} already taken: ${skipped.join(', ')}`, 'Rename it in Tools → Modulations to use it as a bare name in code.');
+});
 const projectStore = createProjectStore({ registry, diagnostics, controlManager, rhythm, modulations });
 const performanceStore = createPerformanceStore({ diagnostics });
 const performanceLibrary = createPerformanceLibrary({ diagnostics });

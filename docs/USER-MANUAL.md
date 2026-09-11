@@ -1512,7 +1512,7 @@ order, and press it to load.
 #### Modulations
 
 **Tools → Modulations** creates signals: an LFO, ramp, square or random step you read
-in a patch as `modulations.name` (−1…1), or point at a live control so it swings that
+in a patch by its name — `lfo1` is a live number from −1 to 1 — or point at a live control so it swings that
 control around the value you set. Add one, name it, choose a waveform, set the rate in
 beats (locked to the tempo) or Hz, plus depth and offset, and optionally pick a control. Knobs, sliders and learned MIDI keep moving the base value; the
 swing follows. Modulations save with the scene. On Push 3 the lower display buttons
