@@ -76,9 +76,11 @@ function renderEditScreen(ctx, edit, lowerLabels) {
   ];
   cells.forEach(([label, value], i) => {
     const x = i * 120;
-    ctx.fillStyle = label ? '#3a2f0c' : '#1d2122'; ctx.fillRect(x + 4, 72, 112, 68);
-    ctx.fillStyle = '#b9bdc1'; ctx.font = '12px monospace'; ctx.fillText(label, x + 10, 90);
-    ctx.fillStyle = label ? '#f2c14e' : '#2b3234'; ctx.font = 'bold 22px monospace'; ctx.fillText(String(value).slice(0, 9), x + 10, 124);
+    // Neutral dark cards: dark amber turns olive through the Push's colour depth.
+    ctx.fillStyle = label ? '#1a1e20' : '#141718'; ctx.fillRect(x + 4, 72, 112, 68);
+    ctx.fillStyle = label ? '#f2c14e' : '#22282a'; ctx.fillRect(x + 4, 72, 112, 2);
+    ctx.fillStyle = '#b9bdc1'; ctx.font = '12px monospace'; ctx.fillText(label, x + 10, 92);
+    ctx.fillStyle = label ? '#f2c14e' : '#2b3234'; ctx.font = 'bold 22px monospace'; ctx.fillText(String(value).slice(0, 9), x + 10, 126);
   });
   drawLowerStrip(ctx, lowerLabels);
 }
