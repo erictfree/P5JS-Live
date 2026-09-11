@@ -216,18 +216,3 @@ git diff --cached --check
 Run the focused test for the area changed, the full unit suite, and `npm run build`
 before pushing. Use the existing end-to-end tests when a workflow crosses editor,
 runtime, canvas, or browser permission boundaries.
-
-## Claude Cloud sessions and GitHub access
-
-Findings from 2026-09-11, for anyone working on this repo through Claude Cloud sessions:
-
-- The Mac-side Cowork VM shell cannot reach github.com or the npm registry (403 from
-  the proxy). `git push` and `npm install` must be run from a normal Terminal.
-- Cloud-sandbox sessions can push only to repositories in the session's authorized
-  set, which is fixed when the session is created. A session started from the desktop
-  app with a folder link has an empty set and cannot push, even after authorizing the
-  Claude GitHub App. To get a session that can push and open PRs, start a new task at
-  claude.ai/code with `erictfree/P5JS-Live` selected in the repository picker, or run
-  `claude --cloud "..."` from inside this checkout.
-- Working pattern for desktop-linked sessions: edit and commit in the local checkout,
-  then push from Terminal.
