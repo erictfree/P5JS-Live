@@ -167,11 +167,11 @@ virtual surface exactly:
   gates its optional drawing on the flag.
 - **Encoders 1–8** drive the eight live controls shown under them on the display
   (Shift for fine steps).
-- **Pad animations run on Push's own timing.** The adapter sends a bare MIDI Start
-  when the output appears and never sends clock ticks, so Push animates at its
-  built-in fallback rate (about 120 BPM) and a playing pad pulses slowly and steadily
-  whatever the app tempo. Tap Tempo carries the beat. The bench's Pulse button still
-  starts a real clock for testing; Release stops it.
+- **Pad animations use a fixed clock, not the app tempo.** Push only advances LED
+  animations on incoming MIDI clock (with Start and no ticks a pulse freezes at its
+  target colour, verified on hardware). The adapter keeps a 120 BPM clock running
+  whenever an output exists, restarting it if the bench stops it, so a playing pad
+  pulses once a second whatever the app tempo. Tap Tempo carries the beat.
 
 The adapter sends the full 64-pad frame when an output appears and only changed
 LEDs afterwards. Relevant files: `src/performance/push3Adapter.js` (input routing,

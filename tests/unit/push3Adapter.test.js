@@ -12,7 +12,8 @@ function fakeLeds({ output = true } = {}) {
     hasOutput: vi.fn(() => output),
     setPad: vi.fn(() => ({ ok: true })),
     animatePad: vi.fn(() => ({ ok: true })),
-    startAnimations: vi.fn(() => ({ ok: true })),
+    clockRunning: vi.fn(() => false),
+    startClock: vi.fn(() => ({ ok: true })),
     subscribe: fn => { listeners.add(fn); return () => listeners.delete(fn); },
     _notify: () => listeners.forEach(fn => fn()),
   };
@@ -114,13 +115,18 @@ describe('Push 3 adapter', () => {
     expect(h.adapter.handleInput({ kind: 'button', name: 'play', pressed: true })).toBe(false);
   });
 
-  it('sends Start once when the output appears so animations run on Push timing, never a tempo clock', () => {
+  it('keeps a fixed 120 BPM animation clock running, independent of the app tempo', () => {
     const h = harness();
-    h.adapter.frame({ running: true, bpm: 120 });
-    h.adapter.frame({ running: true, bpm: 128 });
+    let running = false;
+    h.leds.clockRunning.mockImplementation(() => running);
+    h.leds.startClock.mockImplementation(() => { running = true; return { ok: true }; });
+    h.adapter.frame({ running: true, bpm: 141 });
+    h.adapter.frame({ running: true, bpm: 90 });
+    expect(h.leds.startClock).toHaveBeenCalledTimes(1);
+    expect(h.leds.startClock).toHaveBeenCalledWith(120);
+    running = false; // e.g. the bench's Clear LEDs stopped it
     h.adapter.frame({ running: false, bpm: null });
-    expect(h.leds.startAnimations).toHaveBeenCalledTimes(1);
-    expect(h.leds.startClock).toBeUndefined();
+    expect(h.leds.startClock).toHaveBeenCalledTimes(2);
   });
 
   it('does nothing without an output and refreshes fully when one appears', () => {

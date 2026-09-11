@@ -278,8 +278,10 @@ Animation timing follows MIDI real-time messages:
 ```
 
 In User mode, send clock to the User port. The official Push protocol notes that an
-animation may not begin until the active port receives Start. If no tempo was
-established, the hardware may fall back to 120 BPM. For p5js.live, the existing
+animation may not begin until the active port receives Start. Verified on Push 3
+(2026-09-11): with Start but no clock ticks, animations do not run at a fallback tempo;
+a pulse simply lands on its target colour and stays there. Keep a clock running for as
+long as any animated LED is showing. For p5js.live, the existing
 rhythm clock should schedule 24 `0xF8` messages per beat whenever hardware animation
 is enabled.
 

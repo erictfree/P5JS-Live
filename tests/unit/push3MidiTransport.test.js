@@ -97,7 +97,9 @@ describe('Push 3 MIDI transport', () => {
     const { transport, user } = connected({ options: { setInterval, clearInterval } });
     await transport.connect();
 
+    expect(transport.clockRunning()).toBe(false);
     expect(transport.startClock(120)).toEqual({ ok: true, bpm: 120 });
+    expect(transport.clockRunning()).toBe(true);
     expect([...user.send.mock.calls.at(-1)[0]]).toEqual([0xfa]);
     await vi.advanceTimersByTimeAsync(1000);
     const ticks = user.send.mock.calls.filter(([bytes]) => bytes[0] === 0xf8).length;
@@ -111,17 +113,6 @@ describe('Push 3 MIDI transport', () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(user.send.mock.calls.length).toBe(count);
     expect(transport.startClock(20)).toEqual({ ok: false, reason: 'bpm must be between 30 and 300' });
-    vi.useRealTimers();
-  });
-
-  it('starts animations with a bare Start and no clock ticks', async () => {
-    vi.useFakeTimers();
-    const { transport, user } = connected({ options: { setInterval, clearInterval } });
-    await transport.connect();
-    expect(transport.startAnimations()).toEqual({ ok: true });
-    expect([...user.send.mock.calls.at(-1)[0]]).toEqual([0xfa]);
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(user.send.mock.calls.filter(([bytes]) => bytes[0] === 0xf8)).toHaveLength(0);
     vi.useRealTimers();
   });
 

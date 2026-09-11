@@ -14,7 +14,7 @@ export const PERFORMANCE_HUES = Object.freeze([
 ]);
 
 export const PAD_LED = Object.freeze({
-  playingPulse: animationChannel('pulse', '1/2'), // slowest hardware pulse; runs on Push's own timing, not the app beat
+  playingPulse: animationChannel('pulse', '1/2'), // slowest hardware pulse: one second per cycle at the fixed animation clock
   queuedPulse: animationChannel('pulse', '1/8'),
   loadingBlink: animationChannel('blink', '1/8'),
   effectOn: PUSH3_COLORS.green,
@@ -68,6 +68,11 @@ export function renderPadFrame({ state, entries, effects }) {
 
 const ledKey = led => `${led.base}/${led.target ?? ''}/${led.channel}`;
 
+// Push only advances LED animations on incoming MIDI clock. Feed it a fixed rate that is
+// unrelated to the app tempo, so a playing pad pulses slowly and steadily; the beat is
+// shown on Tap Tempo instead.
+export const ANIMATION_CLOCK_BPM = 120;
+
 export function createPush3Adapter({
   launcher, leds, store, registry, effects, diagnostics,
   schedule = callback => (globalThis.requestAnimationFrame ?? setTimeout)(callback),
@@ -102,13 +107,14 @@ export function createPush3Adapter({
     schedule(render);
   }
 
-  // Once per animation frame. Pad animations deliberately run on Push's own internal
-  // timing (Start with no clock ticks), so a playing pad pulses slowly and steadily
-  // regardless of the app tempo. Tap Tempo carries the beat instead.
+  // Once per animation frame. Keeps the fixed-rate animation clock running whenever an
+  // output exists (the bench's Clear/Release can stop it), and refreshes the LEDs when
+  // an output appears.
   function frame() {
     const has = leds.hasOutput();
-    if (has && !hadOutput) { lastFrame = new Map(); leds.startAnimations(); scheduleRender(); }
+    if (has && !hadOutput) { lastFrame = new Map(); scheduleRender(); }
     if (!has && hadOutput) lastFrame = new Map();
+    if (has && !leds.clockRunning()) leds.startClock(ANIMATION_CLOCK_BPM);
     hadOutput = has;
   }
 
