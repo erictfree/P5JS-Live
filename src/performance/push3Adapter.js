@@ -4,6 +4,7 @@
 // performanceLauncher.js splits the same way and remains the reference behaviour.
 
 import { PUSH3_BUTTONS, PUSH3_COLORS, animationChannel } from './push3Map.js';
+import { WAVEFORMS, WAVE_GLYPHS } from './modulations.js';
 import { PADS_PER_BANK } from './launcher.js';
 
 
@@ -24,17 +25,20 @@ export const LOWER_BUTTONS = Object.freeze([
 ]);
 // Lower display buttons: one modulation slot each, in list order (the first eight).
 // Off = empty slot, dim = defined but stopped, bright amber = running.
-export const LOWER_LED = Object.freeze({ none: PUSH3_COLORS.off, defined: PUSH3_COLORS.darkGray, running: PUSH3_COLORS.amber });
+export const LOWER_LED = Object.freeze({ none: PUSH3_COLORS.off, defined: PUSH3_COLORS.darkGray, running: PUSH3_COLORS.amber, editing: PUSH3_COLORS.white });
+
+// Encoder layout while editing a modulation (one parameter per column).
+export const EDIT_COLUMNS = Object.freeze(['wave', 'rate', 'rateMode', 'depth', 'offset', 'moves', 'on', null]);
 
 export function modulationSlots(modulations) {
   const list = modulations?.list?.() ?? [];
   return Array.from({ length: LOWER_BUTTONS.length }, (_, index) => list[index] ?? null);
 }
 
-export function renderLowerButtons({ modulations }) {
+export function renderLowerButtons({ modulations, editingId = null }) {
   const frame = new Map();
   modulationSlots(modulations).forEach((m, index) => {
-    const color = !m ? LOWER_LED.none : m.on ? LOWER_LED.running : LOWER_LED.defined;
+    const color = !m ? LOWER_LED.none : m.id === editingId ? LOWER_LED.editing : m.on ? LOWER_LED.running : LOWER_LED.defined;
     frame.set(LOWER_BUTTONS[index], { base: color, channel: 0 });
   });
   return frame;
@@ -145,6 +149,7 @@ export function createPush3Adapter({
   let browse = null; // { index, until } while the jog wheel is browsing performances
   const heldLower = new Map(); // lower button index → { moved } while pressed
   let volumeShownUntil = 0; // the screen shows the level for a moment after the Volume encoder moves
+  let editingId = null; // modulation being edited with the encoders (Shift + lower button)
   const VOLUME_FLASH_MS = 2500;
   let renderQueued = false;
   let hadOutput = false;
@@ -179,7 +184,7 @@ export function createPush3Adapter({
     const params = registry.listParams();
     return sendFrame(renderPadFrame({ state, entries: store.list(), effects: effects.list() }))
       + sendButtons(renderUpperButtons({ targets: state.targets, params }))
-      + sendButtons(renderLowerButtons({ modulations }));
+      + sendButtons(renderLowerButtons({ modulations, editingId: editState() ? editingId : null }));
   }
 
   // Lower button N = modulation N. Press-and-release toggles it (Shift: steps its
@@ -197,7 +202,47 @@ export function createPush3Adapter({
       const firstEmpty = slots.findIndex(slot => !slot);
       return index === firstEmpty ? Boolean(modulations.add({})) : false;
     }
-    return shiftHeld ? Boolean(modulations.cycleWave(m.id)) : Boolean(modulations.toggle(m.id));
+    if (shiftHeld) { editingId = editingId === m.id ? null : m.id; scheduleRender(); return true; }
+    return Boolean(modulations.toggle(m.id));
+  }
+
+  // Edit mode: the eight encoders set the chosen modulation's parameters.
+  function editState() {
+    if (!editingId || !modulations) return null;
+    const m = modulations.get?.(editingId) ?? modulations.list().find(entry => entry.id === editingId);
+    if (!m) { editingId = null; return null; }
+    const numeric = registry.listParams().filter(p => typeof p.value === 'number').map(p => p.name);
+    return {
+      id: m.id, name: m.name, wave: m.wave, glyph: WAVE_GLYPHS[m.wave], sync: m.sync, beats: m.beats, hz: m.hz,
+      depth: m.depth, offset: m.offset, target: m.target || '', on: m.on, targets: numeric,
+      columns: EDIT_COLUMNS,
+    };
+  }
+  function editWithEncoder(index, delta) {
+    const state = editState();
+    if (!state) return false;
+    const step = Math.sign(delta);
+    switch (EDIT_COLUMNS[index]) {
+      case 'wave': modulations.update(state.id, { wave: WAVEFORMS[((WAVEFORMS.indexOf(state.wave) + step) % WAVEFORMS.length + WAVEFORMS.length) % WAVEFORMS.length] }); break;
+      case 'rate':
+        if (state.sync) {
+          const at = BEAT_STEPS.findIndex(b => Math.abs(b - state.beats) < 1e-9);
+          modulations.update(state.id, { beats: BEAT_STEPS[Math.min(BEAT_STEPS.length - 1, Math.max(0, (at < 0 ? 2 : at) + step))] });
+        } else modulations.update(state.id, { hz: Math.min(30, Math.max(0.01, Math.round((state.hz + delta * 0.1) * 100) / 100)) });
+        break;
+      case 'rateMode': modulations.update(state.id, { sync: step < 0 ? false : true }); break;
+      case 'depth': modulations.update(state.id, { depth: Math.min(1, Math.max(0, state.depth + delta * 0.02)) }); break;
+      case 'offset': modulations.update(state.id, { offset: Math.min(1, Math.max(-1, state.offset + delta * 0.02)) }); break;
+      case 'moves': {
+        const options = ['', ...state.targets];
+        const at = Math.max(0, options.indexOf(state.target));
+        modulations.update(state.id, { target: options[((at + step) % options.length + options.length) % options.length] });
+        break;
+      }
+      case 'on': modulations.update(state.id, { on: step > 0 }); break;
+      default: break;
+    }
+    return true;
   }
   function editHeldModulation(index, delta) {
     const held = heldLower.get(index);
@@ -304,6 +349,7 @@ export function createPush3Adapter({
     }
     if (event.kind === 'encoder' && Number.isInteger(event.encoder)) {
       if (editHeldModulation(event.encoder, event.delta)) return true;
+      if (editWithEncoder(event.encoder, event.delta)) return true;
       launcher.dispatch({ action: 'encoder', index: event.encoder, value: event.delta, relative: true, fine: shiftHeld });
       return true;
     }
@@ -345,6 +391,7 @@ export function createPush3Adapter({
     handleInput,
     render,
     browseState,
+    editState,
     // Level readout for the screen: active for a moment after the Volume encoder moves.
     volumeOverlay() { return { level: transport?.status?.()?.volume ?? 1, active: now() < volumeShownUntil }; },
     snapshot() { return { shiftHeld, lit: lastFrame.size, buttons: lastButtons.size, browsing: browseState(), heldLower: [...heldLower.keys()] }; },

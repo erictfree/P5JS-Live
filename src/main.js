@@ -1207,6 +1207,7 @@ performanceSurface = createPerformanceSurface({
   transport: () => audio.status(),
   browser: () => push3Adapter?.browseState() ?? null,
   volume: () => push3Adapter?.volumeOverlay() ?? null,
+  editing: () => push3Adapter?.editState() ?? null,
   performanceName: () => performanceLibrary.current()?.name ?? null,
   modulations,
   addDemos() {

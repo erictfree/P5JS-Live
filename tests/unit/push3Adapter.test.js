@@ -39,7 +39,7 @@ function harness({ state = baseState, effects = [], output = true, audio = { kin
   const transport = { toggle: vi.fn(async () => true), status: vi.fn(() => audio), setVolume: vi.fn(level => { audio.volume = level; return level; }) };
   const library = performances ? { list: vi.fn(() => performances), currentId: vi.fn(() => currentId), load: vi.fn(async () => ({ ok: true })) } : null;
   const onBrowse = vi.fn();
-  const modulations = mods ? { list: vi.fn(() => mods), forTarget: vi.fn(t => mods.filter(m => m.target === t)), add: vi.fn(() => ({ id: 'new' })), toggle: vi.fn(() => ({ ok: true })), cycleWave: vi.fn(() => ({ ok: true })), update: vi.fn((id, changes) => Object.assign(mods.find(m => m.id === id), changes)), subscribe: vi.fn(() => () => {}) } : null;
+  const modulations = mods ? { list: vi.fn(() => mods), get: vi.fn(id => mods.find(m => m.id === id) ?? null), forTarget: vi.fn(t => mods.filter(m => m.target === t)), add: vi.fn(() => ({ id: 'new' })), toggle: vi.fn(() => ({ ok: true })), cycleWave: vi.fn(() => ({ ok: true })), update: vi.fn((id, changes) => Object.assign(mods.find(m => m.id === id), changes)), subscribe: vi.fn(() => () => {}) } : null;
   const adapter = createPush3Adapter({ launcher, leds, store, registry, effects: board, transport, library, onBrowse, modulations, now: () => time.now, schedule: fn => queue.push(fn) });
   const flush = () => { while (queue.length) queue.shift()(); };
   return { adapter, launcher, leds, board, registry, transport, audio, library, onBrowse, modulations, time, flush };
@@ -265,7 +265,9 @@ describe('Push 3 adapter', () => {
     expect(h.modulations.toggle).toHaveBeenCalledWith('a');
     h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
     press(1); release(1);
-    expect(h.modulations.cycleWave).toHaveBeenCalledWith('b');
+    expect(h.adapter.editState()).toMatchObject({ id: 'b', name: 'wobble' }); // Shift + button enters edit mode
+    press(1); release(1);
+    expect(h.adapter.editState()).toBeNull(); // again leaves it
     h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: false, value: 0 });
     press(2); release(2);
     expect(h.modulations.add).toHaveBeenCalledTimes(1); // first empty slot creates one
@@ -292,5 +294,39 @@ describe('Push 3 adapter', () => {
     h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: true, value: 127 });
     h.adapter.handleInput({ kind: 'encoder', encoder: 3, delta: 1 });
     expect(h.launcher.dispatch).toHaveBeenCalledWith({ action: 'encoder', index: 3, value: 1, relative: true, fine: false });
+  });
+
+  it('edit mode maps the encoders to the modulation parameters and lights the slot white', () => {
+    const mods = [{ id: 'a', name: 'lfo1', target: '', on: true, wave: 'sine', depth: 0.25, offset: 0, beats: 1, hz: 1, sync: true }];
+    const h = harness({ mods });
+    h.registry.listParams.mockImplementation(() => [{ name: 'size', value: 1 }, { name: 'speed', value: 2 }]);
+    h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
+    h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: true, value: 127 });
+    h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: false, value: 0 });
+    h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: false, value: 0 });
+    expect(h.adapter.editState()).toMatchObject({ id: 'a', targets: ['size', 'speed'] });
+    expect(renderLowerButtons({ modulations: h.modulations, editingId: 'a' }).get(LOWER_BUTTONS[0])).toEqual({ base: LOWER_LED.editing, channel: 0 });
+
+    h.adapter.handleInput({ kind: 'encoder', encoder: 0, delta: 1 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { wave: 'triangle' });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 1, delta: 1 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { beats: 2 });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 2, delta: -1 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { sync: false });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 1, delta: 2 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { hz: 1.2 });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 3, delta: -5 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { depth: 0.15 });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 4, delta: 10 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { offset: 0.2 });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 5, delta: 1 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { target: 'size' });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 5, delta: -2 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { target: '' }); // one option per turn, whatever the speed
+    h.adapter.handleInput({ kind: 'encoder', encoder: 6, delta: -1 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { on: false });
+    expect(h.launcher.dispatch).not.toHaveBeenCalled(); // controls untouched while editing
+    h.adapter.handleInput({ kind: 'encoder', encoder: 7, delta: 1 }); // spare column
+    expect(h.launcher.dispatch).not.toHaveBeenCalled();
   });
 });

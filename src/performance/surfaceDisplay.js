@@ -11,7 +11,7 @@ export const SURFACE_PROFILES = Object.freeze([
 // encoder, and mirrors the toolbar BPM readout with a dot that lights on the same
 // 80 ms beat window as the tap button. Title and status shift right to make room.
 const TEMPO_WIDTH = 190;
-export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null, lowerLabels = null, volume = null }) {
+export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null, lowerLabels = null, volume = null, edit = null }) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#171a1c'; ctx.fillRect(0, 0, 960, 160);
   const left = tempo ? 15 + TEMPO_WIDTH + 10 : 15;
@@ -68,7 +68,28 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
     ctx.fillText(`${browser.sceneCount} scene${browser.sceneCount === 1 ? '' : 's'} · turn jog to browse · press to load`, 120, 150);
     return;
   }
-  controls.forEach((control, i) => {
+  if (edit) {
+    // Modulation edit mode: each column is one parameter of the chosen modulation.
+    ctx.fillStyle = '#3a2f0c'; ctx.fillRect(0, 66, 960, 2);
+    ctx.fillStyle = '#f2c14e'; ctx.font = 'bold 13px monospace';
+    ctx.fillText(`EDIT ${edit.glyph} ${edit.name} — Shift + button to leave`, 15, 64);
+    const cells = [
+      ['Wave', `${edit.glyph} ${edit.wave}`],
+      ['Rate', edit.sync ? `${edit.beats} beat${edit.beats === 1 ? '' : 's'}` : `${edit.hz} Hz`],
+      ['Rate mode', edit.sync ? 'Beats' : 'Hz'],
+      ['Depth', `${Math.round(edit.depth * 100)}%`],
+      ['Offset', `${Math.round(edit.offset * 100)}%`],
+      ['Moves', edit.target || 'nothing'],
+      ['On', edit.on ? 'On' : 'Off'],
+      ['', ''],
+    ];
+    cells.forEach(([label, value], i) => {
+      const x = i * 120;
+      ctx.fillStyle = label ? '#5c4a14' : '#2b3234'; ctx.fillRect(x + 5, 75, 110, 2);
+      ctx.fillStyle = '#e2e4e5'; ctx.font = '14px monospace'; ctx.fillText(label, x + 8, 103);
+      ctx.fillStyle = '#f2c14e'; ctx.font = '20px monospace'; ctx.fillText(String(value).slice(0, 9), x + 8, 137);
+    });
+  } else controls.forEach((control, i) => {
     const x = i * 120;
     ctx.fillStyle = '#42474b'; ctx.fillRect(x + 5, 75, 110, 2);
     ctx.fillStyle = '#e2e4e5'; ctx.font = '14px monospace'; ctx.fillText((control?.name ?? 'Unassigned').slice(0, 12), x + 8, 103);

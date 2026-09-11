@@ -288,8 +288,11 @@ UI: the **Modulations** tab (`src/ui/modulationsPanel.js`). Push: the **lower di
 buttons** are modulation slots in list order — press-and-release toggles modulation N,
 Shift + press-release steps its waveform, and a press on the first empty slot adds a
 new one (lfoN). **Hold** the button and turn the encoder above it to set depth (2% per
-click) or, with Shift, the rate (beat steps ¼…16, or ±0.1 Hz when free-running); an
-edit suppresses the toggle on release.
+click); an edit suppresses the toggle on release. **Shift + press-release enters edit
+mode** for that modulation (again to leave; LED white): the eight encoders become Wave,
+Rate, Rate mode (beats/Hz), Depth, Offset, Moves (target control), On, spare, and the
+screen shows those columns with an EDIT header. Other encoders never touch controls
+while editing.
 LED off/dim/amber for empty/defined/running. The screen's bottom strip labels each slot
 (glyph, name, rate; the next empty slot reads "+ new"); a modulation that targets a
 control also shows its glyph and rate in that control's column and the readout follows
