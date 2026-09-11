@@ -208,6 +208,23 @@ were measured on Push 3 and cover the main UI vocabulary:
 | Pure green | 126 | `#00FF00` |
 | Pure red | 127 | `#FF0000` |
 
+### White LEDs
+
+Buttons with white-only LEDs (Tap Tempo, Metronome, and most other non-pad buttons)
+ignore the RGB palette. They read the palette's separate white component, which in the
+default palette is effectively a brightness ramp by index:
+
+| Index | White level |
+| ---: | --- |
+| 0 | off |
+| 16 | dark gray |
+| 48 | light gray |
+| 127 | full |
+
+So on a white button, 118, 119 and 122 all look near-white, and a colour like green (10)
+looks almost off. Verified on Push 3 on 2026-09-11: Tap Tempo and Metronome are white
+LEDs. Use `PUSH3_WHITE` from `push3Map.js` for these buttons.
+
 Use the measured 128-entry source linked above when exact color matching is needed.
 The palette is device state and may change in later firmware, so a production adapter
 should keep semantic names and permit a hardware-query override rather than spreading

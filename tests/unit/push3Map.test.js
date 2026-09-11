@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PUSH3_BUTTONS,
   PUSH3_COLORS,
+  PUSH3_WHITE,
   animationChannel,
   buttonName,
   decodePushMessage,
@@ -71,6 +72,14 @@ describe('Push 3 map', () => {
     expect(decodePushMessage([0xb0, 93, 127])).toMatchObject({ kind: 'button', name: 'jogLeft' });
     expect(decodePushMessage([0xf8])).toBeNull();
     expect(decodePushMessage([0xe0, 0, 64])).toBeNull();
+  });
+
+  it('keeps a white-LED brightness scale separate from the RGB palette', () => {
+    expect(PUSH3_WHITE.off).toBe(0);
+    expect(PUSH3_WHITE.dim).toBe(16);
+    expect(PUSH3_WHITE.full).toBe(127);
+    expect(PUSH3_WHITE.dim).toBeLessThan(PUSH3_WHITE.half);
+    expect(PUSH3_WHITE.half).toBeLessThan(PUSH3_WHITE.full);
   });
 
   it('keeps the measured palette anchors', () => {

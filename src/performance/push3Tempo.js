@@ -4,7 +4,7 @@
 // Tap Tempo taps tempo; the Tempo encoder nudges the manual BPM. Pure logic over the LED
 // transport; no DOM, no timers.
 
-import { PUSH3_BUTTONS, PUSH3_COLORS } from './push3Map.js';
+import { PUSH3_BUTTONS, PUSH3_WHITE } from './push3Map.js';
 
 export const TAP_FLASH_MS = 80; // same window as rhythmPanel's beat light
 const BPM_MIN = 30;
@@ -34,9 +34,10 @@ export function createPush3TempoLink({
   leds, rhythm, tap,
   now = () => (globalThis.performance?.now?.() ?? Date.now()),
   flashMs = TAP_FLASH_MS,
+  // Tap Tempo and Metronome are white LEDs, so these are white-palette brightness steps.
   colors: {
-    tapIdle = PUSH3_COLORS.darkGray, tapBeat = PUSH3_COLORS.litWhite, tapPressed = PUSH3_COLORS.brightGreen,
-    metronomeLeft = PUSH3_COLORS.litWhite, metronomeRight = PUSH3_COLORS.mediumGray, metronomeOff = PUSH3_COLORS.off,
+    tapIdle = PUSH3_WHITE.dim, tapBeat = PUSH3_WHITE.full, tapPressed = PUSH3_WHITE.full,
+    metronomeLeft = PUSH3_WHITE.full, metronomeRight = PUSH3_WHITE.dim, metronomeOff = PUSH3_WHITE.off,
   } = {},
 } = {}) {
   const lastSent = { metronome: null, tap: null }; // palette index last written per LED

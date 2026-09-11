@@ -42,6 +42,12 @@ export const PUSH3_COLORS = Object.freeze({
   nearBlack: 124, pureBlue: 125, pureGreen: 126, pureRed: 127,
 });
 
+// White-only LEDs (Tap Tempo, Metronome, most non-pad buttons) use the separate white
+// palette, where the index is effectively a brightness ramp: 0 off, 16 dark gray,
+// 48 light gray, 127 full (Ableton Push 2 interface doc, retained on Push 3). RGB palette
+// names above are meaningless on these buttons: 118, 119 and 122 all read as near-white.
+export const PUSH3_WHITE = Object.freeze({ off: 0, dim: 16, half: 48, bright: 90, full: 127 });
+
 // The MIDI channel selects a hardware animation. Channel 0 is static and stops animation.
 const DURATIONS = Object.freeze(['1/24', '1/16', '1/8', '1/4', '1/2']);
 const ANIMATION_BASE = Object.freeze({ oneShot: 1, pulse: 6, blink: 11 });

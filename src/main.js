@@ -1888,4 +1888,6 @@ window.p5jsLive = {
   controlManager,
   aiAssistant,
   rhythm,
+  push3Leds,
+  push3Tempo: () => push3Tempo,
 };
