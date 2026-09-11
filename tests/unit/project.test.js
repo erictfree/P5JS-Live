@@ -247,6 +247,29 @@ describe('import parsing is separate from running', () => {
     expect(store.parseProject(store.exportProject(SOURCE)).data.audio).toBeUndefined();
   });
 
+  it('serialises a stored bundle back to a file and reads whole-library files', () => {
+    const { store } = setup();
+    const parsed = store.parseProject(store.exportProject(SOURCE, { name: 'Alpha', audio: { analysis: {}, loop: false, volume: 0.5 } }));
+    const again = store.parseImport(store.serializeBundle(parsed.data, { name: 'Alpha' }));
+    expect(again).toMatchObject({ ok: true, kind: 'performance', data: { source: SOURCE, name: 'Alpha', audio: { volume: 0.5 } } });
+
+    const entries = [
+      { name: 'Alpha', thumbnail: 'data:image/png;base64,AA', createdAt: 1, updatedAt: 2, data: parsed.data },
+      { name: 'Beta', thumbnail: null, createdAt: 3, updatedAt: 4, data: parsed.data },
+    ];
+    const library = store.parseImport(store.exportLibrary(entries));
+    expect(library.ok).toBe(true);
+    expect(library.kind).toBe('library');
+    expect(library.entries.map(e => [e.name, e.thumbnail])).toEqual([['Alpha', 'data:image/png;base64,AA'], ['Beta', null]]);
+    expect(library.entries[1].data.source).toBe(SOURCE);
+
+    expect(store.parseImport('nope').ok).toBe(false);
+    expect(store.parseImport(JSON.stringify({ format: 'p5js-live-performance-library', schema: 1, performances: [] })).error).toContain('no performances');
+    expect(store.parseImport(JSON.stringify({ format: 'p5js-live-performance-library', schema: 1, performances: [{ format: 'x' }] })).error).toContain('Performance 1');
+    expect(store.slug('  Friday Night Set! ')).toBe('friday-night-set');
+    expect(store.slug('')).toBe('untitled');
+  });
+
   it('round-trips an exported project without inventing composition data', () => {
     const { store } = setup();
     const parsed = store.parseProject(store.exportProject(SOURCE));

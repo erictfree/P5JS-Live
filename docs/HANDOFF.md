@@ -126,11 +126,17 @@ Behaviour, in `src/main.js` under "performance library":
   carry `audio: { analysis, loop, volume }` (analysis smoothing/auto-gain, file loop,
   master volume) and, in files, `name` and `thumbnail`. `parseProject` tolerates and
   drops malformed extras.
-- **Export / Import** work on whole performances: export writes the current one with
-  its name and thumbnail; import adds the file to the library (after the trusted-code
-  confirmation) and loads it, replacing the current scenes and layout rather than
-  merging. **Rename** applies the typed name to the current entry; **↑ ↓** reorder the
-  list, which is also the jog-wheel browsing order.
+- **Export / Import** work on whole performances and sit in the open on the Performance
+  tab: **export** writes the current one with its name and thumbnail, each library row
+  has its own **Export**, and **Export all** at the bottom writes every entry to one
+  library file (`format: p5js-live-performance-library`, each item a complete
+  performance object). **import** accepts either kind: a single performance is added to
+  the library and loaded after the trusted-code confirmation; a library file is added
+  without running anything. **Rename** applies the typed name to the current entry;
+  **↑ ↓** reorder the list, which is also the jog-wheel browsing order.
+- **Scenes are saved from the Scene tab** (form at the top of the composition view); the
+  Performance tab lists and recalls them. **Reset to starter** is the only thing left
+  in the collapsed "Start over" disclosure.
 - **Jog wheel on Push** browses the library: turn (or the click buttons beside it) to
   highlight, press to load. The screen swaps the encoder row for a browser strip with
   thumbnail, name and position; the browser list highlights the same row. A highlight

@@ -253,6 +253,18 @@
           <section class="tool-view" id="scene-panel" role="tabpanel" aria-labelledby="tools-tab-scene" data-tool-panel="scene" hidden>
             <div class="body">
               <div class="scene-heading"><div><span class="scene-eyebrow">Composition</span><h2 id="scene-inspector-name">No scene</h2></div><button id="scene-edit-source" type="button">Edit scene</button></div>
+              <form id="save-performance-form" class="performance-save-row" aria-label="Save this scene">
+                <input
+                  id="performance-name"
+                  type="text"
+                  maxlength="60"
+                  autocomplete="off"
+                  placeholder="Scene name"
+                  aria-label="Scene name"
+                />
+                <button id="save-performance" type="submit">Save scene</button>
+              </form>
+              <p class="hint">Saving keeps this window — source, tuned values, audio analysis and view — as a scene. It becomes a pad and appears under Tools → Performance.</p>
               <p class="hint">Sources and effects run from top to bottom. Each group processes its own image.</p>
               <div id="scene-inspector-status" class="scene-inspector-status" role="status"></div>
               <div id="scene-pending" class="library-pending" hidden><strong>Scene edits are waiting to run</strong><p>The tree below shows the live composition.</p><button id="scene-review-source" type="button">Review scene &amp; run</button></div>
@@ -612,8 +624,20 @@ const publishMain = room.publish({
                   />
                   <button id="library-save" type="submit">Save performance</button>
                 </form>
+                <div class="row">
+                  <span class="name">Performance file</span>
+                  <span class="actions">
+                    <button id="export-project" type="button" title="Export the current performance — source, scenes, layout, controls and settings — as JSON" aria-label="Export this performance as JSON">export</button>
+                    <button id="import-project" type="button" title="Import a performance or a whole library file" aria-label="Import a performance file">import</button>
+                  </span>
+                </div>
+                <input id="import-file" type="file" accept="application/json,.json" hidden />
                 <input id="library-thumb-file" type="file" accept="image/*" hidden />
                 <div id="library-list" class="performance-list library-list" aria-live="polite"></div>
+                <div class="row">
+                  <span class="name hint">Every saved performance in one file</span>
+                  <span class="actions"><button id="export-library" type="button" title="Export all performances as one library file" aria-label="Export all performances">Export all</button></span>
+                </div>
               </div>
             </section>
             <section class="tool-section performance-section">
@@ -622,19 +646,8 @@ const publishMain = room.publish({
               </header>
               <div class="body">
                 <p class="hint performance-hint">
-                  A scene is a saved working window: source, tuned values, audio analysis and view. Pads and the list below recall it. Audio files stay separate.
+                  Scenes are saved from the Scene tab. Pads and the list below recall them. Audio files stay separate.
                 </p>
-                <form id="save-performance-form" class="performance-save-row">
-                  <input
-                    id="performance-name"
-                    type="text"
-                    maxlength="60"
-                    autocomplete="off"
-                    placeholder="Scene name"
-                    aria-label="Scene name"
-                  />
-                  <button id="save-performance" type="submit">Save scene</button>
-                </form>
                 <div id="performance-launcher"></div>
                 <div id="performance-list" class="performance-list" aria-live="polite"></div>
               </div>
@@ -653,21 +666,8 @@ const publishMain = room.publish({
               </div>
             </section>
             <details class="tool-disclosure project-file">
-              <summary>Performance files</summary>
+              <summary>Start over</summary>
             <div class="body">
-              <div class="row">
-                <span class="name">performance file</span>
-                <span class="actions">
-                  <button id="export-project" type="button" title="Export this performance — source, controls, layout and every scene — as JSON" aria-label="Export this performance as JSON">
-                    export
-                  </button>
-                  <button id="import-project" type="button" title="Import a performance file and merge its scenes" aria-label="Import a performance file and merge its scenes">
-                    import
-                  </button>
-
-                </span>
-              </div>
-              <input id="import-file" type="file" accept="application/json,.json" hidden />
               <div class="project-reset">
                 <button
                     id="reset-project"

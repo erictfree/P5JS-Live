@@ -57,7 +57,15 @@ async function selectTool(page, name) {
   const tab = page.getByRole('tab', { name: new RegExp(`^${name}`) });
   if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
   await expect(tab).toHaveAttribute('aria-selected', 'true');
-  if (name === 'Performances') await page.locator('.project-file').evaluate((details) => { details.open = true; });
+  if (name === 'Performance') await page.locator('.project-file').evaluate((details) => { details.open = true; });
+}
+
+/** Scenes are saved from the Scene tab; come back to the Performance tab afterwards. */
+async function saveScene(page, name) {
+  await selectTool(page, 'Scene');
+  await page.locator('#performance-name').fill(name);
+  await page.getByRole('button', { name: 'Save scene', exact: true }).click();
+  await selectTool(page, 'Performance');
 }
 
 async function openReference(page) {
@@ -1961,7 +1969,7 @@ circle(20, 20, 10);
     await expect(page.locator('#library-tab-count')).toHaveText('2');
     await expect(page.locator('#stagebar')).not.toContainText('set safe');
 
-    await page.getByRole('tab', { name: 'Performances' }).click();
+    await page.getByRole('tab', { name: 'Performance' }).click();
     await expect(page.locator('#project-panel')).toBeVisible();
     await expect(page.locator('#project-panel')).toContainText('Recovery point');
   });
@@ -2185,12 +2193,11 @@ test.describe('named Performance recall', () => {
     }))).toEqual({ top: 0, left: 0 });
   });
 
-  test('starts a new default performance from the button or modifier shortcut without deleting named performances', async ({ page }) => {
+  test('starts a new default performance from the button or modifier shortcut with an empty scene list', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Performances');
+    await selectTool(page, 'Performance');
 
-    await page.locator('#performance-name').fill('Keep this one');
-    await page.getByRole('button', { name: 'Save current' }).click();
+    await saveScene(page, 'Keep this one');
 
     const alternate = [
       '// %% patch alternate',
@@ -2203,7 +2210,6 @@ test.describe('named Performance recall', () => {
       window.p5jsLive.editor.value = source;
       window.p5jsLive.editor.evaluateBuffer();
     }, alternate);
-    await page.locator('#performance-name').fill('Unsaved name');
 
     await expect(
       page.getByRole('button', { name: 'Start a new performance from the default starter' }),
@@ -2212,7 +2218,7 @@ test.describe('named Performance recall', () => {
     await page.keyboard.press('Control+Alt+n');
     const dialog = page.locator('.dialog-backdrop');
     await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText('named performances stay saved');
+    await expect(dialog).toContainText('start empty');
     await dialog.getByRole('button', { name: 'Start fresh' }).click();
 
     await expect
@@ -2223,9 +2229,8 @@ test.describe('named Performance recall', () => {
     );
     await expect(page.locator('#code')).toHaveValue(/scene\.draw\(\)/);
     await expect(page.locator('#code')).not.toHaveValue(/\/\/ %% patch effects/);
-    await expect(page.locator('#performance-name')).toHaveValue('');
-    await expect(page.locator('#performance-name')).toBeFocused();
-    await expect(page.locator('.performance-row')).toContainText('Keep this one');
+    await expect(page.locator('#library-name')).toBeFocused();
+    await expect(page.locator('#performance-list')).toContainText('No saved scenes yet');
     await expect
       .poll(() => page.evaluate(() => window.p5jsLive.controller.snapshot().safeState))
       .toMatchObject({ exists: true, sceneName: 'scene', dirty: false });
@@ -2233,7 +2238,7 @@ test.describe('named Performance recall', () => {
 
   test('saves and recalls source, scene, parameters, audio analysis and view settings', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Performances');
+    await selectTool(page, 'Performance');
 
     await page.locator('#smoothing').evaluate((input) => {
       input.value = '0.35';
@@ -2245,9 +2250,8 @@ test.describe('named Performance recall', () => {
     });
     await selectTool(page, 'Settings');
     await page.locator('#code-size').fill('18');
-    await selectTool(page, 'Performances');
-    await page.locator('#performance-name').fill('Opening look');
-    await page.getByRole('button', { name: 'Save current' }).click();
+    await selectTool(page, 'Performance');
+    await saveScene(page, 'Opening look');
     await expect(page.locator('.performance-row')).toContainText('Opening look');
     await expect(page.locator('.performance-row')).toContainText('scene');
 
@@ -2274,7 +2278,7 @@ test.describe('named Performance recall', () => {
     });
     await selectTool(page, 'Settings');
     await page.locator('#code-size').fill('12');
-    await selectTool(page, 'Performances');
+    await selectTool(page, 'Performance');
 
     await page.locator('.performance-row').getByRole('button', { name: 'Recall' }).click();
     await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeSceneName())).toBe('scene');
@@ -2299,15 +2303,14 @@ test.describe('named Performance recall', () => {
       window.p5jsLive.editor.setFolded(false);
     });
     await openTools(page);
-    await selectTool(page, 'Performances');
+    await selectTool(page, 'Performance');
     await expect(page.locator('.performance-row')).toContainText('Opening look');
   });
 
   test('a broken saved performance leaves the previous render and source running', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Performances');
-    await page.locator('#performance-name').fill('Broken slot');
-    await page.getByRole('button', { name: 'Save current' }).click();
+    await selectTool(page, 'Performance');
+    await saveScene(page, 'Broken slot');
 
     const keeper = [
       '// %% patch keeper',
@@ -2333,7 +2336,7 @@ test.describe('named Performance recall', () => {
 
     await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeSceneName())).toBe('keeperScene');
     expect(await page.locator('#code').inputValue()).toContain('const keeperScene');
-    await expect(page.locator('#diagnostics-list')).toContainText('previous performance restored');
+    await expect(page.locator('#diagnostics-list')).toContainText('previous scene restored');
   });
 });
 
@@ -2368,7 +2371,7 @@ test.describe('anchored performance controls', () => {
 test.describe('project portability', () => {
   test('exports a readable project file', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Performances');
+    await selectTool(page, 'Performance');
 
     await page.evaluate(() => window.p5jsLive.performanceStore.save({
       name: 'Portable custom patch',
@@ -2380,9 +2383,9 @@ test.describe('project portability', () => {
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'Export this project and all named performances as JSON' }).click(),
+      page.getByRole('button', { name: 'Export this performance as JSON' }).click(),
     ]);
-    expect(download.suggestedFilename()).toMatch(/^p5js-live-project-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(download.suggestedFilename()).toMatch(/^p5js-live-performance-untitled-\d{4}-\d{2}-\d{2}\.json$/);
     const exported = JSON.parse(await readFile(await download.path(), 'utf8'));
     expect(exported.performances).toHaveLength(1);
     expect(exported.performances[0].source).toContain('myNewPatch');
@@ -2447,7 +2450,7 @@ test.describe('project portability', () => {
 
   test('reset goes back to the starter without reloading the page', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Performances');
+    await selectTool(page, 'Performance');
 
     // Make a mess: a new strategy, extra copies, a wrecked scene, accumulated state.
     await page.evaluate(() =>
@@ -2467,7 +2470,7 @@ test.describe('project portability', () => {
     }));
     expect(before.strategies).toBe(3);
 
-    await page.getByRole('button', { name: 'Discard everything and go back to the starter project' }).click();
+    await page.getByRole('button', { name: 'Discard everything and go back to the starter' }).click();
     const dialog = page.locator('.dialog-backdrop');
     await expect(dialog).toBeVisible();
     await expect(dialog.locator('.dialog-warning')).toContainText('no undo');
@@ -2476,7 +2479,7 @@ test.describe('project portability', () => {
     await dialog.getByRole('button', { name: 'Cancel' }).click();
     expect(await page.evaluate(() => window.p5jsLive.registry.hasStrategy('mess'))).toBe(true);
 
-    await page.getByRole('button', { name: 'Discard everything and go back to the starter project' }).click();
+    await page.getByRole('button', { name: 'Discard everything and go back to the starter' }).click();
     await dialog.getByRole('button', { name: 'Reset to starter' }).click();
 
     await expect
@@ -2549,17 +2552,15 @@ test.describe('patch sharing and live commands', () => {
 
   test('keeps performance slots stable and reports the quick-save slot', async ({ page }) => {
     await boot(page);
-    await selectTool(page, 'Performances');
-    await page.locator('#performance-name').fill('First');
-    await page.getByRole('button', { name: 'Save current' }).click();
+    await selectTool(page, 'Performance');
+    await saveScene(page, 'First');
 
     await page.locator('#code').focus();
     await page.keyboard.press('Control+Alt+s');
     await expect(page.locator('.performance-title')).toHaveText([/1\. First/, /2\. Quick/]);
     await expect(page.locator('#stat-status')).toContainText('slot 2');
 
-    await page.locator('#performance-name').fill('Third');
-    await page.getByRole('button', { name: 'Save current' }).click();
+    await saveScene(page, 'Third');
     await expect(page.locator('.performance-title')).toHaveText([/1\. First/, /2\. Quick/, /3\. Third/]);
   });
 
@@ -2567,9 +2568,8 @@ test.describe('patch sharing and live commands', () => {
     const pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));
     await boot(page, { folded: true });
-    await selectTool(page, 'Performances');
-    await page.locator('#performance-name').fill('Starter');
-    await page.getByRole('button', { name: 'Save current' }).click();
+    await selectTool(page, 'Performance');
+    await saveScene(page, 'Starter');
 
     const alternate = [
       '// %% patch movingDot',

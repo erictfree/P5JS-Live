@@ -1607,6 +1607,23 @@ async function deletePerformance(id) {
   renderLibrary();
 }
 
+function exportPerformanceEntry(id) {
+  const entry = performanceLibrary.get(id);
+  if (!entry) return null;
+  const text = projectStore.serializeBundle(entry.data, { name: entry.name, ...(entry.thumbnail ? { thumbnail: entry.thumbnail } : {}) });
+  const filename = projectStore.downloadText(text, `p5js-live-performance-${projectStore.slug(entry.name)}-${new Date().toISOString().slice(0, 10)}.json`);
+  diagnostics.success(`Exported ${filename}`, `${entry.data.performances?.length ?? 0} scene${(entry.data.performances?.length ?? 0) === 1 ? '' : 's'}, layout, controls and settings. Audio files remain separate.`);
+  return filename;
+}
+
+function exportAllPerformances() {
+  const entries = performanceLibrary.list().map(summary => performanceLibrary.get(summary.id)).filter(Boolean);
+  if (!entries.length) { diagnostics.warn('Nothing to export yet', 'Save a performance first.'); return null; }
+  const filename = projectStore.downloadText(projectStore.exportLibrary(entries), `p5js-live-performances-${new Date().toISOString().slice(0, 10)}.json`);
+  diagnostics.success(`Exported ${filename}`, `${entries.length} performance${entries.length === 1 ? '' : 's'} in one library file.`);
+  return filename;
+}
+
 async function updateThumbnailFromStage() {
   const id = performanceLibrary.currentId();
   if (!id) return;
@@ -1667,6 +1684,7 @@ function renderLibrary() {
     actions.className = 'performance-actions';
     for (const [action, label, title] of [
       ['load', 'Load', `Load ${entry.name}`],
+      ['export', 'Export', `Export ${entry.name} as a file`],
       ['up', '↑', `Move ${entry.name} up`],
       ['down', '↓', `Move ${entry.name} down`],
       ['delete', 'Delete', `Delete ${entry.name}`],
@@ -1703,6 +1721,7 @@ libraryList.addEventListener('click', (event) => {
   const row = button?.closest('[data-library-id]');
   if (!button || !row) return;
   if (button.dataset.libraryAction === 'load') void loadPerformance(row.dataset.libraryId);
+  else if (button.dataset.libraryAction === 'export') exportPerformanceEntry(row.dataset.libraryId);
   else if (button.dataset.libraryAction === 'delete') void deletePerformance(row.dataset.libraryId);
   else if (button.dataset.libraryAction === 'up' || button.dataset.libraryAction === 'down') {
     performanceLibrary.move(row.dataset.libraryId, button.dataset.libraryAction === 'up' ? -1 : 1);
@@ -1720,6 +1739,7 @@ document.getElementById('library-rename').addEventListener('click', () => {
   else diagnostics.error('Could not rename performance', result.reason);
 });
 document.getElementById('library-snapshot').addEventListener('click', () => { void updateThumbnailFromStage(); });
+document.getElementById('export-library').addEventListener('click', () => { exportAllPerformances(); });
 document.getElementById('library-upload').addEventListener('click', () => document.getElementById('library-thumb-file').click());
 document.getElementById('library-thumb-file').addEventListener('change', (event) => {
   const file = event.target.files?.[0];
@@ -1979,9 +1999,23 @@ document.getElementById('import-file').addEventListener('change', async (event) 
   event.target.value = ''; // so importing the same file twice still fires
   if (!file) return;
 
-  const parsed = projectStore.parseProject(await file.text());
+  const parsed = projectStore.parseImport(await file.text());
   if (!parsed.ok) {
     diagnostics.error(`Could not import ${file.name}`, parsed.error);
+    return;
+  }
+  if (parsed.kind === 'library') {
+    const confirmed = await dialog.ask({
+      title: `Import ${parsed.entries.length} performance${parsed.entries.length === 1 ? '' : 's'} from "${file.name}"?`,
+      body: `They are added to your library: ${parsed.entries.map(entry => entry.name).join(', ')}. Nothing runs until you load one.`,
+      warning: 'Imported performances contain code that runs with the same privileges as your own when loaded. Only import files from someone you trust.',
+      confirmLabel: 'Add to library',
+    });
+    if (!confirmed) { diagnostics.info('Import cancelled'); return; }
+    let added = 0;
+    for (const entry of parsed.entries) if (performanceLibrary.save(entry).ok) added += 1;
+    renderLibrary();
+    diagnostics.success(`Imported ${added} performance${added === 1 ? '' : 's'}`, 'Load one from the list when you are ready.');
     return;
   }
   const importedSource = parsed.data.source;
@@ -1990,7 +2024,7 @@ document.getElementById('import-file').addEventListener('change', async (event) 
   // not a sandbox, so confirmation shows the actual source and defaults to Cancel.
   const importedName = parsed.data.name ?? file.name.replace(/\.json$/i, '');
   const confirmed = await dialog.ask({
-    title: `Import "${importedName}"?`,
+    title: `Import "${parsed.data.name ?? file.name}"?`,
     body:
       `This performance contains ${importedSource.split('\n').length} lines of JavaScript ` +
       `including its scene arrays and ${parsed.data.performances.length} saved ` +

@@ -1498,9 +1498,10 @@ layout and settings, replacing the current ones. **Snapshot** retakes the thumbn
 from the stage; **Image…** uses a picture file instead. **Rename** applies the name you
 typed to the current performance; the arrows on each row change the order. **New
 performance** starts an empty set, so save the current one first if you want its scenes
-back. **Performance files → export** writes the current performance, including its
-name, thumbnail, scenes, layout and settings; **import** adds a file to the library and
-loads it. On Push 3, turn the jog wheel to browse performances on the screen, in list
+back. **export** writes the current performance, including its name, thumbnail, scenes,
+layout and settings; every row has its own **Export**, and **Export all** writes the whole
+library to one file. **import** accepts either kind: a single performance is added and
+loaded, a library file is added without running anything. On Push 3, turn the jog wheel to browse performances on the screen, in list
 order, and press it to load.
 
 #### Scenes
@@ -1508,7 +1509,7 @@ order, and press it to load.
 A saved scene is a recallable snapshot of the current window, including source,
 the active scene, controls and mappings, audio-analysis settings, and view settings.
 
-Open **Tools → Performance**, enter a name, and select **Save scene**. Each row can be:
+Open **Tools → Scene**, enter a name at the top, and select **Save scene**. The scene appears under **Tools → Performance**, where each row can be:
 
 - recalled;
 - updated from the current window;

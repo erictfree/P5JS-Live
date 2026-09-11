@@ -18,6 +18,9 @@ import { validThumbnail } from './performanceLibrary.js';
 const KEY = 'p5js-live.project.v5';
 const PROJECT_FORMAT = 'p5js-live-project';
 const SCHEMA = 7;
+// A whole library in one file: every entry is itself a complete performance object.
+const LIBRARY_FORMAT = 'p5js-live-performance-library';
+const LIBRARY_SCHEMA = 1;
 
 export function createProjectStore({
   registry,
@@ -140,12 +143,71 @@ export function createProjectStore({
     );
   }
 
+  /** A parsed bundle (library entry data) back into file form, with optional extras. */
+  function serializeBundle(data, extra = {}) {
+    return JSON.stringify(
+      {
+        format: PROJECT_FORMAT,
+        schema: SCHEMA,
+        exportedAt: new Date().toISOString(),
+        source: String(data.source ?? '').split('\n'),
+        safeScene: data.safeScene ?? null,
+        params: data.params ?? [],
+        controls: data.controls ?? [],
+        rhythm: data.rhythm,
+        performances: data.performances ?? [],
+        ...(data.launcher ? { launcher: data.launcher } : {}),
+        ...(data.audio ? { audio: data.audio } : {}),
+        ...extra,
+      },
+      null,
+      2,
+    );
+  }
+
+  /** Every saved performance in one file. `entries` are full library entries (with data). */
+  function exportLibrary(entries) {
+    return JSON.stringify(
+      {
+        format: LIBRARY_FORMAT,
+        schema: LIBRARY_SCHEMA,
+        exportedAt: new Date().toISOString(),
+        performances: entries.map(entry => JSON.parse(serializeBundle(entry.data, {
+          name: entry.name,
+          ...(entry.thumbnail ? { thumbnail: entry.thumbnail } : {}),
+          createdAt: entry.createdAt,
+          updatedAt: entry.updatedAt,
+        }))),
+      },
+      null,
+      2,
+    );
+  }
+
+  function slug(text) {
+    return String(text ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'untitled';
+  }
+
+  function downloadText(text, filename) {
+    const blob = new Blob([text], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    return filename;
+  }
+
   function download(editorSource, extra = {}) {
     const blob = new Blob([exportProject(editorSource, extra)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `p5js-live-project-${new Date().toISOString().slice(0, 10)}.json`;
+    link.download = `p5js-live-performance-${slug(extra.name)}-${new Date().toISOString().slice(0, 10)}.json`;
     // Chromium ignores a synthetic click on an anchor that is not in the document, so
     // attach it for the duration of the click.
     link.style.display = 'none';
@@ -172,6 +234,36 @@ export function createProjectStore({
     } catch (error) {
       return { ok: false, error: `Not a valid project file — ${error.message}` };
     }
+    return validateBundle(data);
+  }
+
+  /**
+   * Parse any file the app can import: a single performance (`kind: 'performance'`) or a
+   * whole library (`kind: 'library'`, `entries: [{ name, thumbnail, data }]`).
+   */
+  function parseImport(text) {
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      return { ok: false, error: `Not a valid performance file — ${error.message}` };
+    }
+    if (data?.format === LIBRARY_FORMAT) {
+      if (data.schema !== LIBRARY_SCHEMA) return { ok: false, error: `Library uses format version ${data.schema}, this build reads ${LIBRARY_SCHEMA}` };
+      if (!Array.isArray(data.performances) || !data.performances.length) return { ok: false, error: 'Library file has no performances' };
+      const entries = [];
+      for (const [index, item] of data.performances.entries()) {
+        const parsed = validateBundle(item);
+        if (!parsed.ok) return { ok: false, error: `Performance ${index + 1}: ${parsed.error}` };
+        entries.push({ name: parsed.data.name ?? `Performance ${index + 1}`, thumbnail: parsed.data.thumbnail ?? null, data: parsed.data });
+      }
+      return { ok: true, kind: 'library', entries };
+    }
+    const single = validateBundle(data);
+    return single.ok ? { ok: true, kind: 'performance', data: single.data } : single;
+  }
+
+  function validateBundle(data) {
     if (data?.format !== PROJECT_FORMAT) {
       return { ok: false, error: 'Not a p5js live project file' };
     }
@@ -222,7 +314,12 @@ export function createProjectStore({
     restoreSettings,
     clear,
     exportProject,
+    serializeBundle,
+    exportLibrary,
     download,
+    downloadText,
+    slug,
     parseProject,
+    parseImport,
   };
 }
