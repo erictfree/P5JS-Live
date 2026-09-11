@@ -1330,6 +1330,7 @@ function recallPerformance(performance) {
   }
   evaluator.applyPending();
   applyPerformanceSettings(performance);
+  launcher.setActive(performance.id);
   projection.setActiveCode(performanceSource);
   projectStore.saveSoon(performanceSource, 0);
   controller.sourceChanged();

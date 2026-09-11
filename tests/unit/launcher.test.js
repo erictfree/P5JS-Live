@@ -81,6 +81,14 @@ describe('performance controller', () => {
     h.launcher.disconnect(); manager.receive(input, [0x90, 36, 100]); await flush();
     expect(h.launch).toHaveBeenCalledTimes(2);
   });
+  it('marks a performance recalled outside the pads as active and selects its pad and bank', () => {
+    const h = harness(); h.launcher.assign(33, 'b');
+    expect(h.launcher.setActive('b')).toBe(true);
+    expect(h.launcher.snapshot()).toMatchObject({ active: 'b', selected: 33, bank: 1, queued: null, error: null });
+    expect(h.launcher.setActive('missing')).toBe(false);
+    expect(h.launcher.setActive(null)).toBe(true);
+    expect(h.launcher.snapshot().active).toBeNull();
+  });
   it('uses bank-relative pad routes and keeps host actions shared', async () => {
     const h = harness(); h.launcher.assign(32, 'b'); h.launcher.dispatch({ action: 'bankNext' });
     h.launcher.dispatch({ action: 'pad', index: 0 }); await flush(); expect(h.launcher.snapshot().active).toBe('b');

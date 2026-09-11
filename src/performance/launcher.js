@@ -151,6 +151,15 @@ export function createPerformanceLauncher({ store, registry, launch, clock, tap,
   return {
     sync, request, tick, dispatch, receive, setBank, reset,
     setTiming(value) { timing = value === 'beat' ? 'beat' : 'immediate'; notify(); },
+    // A performance recalled outside the pads (panel, number keys) is still the active
+    // one: its pad pulses, its encoder targets load, and the Push display names it.
+    setActive(id) {
+      if (id !== null && !store.get(id)) return false;
+      generation++; active = id; queued = null; loading = null; error = null; pickup.clear();
+      const slot = saved.slots.indexOf(id);
+      if (slot >= 0) { selected = slot; bank = Math.floor(slot / PADS_PER_BANK); }
+      notify(); return true;
+    },
     cancelLearn() { learning = null; notify(); },
     cancel() { queued = null; learning = null; notify(); },
     disconnect() { pickup.clear(); pressed.clear(); },
