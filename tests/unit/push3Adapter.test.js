@@ -50,7 +50,7 @@ describe('Push 3 adapter', () => {
 
   it('lights a ready pad steadily in its hue and pulses the playing one to white', () => {
     expect(padLed('ready', 0)).toEqual({ base: PERFORMANCE_HUES[0], channel: 0 });
-    expect(padLed('playing', 1)).toEqual({ base: PERFORMANCE_HUES[1], target: PUSH3_COLORS.white, channel: animationChannel('pulse', '1/4') });
+    expect(padLed('playing', 1)).toEqual({ base: PERFORMANCE_HUES[1], target: PUSH3_COLORS.off, channel: animationChannel('pulse', '1/4') });
     expect(padLed('queued', 0)).toMatchObject({ base: PUSH3_COLORS.amber, channel: animationChannel('pulse', '1/8') });
     expect(padLed('loading', 0)).toMatchObject({ base: PUSH3_COLORS.litWhite, channel: animationChannel('blink', '1/8') });
     expect(padLed('failed', 0)).toEqual({ base: PUSH3_COLORS.warmRed, channel: 0 });
@@ -81,7 +81,7 @@ describe('Push 3 adapter', () => {
     state = { ...state, active: 'a' };
     h.launcher._notify(); h.flush();
     expect(h.leds.animatePad).toHaveBeenCalledTimes(1);
-    expect(h.leds.animatePad).toHaveBeenCalledWith(0, PERFORMANCE_HUES[0], PUSH3_COLORS.white, animationChannel('pulse', '1/4'));
+    expect(h.leds.animatePad).toHaveBeenCalledWith(0, PERFORMANCE_HUES[0], PUSH3_COLORS.off, animationChannel('pulse', '1/4'));
     expect(h.leds.setPad).not.toHaveBeenCalled();
 
     h.launcher._notify(); h.flush();

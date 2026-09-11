@@ -6,7 +6,6 @@
 import { PUSH3_COLORS, animationChannel } from './push3Map.js';
 import { PADS_PER_BANK } from './launcher.js';
 
-const WHITE = PUSH3_COLORS.white;
 
 // One steady hue per slot position so neighbouring pads read as different performances.
 export const PERFORMANCE_HUES = Object.freeze([
@@ -42,7 +41,8 @@ export function slotStatus(state, entries, slot) {
 export function padLed(status, index) {
   const hue = PERFORMANCE_HUES[index % PERFORMANCE_HUES.length];
   switch (status) {
-    case 'playing': return { base: hue, target: WHITE, channel: PAD_LED.playingPulse };
+    // Breathe in the pad's own hue: pulse between the hue and off, never toward white.
+    case 'playing': return { base: hue, target: PAD_LED.off, channel: PAD_LED.playingPulse };
     case 'queued': return { base: PAD_LED.queued, target: PAD_LED.queuedTarget, channel: PAD_LED.queuedPulse };
     case 'loading': return { base: PAD_LED.loading, target: PAD_LED.off, channel: PAD_LED.loadingBlink };
     case 'failed': return { base: PAD_LED.failed, channel: 0 };

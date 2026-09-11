@@ -156,7 +156,7 @@ virtual surface exactly:
 
 - **Rows 1–4 (pads 1–32): performances.** Each bank holds 32 slots (`PADS_PER_BANK`
   in `launcher.js`, 128 banks). A pad with a performance is lit steadily in a hue
-  chosen by its position; the playing one pulses to white on the hardware clock;
+  chosen by its position; the playing one breathes in that hue (pulsing toward off) on the hardware clock;
   queued pulses amber; loading blinks white; failed is red; empty is off. Pressing a
   pad launches it with the current timing setting (Shift forces immediate). Page ◀ ▶
   change bank.
