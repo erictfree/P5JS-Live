@@ -78,6 +78,10 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
   let amplitude = null;
   let fft = null;
   let soundFile = null;
+  // Master output level for file playback. Lives after the analyzer tap, so turning it
+  // down changes what the room hears without dimming the audio-reactive visuals.
+  let volume = 1;
+  let master = null;
   let mic = null;
   let playbackStartedAt = null;
   let playbackOffset = 0;
@@ -131,6 +135,34 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
     // the stable interop boundary.
     node.output.connect(amplitude.input);
     node.output.connect(fft.input);
+  }
+
+  function masterGain() {
+    const ctx = runtime.audioContext?.();
+    if (!ctx?.createGain || !ctx.destination) return null;
+    if (!master) {
+      master = ctx.createGain();
+      master.gain.value = volume;
+      master.connect(ctx.destination);
+    }
+    return master;
+  }
+
+  // Move a source's native output from the context destination to the master gain.
+  // Analyzers keep listening to the source output itself, upstream of the gain.
+  function throughMaster(node) {
+    const gain = masterGain();
+    if (!gain || typeof node?.output?.connect !== 'function') return;
+    try { node.output.disconnect?.(runtime.audioContext().destination); } catch { /* not connected */ }
+    node.output.connect(gain);
+  }
+
+  function setVolume(level) {
+    if (!Number.isFinite(level)) return volume;
+    volume = Math.min(1, Math.max(0, level));
+    const gain = masterGain();
+    if (gain) gain.gain.value = volume;
+    return volume;
   }
 
   function discardSoundFile() {
@@ -273,6 +305,7 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
       playbackOffset = 0;
       playbackStartedAt = null;
       route(loaded);
+      throughMaster(loaded);
       features.reset();
       diagnostics?.info(`Loaded ${label}`, `${loaded.duration().toFixed(1)}s`);
       report();
@@ -464,6 +497,7 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
       position: currentPosition(),
       duration: soundFile?.duration() ?? 0,
       contextState: runtime.audioContext()?.state ?? 'unknown',
+      volume,
     };
   }
 
@@ -486,6 +520,7 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
     pause,
     toggle,
     setLoop,
+    setVolume,
     readFrame,
     status,
     /** Live smoothing and auto-gain controls. */

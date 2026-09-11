@@ -14,7 +14,7 @@ function deferred() {
 function mockSoundFile(duration = 10) {
   let playing = false;
   return {
-    output: { connect: vi.fn() },
+    output: { connect: vi.fn(), disconnect: vi.fn() },
     speed: 1,
     paused: false,
     playing: false,
@@ -247,6 +247,31 @@ describe('audio source replacement', () => {
     engine.setLoop(false);
     ended();
     expect(engine.status().position).toBe(0);
+  });
+
+  it('routes file playback through a master gain after the analyzer tap and sets its level', async () => {
+    const gain = { gain: { value: 1 }, connect: vi.fn() };
+    const destination = { id: 'speakers' };
+    const context = {
+      state: 'running', currentTime: 0, sampleRate: 48_000, destination,
+      resume: vi.fn(async () => {}), decodeAudioData: vi.fn(async () => ({ decoded: true })),
+      createGain: vi.fn(() => gain),
+    };
+    const { platform, loaded } = testPlatform({ context });
+    const engine = createAudioEngine({ platform });
+    engine.init();
+    await engine.loadFile(namedFile('set.mp3'));
+
+    expect(loaded.output.disconnect).toHaveBeenCalledWith(destination);
+    expect(loaded.output.connect).toHaveBeenCalledWith(gain);
+    expect(gain.connect).toHaveBeenCalledWith(destination);
+    expect(engine.status().volume).toBe(1);
+    expect(engine.setVolume(0.4)).toBe(0.4);
+    expect(gain.gain.value).toBe(0.4);
+    expect(engine.setVolume(7)).toBe(1);
+    expect(engine.setVolume(-1)).toBe(0);
+    expect(engine.setVolume(NaN)).toBe(0);
+    expect(engine.status().volume).toBe(0);
   });
 
   it('cannot overwrite a later source when decoding finishes late', async () => {

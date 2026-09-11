@@ -181,6 +181,10 @@ virtual surface exactly:
   the next numeric control.
 - **Play** mirrors the toolbar's audio transport: green while the file plays, dim when
   loaded but paused, off with no file. Pressing it is the same as the toolbar button.
+- **Volume encoder** sets the master output level (2% per click, 0.5% with Shift). The
+  engine routes file playback through a master gain placed *after* the analyzer tap,
+  so lowering it changes what the room hears without dimming audio-reactive visuals.
+  The level shows at the right of the Push header, under the encoder.
 - Values changed anywhere (Push, controller dialog, Controls tab sliders, learned MIDI)
   now propagate everywhere: the Controls tab re-renders its rows on registry changes,
   and the Push screen model is refreshed even while the dialog is closed.

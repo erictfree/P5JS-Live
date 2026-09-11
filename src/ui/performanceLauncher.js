@@ -5,7 +5,7 @@ import { PADS_PER_BANK } from '../performance/launcher.js';
 
 const startupImageUrl = new URL('../../assets/brand/startup.bgr565', import.meta.url).href;
 
-export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, effects, tempo = null, recover, addDemos }) {
+export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, effects, tempo = null, transport = null, recover, addDemos }) {
   root.innerHTML = `
     <div class="surface-heading"><h3>Live launcher</h3><button type="button" data-open>Open controller</button></div>
     <p class="hint">Pads launch visuals and saved values. Your audio, clock and MIDI setup keep running. Recall below restores the whole snapshot.</p>
@@ -157,7 +157,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   let optionSignature = '', paramSignature = '';
   let lastSurface = { title: 'Untitled', status: 'Untitled · live', controls: [] };
   function drawSurface(canvas) {
-    renderSurfaceDisplay(canvas, { ...lastSurface, tempo: tempo?.() ?? null });
+    renderSurfaceDisplay(canvas, { ...lastSurface, tempo: tempo?.() ?? null, transport: transport?.() ?? null });
   }
   function render() {
     const state = launcher.snapshot(), entries = store.list(), params = registry.listParams().filter(p => typeof p.value === 'number');

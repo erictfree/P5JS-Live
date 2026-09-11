@@ -22,7 +22,7 @@ function fakeLeds({ output = true } = {}) {
   };
 }
 
-function harness({ state = baseState, effects = [], output = true, audio = { kind: 'none', loaded: false, playing: false } } = {}) {
+function harness({ state = baseState, effects = [], output = true, audio = { kind: 'none', loaded: false, playing: false, volume: 1 } } = {}) {
   const launcherListeners = new Set();
   const launcher = {
     snapshot: vi.fn(() => ({ ...state })),
@@ -36,7 +36,7 @@ function harness({ state = baseState, effects = [], output = true, audio = { kin
   const board = { list: vi.fn(() => effects), toggle: vi.fn(index => (effects[index] ? { name: effects[index].name, value: !effects[index].value } : null)) };
   const leds = fakeLeds({ output });
   const queue = [];
-  const transport = { toggle: vi.fn(async () => true), status: vi.fn(() => audio) };
+  const transport = { toggle: vi.fn(async () => true), status: vi.fn(() => audio), setVolume: vi.fn(level => { audio.volume = level; return level; }) };
   const adapter = createPush3Adapter({ launcher, leds, store, registry, effects: board, transport, schedule: fn => queue.push(fn) });
   const flush = () => { while (queue.length) queue.shift()(); };
   return { adapter, launcher, leds, board, registry, transport, audio, flush };
@@ -117,6 +117,14 @@ describe('Push 3 adapter', () => {
     expect(h.adapter.handleInput({ kind: 'button', name: 'pageLeft', pressed: true })).toBe(true);
     expect(h.launcher.dispatch).toHaveBeenLastCalledWith({ action: 'bankPrevious' });
     expect(h.adapter.handleInput({ kind: 'encoder', encoder: 'tempo', delta: 1 })).toBe(false);
+    expect(h.adapter.handleInput({ kind: 'encoder', encoder: 'volume', delta: -5 })).toBe(true);
+    expect(h.transport.setVolume).toHaveBeenLastCalledWith(0.9);
+    h.adapter.handleInput({ kind: 'button', name: 'shift', pressed: true });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 'volume', delta: 2 });
+    expect(h.transport.setVolume).toHaveBeenLastCalledWith(0.91);
+    h.adapter.handleInput({ kind: 'button', name: 'shift', pressed: false });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 'volume', delta: 50 });
+    expect(h.transport.setVolume).toHaveBeenLastCalledWith(1);
     expect(h.adapter.handleInput({ kind: 'button', name: 'record', pressed: true })).toBe(false);
   });
 

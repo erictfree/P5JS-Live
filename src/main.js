@@ -1113,7 +1113,7 @@ const effectsBoard = createEffectsBoard({ registry });
 push3Tempo = createPush3TempoLink({ leds: push3Leds, rhythm, tap: () => panels.tapTempo() });
 push3Adapter = createPush3Adapter({
   launcher, leds: push3Leds, store: performanceStore, registry, effects: effectsBoard, diagnostics,
-  transport: { toggle: () => toggleAudio(), status: () => audio.status() },
+  transport: { toggle: () => toggleAudio(), status: () => audio.status(), setVolume: level => audio.setVolume(level) },
 });
 push3Leds.onInput(event => { if (!push3Tempo.handleInput(event.decoded)) push3Adapter.handleInput(event.decoded); });
 performanceSurface = createPerformanceSurface({
@@ -1123,6 +1123,7 @@ performanceSurface = createPerformanceSurface({
   push3Leds,
   effects: effectsBoard,
   tempo: () => describeTempo(rhythm.snapshot(), rhythm.settings()),
+  transport: () => audio.status(),
   addDemos() {
     for (const demo of controllerDemoPerformances()) {
       if (!performanceStore.get(demo.id)) {

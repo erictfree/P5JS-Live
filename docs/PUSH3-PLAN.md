@@ -46,7 +46,8 @@ The architecture rule from the handoff holds: hardware translates into logical l
 | Lower screen buttons | CC 20–27 | unmapped for now |
 | Shift / Select | CC 49 / 48 | modifiers only; no action |
 | Tempo encoder | CC 14 relative | **done**: nudge manual BPM ±1 (Shift ±0.1) |
-| Jog wheel, D-pad, touch strip, Volume | CC 70/93–95, 44–47/91, note 12, CC 79 | reserved; later candidates for scene browse, ninth control, master opacity |
+| Volume encoder | CC 79 relative | **done**: master output level via a post-analyzer gain |
+| Jog wheel, D-pad, touch strip | CC 70/93–95, 44–47/91, note 12 | reserved; candidates: scrub the audio file, scene browse, ninth control |
 
 The resolution row takes the role Push 2's right-hand scene buttons would have had: eight lit buttons in a row are a natural bank selector, and they have LEDs.
 

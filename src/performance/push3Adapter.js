@@ -208,6 +208,12 @@ export function createPush3Adapter({
       launcher.dispatch({ action: 'encoder', index: event.encoder, value: event.delta, relative: true, fine: shiftHeld });
       return true;
     }
+    // Volume encoder: master output level, 2% per click, 0.5% with Shift.
+    if (event.kind === 'encoder' && event.encoder === 'volume' && transport?.setVolume && Number.isFinite(event.delta)) {
+      const current = transport.status()?.volume ?? 1;
+      transport.setVolume(Math.min(1, Math.max(0, current + event.delta * (shiftHeld ? 0.005 : 0.02))));
+      return true;
+    }
     if (event.kind === 'button' && event.pressed) {
       if (event.name === 'pageLeft') { launcher.dispatch({ action: 'bankPrevious' }); return true; }
       if (event.name === 'pageRight') { launcher.dispatch({ action: 'bankNext' }); return true; }
