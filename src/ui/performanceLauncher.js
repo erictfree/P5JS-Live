@@ -155,7 +155,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   };
   $('[data-clear]').onclick = () => launcher.clearRoutes();
   let optionSignature = '', paramSignature = '';
-  let lastSurface = { title: 'No scene', status: 'No scene · live', controls: [] };
+  let lastSurface = { title: 'Untitled', status: 'Untitled · live', controls: [] };
   function drawSurface(canvas) {
     renderSurfaceDisplay(canvas, { ...lastSurface, tempo: tempo?.() ?? null });
   }
@@ -196,9 +196,8 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
       pad.dataset.status = status; pad.setAttribute('aria-label', `Pad ${i + 1}: ${entry?.name ?? 'Empty'} · ${status}`);
       pad.setAttribute('aria-pressed', String(state.selected === slot)); pad.disabled = Boolean(state.loading);
     });
-    // Name the running thing the way the toolbar's LIVE label does: the performance if one
-    // is active, otherwise the live scene's own name.
-    const active = entries.find(p => p.id === state.active)?.name ?? registry.activeSceneName?.() ?? 'No scene';
+    // The header names the performance; with none active it is simply untitled.
+    const active = entries.find(p => p.id === state.active)?.name ?? 'Untitled';
     const status = state.loading ? 'Loading…' : state.error ? state.error.message : state.queued ? `Queued: ${entries.find(p => p.id === state.queued.id)?.name} · next beat` : `${active} · ${state.active ? 'playing' : 'live'}`;
     $('.surface-status').textContent = status;
     $('[data-bank]').textContent = `Bank ${state.bank + 1}`;
