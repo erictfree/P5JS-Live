@@ -173,6 +173,7 @@ export function createModulationEngine({
         phase = state.phase;
       }
       state.lastTime = time;
+      state.phaseNow = ((phase % 1) + 1) % 1;
       const wave = waveValue(m.wave, phase, random, state);
       // The named signal every patch can read: −1…1 scaled by depth, shifted by offset.
       nextSignals[m.name] = clamp(m.offset + wave * m.depth, -1, 1);
@@ -203,6 +204,8 @@ export function createModulationEngine({
     return target;
   }
   function signal(name) { return signals[name]; }
+  // Current position in the cycle (0…1) while running; null when stopped.
+  function phase(id) { const state = runtime.get(id); return state && Number.isFinite(state.phaseNow) ? state.phaseNow : null; }
 
   function exportAll() { return list(); }
   function importAll(entries) {
@@ -223,7 +226,7 @@ export function createModulationEngine({
 
   return {
     list, get, forTarget, add, update, remove, setOn, toggle, toggleForTarget, cycleWave,
-    frame, modulate, value, running, readSignals, signal,
+    frame, modulate, value, running, readSignals, signal, phase,
     export: exportAll, import: importAll, reset,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
   };

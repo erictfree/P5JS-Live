@@ -132,6 +132,8 @@ describe('modulation engine', () => {
     expect(inputs.wobble).toBeCloseTo(0.75); // square +1 * 0.5 + 0.25
     expect(inputs.lfo1).toBeCloseTo(0.25); // sine at 0.25 → +1 * 0.25
     expect(engine.signal('wobble2')).toBeCloseTo(0.25);
+    expect(engine.phase('m1')).toBeCloseTo(0.25);
+    expect(engine.phase('nope')).toBeNull();
     engine.setOn('m2', false);
     engine.frame({ running: true, beat: 0.25 }, 2);
     expect(engine.readSignals({}).wobble).toBeUndefined();

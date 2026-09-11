@@ -1,5 +1,5 @@
 // Modulations tab: list, edit and toggle modulations on live controls.
-import { WAVEFORMS, WAVE_GLYPHS } from '../performance/modulations.js';
+import { WAVEFORMS, WAVE_GLYPHS, waveValue } from '../performance/modulations.js';
 
 const WAVE_LABELS = { sine: 'Sine', triangle: 'Triangle', rampUp: 'Ramp up', rampDown: 'Ramp down', square: 'Square', random: 'Random step' };
 const BEAT_OPTIONS = [[0.25, '1/4 beat'], [0.5, '1/2 beat'], [1, '1 beat'], [2, '2 beats'], [4, '1 bar'], [8, '2 bars'], [16, '4 bars']];
@@ -28,13 +28,40 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     const name = document.createElement('div');
     name.className = 'modulation-name';
     const glyph = document.createElement('span'); glyph.textContent = WAVE_GLYPHS[m.wave];
-    const nameInput = document.createElement('input');
-    nameInput.value = m.name; nameInput.setAttribute('aria-label', 'Modulation name'); nameInput.maxLength = 40;
-    nameInput.addEventListener('change', () => engine.update(m.id, { name: nameInput.value }));
+    // The name is what patch code uses, so it is shown as text and renamed on double-click.
+    const nameText = document.createElement('span');
+    nameText.className = 'modulation-name-text';
+    nameText.textContent = m.name;
+    nameText.title = 'Double-click to rename';
+    nameText.tabIndex = 0;
+    nameText.setAttribute('role', 'button');
+    nameText.setAttribute('aria-label', `Modulation ${m.name} — double-click or press Enter to rename`);
+    const startRename = () => {
+      const input = document.createElement('input');
+      input.value = m.name; input.maxLength = 40; input.setAttribute('aria-label', 'Modulation name');
+      input.className = 'modulation-name-input';
+      let done = false;
+      const finish = (commit) => {
+        if (done) return; done = true;
+        const next = input.value.trim();
+        if (commit && next && next !== m.name) engine.update(m.id, { name: next });
+        else render();
+      };
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') { event.preventDefault(); finish(true); }
+        else if (event.key === 'Escape') { event.preventDefault(); finish(false); }
+      });
+      input.addEventListener('blur', () => finish(true));
+      nameText.replaceWith(input);
+      input.focus(); input.select();
+    };
+    nameText.addEventListener('dblclick', startRename);
+    nameText.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === 'F2') { event.preventDefault(); startRename(); } });
     const value = document.createElement('span'); value.className = 'modulation-value';
-    const code = document.createElement('code'); code.className = 'modulation-code'; code.textContent = m.name;
-    code.title = `Use it in a patch as ${m.name} — a live number from −1 to 1`;
-    name.append(glyph, nameInput, code, value);
+    const scope = document.createElement('canvas');
+    scope.className = 'modulation-scope'; scope.width = 160; scope.height = 40;
+    scope.setAttribute('aria-label', `${m.name} waveform`);
+    name.append(glyph, nameText, scope, value);
 
     const actions = document.createElement('div');
     actions.className = 'modulation-actions';
@@ -53,8 +80,8 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     const fields = document.createElement('div');
     fields.className = 'modulation-fields';
 
-    const target = document.createElement('select'); target.setAttribute('aria-label', 'Modulation target');
-    option(target, '', '— none (read it in code) —', !m.target);
+    const target = document.createElement('select'); target.setAttribute('aria-label', 'Control this modulation moves'); target.title = 'Optionally swing a live control around its knob value';
+    option(target, '', 'Nothing — use it in code', !m.target);
     if (m.target && !params.some(p => p.name === m.target)) option(target, m.target, `${m.target} (missing)`, true);
     for (const p of params) option(target, p.name, p.name, p.name === m.target);
     target.addEventListener('change', () => engine.update(m.id, { target: target.value }));
@@ -87,14 +114,39 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     offset.addEventListener('input', () => engine.update(m.id, { offset: Number(offset.value) }));
 
     fields.append(
-      field('Control', target), field('Wave', wave), field('Rate', sync),
+      field('Moves', target), field('Wave', wave), field('Rate', sync),
       field(m.sync ? 'Beats' : 'Hz', m.sync ? beats : hz),
       field(`Depth ${Math.round(m.depth * 100)}%`, depth), field(`Offset ${Math.round(m.offset * 100)}%`, offset),
     );
 
     row.classList.toggle('is-on', m.on);
     row.append(name, actions, fields);
-    return { row, value };
+    return { row, value, scope };
+  }
+
+  // One cycle of the wave, scaled by depth and offset, with a dot at the current phase.
+  function drawScope(canvas, m, phase, live) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height, mid = h / 2;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#191e1f'; ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#343c3e'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, mid + 0.5); ctx.lineTo(w, mid + 0.5); ctx.stroke();
+    const y = v => mid - Math.max(-1, Math.min(1, v)) * (mid - 3);
+    ctx.strokeStyle = m.on ? '#f2c14e' : '#6b6e5a'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const steps = 64;
+    const state = { cycle: -1, value: 0 };
+    for (let i = 0; i <= steps; i += 1) {
+      const p = i / steps;
+      const v = m.wave === 'random' ? (Number.isFinite(live) ? live : 0) : m.offset + waveValue(m.wave, p, Math.random, state) * m.depth;
+      if (i === 0) ctx.moveTo(0, y(v)); else ctx.lineTo(p * w, y(v));
+    }
+    ctx.stroke();
+    if (Number.isFinite(phase) && Number.isFinite(live)) {
+      ctx.fillStyle = '#fff3cf';
+      ctx.beginPath(); ctx.arc(phase * w, y(live), 3, 0, Math.PI * 2); ctx.fill();
+    }
   }
 
   function render() {
@@ -113,18 +165,20 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
       const built = buildRow(m, params);
       rows.set(m.id, built);
       root.append(built.row);
+      drawScope(built.scope, m, engine.phase(m.id), engine.signal(m.name));
     }
   }
 
   // Cheap per-frame readout of the live modulated value while the panel is visible.
   function frame() {
     if (root.closest('[data-tool-panel]')?.hidden) return;
-    for (const [id, { value }] of rows) {
+    for (const [id, { value, scope }] of rows) {
       const m = engine.get(id);
       if (!m) continue;
       const live = engine.value(m.target);
       const raw = engine.signal(m.name);
       value.textContent = Number.isFinite(live) ? `→ ${Number(live.toFixed(3))}` : Number.isFinite(raw) ? `${raw >= 0 ? '+' : ''}${raw.toFixed(2)}` : '';
+      drawScope(scope, m, engine.phase(id), raw);
     }
   }
 
