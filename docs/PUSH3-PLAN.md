@@ -43,7 +43,7 @@ The architecture rule from the handoff holds: hardware translates into logical l
 | Undo | CC 119 | `safe` (restore last safe state) |
 | Delete (alone) | CC 118 | cancel queued launch |
 | Upper screen buttons | CC 102–109 | **done**: press resets the control under it to default; Shift + press cycles the column's control; LED off/dim/bright = unassigned/at default/moved |
-| Lower screen buttons | CC 20–27 | **done**: toggle the modulation on the column's control; Shift + press steps the waveform; LED off/dim/amber |
+| Lower screen buttons | CC 20–27 | **done**: modulation slots in list order — toggle, Shift steps the waveform, first empty slot adds one; LED off/dim/amber; labels on the screen's bottom strip |
 | Shift / Select | CC 49 / 48 | modifiers only; no action |
 | Tempo encoder | CC 14 relative | **done**: nudge manual BPM ±1 (Shift ±0.1) |
 | Volume encoder | CC 79 relative | **done**: master output level via a post-analyzer gain |

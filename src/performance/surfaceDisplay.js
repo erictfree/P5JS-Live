@@ -11,7 +11,7 @@ export const SURFACE_PROFILES = Object.freeze([
 // encoder, and mirrors the toolbar BPM readout with a dot that lights on the same
 // 80 ms beat window as the tap button. Title and status shift right to make room.
 const TEMPO_WIDTH = 190;
-export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null }) {
+export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null, lowerLabels = null }) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#171a1c'; ctx.fillRect(0, 0, 960, 160);
   const left = tempo ? 15 + TEMPO_WIDTH + 10 : 15;
@@ -73,4 +73,13 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
       ctx.textAlign = 'left';
     }
   });
+  if (lowerLabels) {
+    // Labels for the lower display buttons: one modulation slot per column.
+    lowerLabels.forEach((slot, i) => {
+      const x = i * 120;
+      ctx.fillStyle = slot?.on ? '#3a2f0c' : '#1d2122'; ctx.fillRect(x + 3, 144, 114, 14);
+      ctx.fillStyle = slot ? (slot.on ? '#f2c14e' : '#8a8f8d') : '#3c4143'; ctx.font = '11px monospace';
+      ctx.fillText(slot ? `${slot.glyph} ${slot.name} ${slot.rate}`.slice(0, 16) : (i === (lowerLabels.findIndex(s => !s)) ? '+ new' : ''), x + 7, 155);
+    });
+  }
 }

@@ -22,21 +22,20 @@ export const LOWER_BUTTONS = Object.freeze([
   PUSH3_BUTTONS.lower1, PUSH3_BUTTONS.lower2, PUSH3_BUTTONS.lower3, PUSH3_BUTTONS.lower4,
   PUSH3_BUTTONS.lower5, PUSH3_BUTTONS.lower6, PUSH3_BUTTONS.lower7, PUSH3_BUTTONS.lower8,
 ]);
-// Lower display buttons: modulation on the column's control. Off = no control, dim =
-// defined but stopped, bright amber = running.
+// Lower display buttons: one modulation slot each, in list order (the first eight).
+// Off = empty slot, dim = defined but stopped, bright amber = running.
 export const LOWER_LED = Object.freeze({ none: PUSH3_COLORS.off, defined: PUSH3_COLORS.darkGray, running: PUSH3_COLORS.amber });
 
-export function renderLowerButtons({ targets, modulations }) {
+export function modulationSlots(modulations) {
+  const list = modulations?.list?.() ?? [];
+  return Array.from({ length: LOWER_BUTTONS.length }, (_, index) => list[index] ?? null);
+}
+
+export function renderLowerButtons({ modulations }) {
   const frame = new Map();
-  LOWER_BUTTONS.forEach((cc, index) => {
-    const target = targets[index];
-    let color = LOWER_LED.none;
-    if (target && modulations) {
-      const list = modulations.forTarget(target);
-      if (list.some(m => m.on)) color = LOWER_LED.running;
-      else if (list.length) color = LOWER_LED.defined;
-    }
-    frame.set(cc, { base: color, channel: 0 });
+  modulationSlots(modulations).forEach((m, index) => {
+    const color = !m ? LOWER_LED.none : m.on ? LOWER_LED.running : LOWER_LED.defined;
+    frame.set(LOWER_BUTTONS[index], { base: color, channel: 0 });
   });
   return frame;
 }
@@ -177,20 +176,20 @@ export function createPush3Adapter({
     const params = registry.listParams();
     return sendFrame(renderPadFrame({ state, entries: store.list(), effects: effects.list() }))
       + sendButtons(renderUpperButtons({ targets: state.targets, params }))
-      + sendButtons(renderLowerButtons({ targets: state.targets, modulations }));
+      + sendButtons(renderLowerButtons({ modulations }));
   }
 
-  // Lower button under column N: toggle the modulation on that column's control (creating
-  // a default one), Shift + press steps its waveform.
+  // Lower button N = modulation N: press toggles it, Shift + press steps its waveform, and a
+  // press on the first empty slot creates a new modulation (lfoN) so playing starts fast.
   function lowerButton(index) {
     if (!modulations) return false;
-    const target = launcher.snapshot().targets[index];
-    if (!target) return false;
-    if (shiftHeld) {
-      const first = modulations.forTarget(target)[0];
-      return first ? Boolean(modulations.cycleWave(first.id)) : false;
+    const slots = modulationSlots(modulations);
+    const m = slots[index];
+    if (!m) {
+      const firstEmpty = slots.findIndex(slot => !slot);
+      return index === firstEmpty ? Boolean(modulations.add({})) : false;
     }
-    return Boolean(modulations.toggleForTarget(target));
+    return shiftHeld ? Boolean(modulations.cycleWave(m.id)) : Boolean(modulations.toggle(m.id));
   }
 
   // Upper button under encoder N: press resets its control to the saved default;

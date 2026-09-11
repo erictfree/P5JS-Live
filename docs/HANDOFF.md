@@ -280,11 +280,12 @@ last frame's clock. Modulations save with the scene (`modulations` on the scene 
 and in the project/performance bundle).
 
 UI: the **Modulations** tab (`src/ui/modulationsPanel.js`). Push: the **lower display
-buttons** toggle the modulation on the control in that column, creating a default sine
-at one beat the first time; Shift + press steps the waveform; LED off/dim/amber for
-none/defined/running. The display column shows the waveform glyph and rate and its
-readout follows the live value. The virtual controller has the same eight buttons under
-its display strip.
+buttons** are modulation slots in list order — button N toggles modulation N, Shift +
+press steps its waveform, and a press on the first empty slot adds a new one (lfoN).
+LED off/dim/amber for empty/defined/running. The screen's bottom strip labels each slot
+(glyph, name, rate; the next empty slot reads "+ new"); a modulation that targets a
+control also shows its glyph and rate in that control's column and the readout follows
+the live value. The virtual controller has the same eight buttons under its display.
 
 ### Tempo on Push
 

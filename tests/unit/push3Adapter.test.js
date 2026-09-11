@@ -39,7 +39,7 @@ function harness({ state = baseState, effects = [], output = true, audio = { kin
   const transport = { toggle: vi.fn(async () => true), status: vi.fn(() => audio), setVolume: vi.fn(level => { audio.volume = level; return level; }) };
   const library = performances ? { list: vi.fn(() => performances), currentId: vi.fn(() => currentId), load: vi.fn(async () => ({ ok: true })) } : null;
   const onBrowse = vi.fn();
-  const modulations = mods ? { forTarget: vi.fn(t => mods.filter(m => m.target === t)), toggleForTarget: vi.fn(() => ({ ok: true })), cycleWave: vi.fn(() => ({ ok: true })), subscribe: vi.fn(() => () => {}) } : null;
+  const modulations = mods ? { list: vi.fn(() => mods), forTarget: vi.fn(t => mods.filter(m => m.target === t)), add: vi.fn(() => ({ id: 'new' })), toggle: vi.fn(() => ({ ok: true })), cycleWave: vi.fn(() => ({ ok: true })), subscribe: vi.fn(() => () => {}) } : null;
   const adapter = createPush3Adapter({ launcher, leds, store, registry, effects: board, transport, library, onBrowse, modulations, now: () => time.now, schedule: fn => queue.push(fn) });
   const flush = () => { while (queue.length) queue.shift()(); };
   return { adapter, launcher, leds, board, registry, transport, audio, library, onBrowse, modulations, time, flush };
@@ -245,20 +245,24 @@ describe('Push 3 adapter', () => {
     expect(empty.adapter.browseState()).toBeNull();
   });
 
-  it('lower buttons show and toggle the modulation on each column, Shift steps the wave', () => {
-    const mods = [{ id: 'a', target: 'speed', on: true, wave: 'sine' }, { id: 'b', target: 'size', on: false, wave: 'square' }];
-    const frame = renderLowerButtons({ targets: baseState.targets, modulations: { forTarget: t => mods.filter(m => m.target === t) } });
-    expect(frame.get(LOWER_BUTTONS[0])).toEqual({ base: LOWER_LED.defined, channel: 0 }); // size: defined, off
-    expect(frame.get(LOWER_BUTTONS[1])).toEqual({ base: LOWER_LED.running, channel: 0 }); // speed: running
+  it('lower buttons are modulation slots: LEDs by state, press toggles, Shift steps, empty slot adds', () => {
+    const mods = [{ id: 'a', name: 'lfo1', target: '', on: true, wave: 'sine' }, { id: 'b', name: 'wobble', target: 'size', on: false, wave: 'square' }];
+    const frame = renderLowerButtons({ modulations: { list: () => mods } });
+    expect(frame.get(LOWER_BUTTONS[0])).toEqual({ base: LOWER_LED.running, channel: 0 });
+    expect(frame.get(LOWER_BUTTONS[1])).toEqual({ base: LOWER_LED.defined, channel: 0 });
     expect(frame.get(LOWER_BUTTONS[2])).toEqual({ base: LOWER_LED.none, channel: 0 });
+    expect(renderLowerButtons({ modulations: null }).get(LOWER_BUTTONS[0])).toEqual({ base: LOWER_LED.none, channel: 0 });
 
     const h = harness({ mods });
     expect(h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: true, value: 127 })).toBe(true);
-    expect(h.modulations.toggleForTarget).toHaveBeenCalledWith('size');
-    expect(h.adapter.handleInput({ kind: 'button', name: 'lower3', cc: LOWER_BUTTONS[2], pressed: true, value: 127 })).toBe(true);
-    expect(h.modulations.toggleForTarget).toHaveBeenCalledTimes(1); // unassigned column
+    expect(h.modulations.toggle).toHaveBeenCalledWith('a');
     h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
     h.adapter.handleInput({ kind: 'button', name: 'lower2', cc: LOWER_BUTTONS[1], pressed: true, value: 127 });
-    expect(h.modulations.cycleWave).toHaveBeenCalledWith('a');
+    expect(h.modulations.cycleWave).toHaveBeenCalledWith('b');
+    h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: false, value: 0 });
+    expect(h.adapter.handleInput({ kind: 'button', name: 'lower3', cc: LOWER_BUTTONS[2], pressed: true, value: 127 })).toBe(true);
+    expect(h.modulations.add).toHaveBeenCalledTimes(1); // first empty slot creates one
+    h.adapter.handleInput({ kind: 'button', name: 'lower5', cc: LOWER_BUTTONS[4], pressed: true, value: 127 });
+    expect(h.modulations.add).toHaveBeenCalledTimes(1); // later empty slots do nothing
   });
 });

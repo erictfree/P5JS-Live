@@ -1516,8 +1516,9 @@ in a patch by its name — `lfo1` is a live number from −1 to 1 — or point a
 control around the value you set. Add one, name it, choose a waveform, set the rate in
 beats (locked to the tempo) or Hz, plus depth and offset, and optionally pick a control. Knobs, sliders and learned MIDI keep moving the base value; the
 swing follows. Modulations save with the scene. On Push 3 the lower display buttons
-switch the modulation on the control above them on and off (Shift steps the waveform),
-and the display column shows the waveform and rate.
+are your modulations in list order: press to switch one on or off, Shift-press to step
+its waveform, and press the first empty slot to add a new one. The screen labels each
+slot along its bottom edge.
 
 #### Scenes
 

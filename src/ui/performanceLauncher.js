@@ -158,21 +158,27 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   $('[data-clear]').onclick = () => launcher.clearRoutes();
   let optionSignature = '', paramSignature = '';
   let lastSurface = { title: 'Untitled', status: 'Untitled · live', controls: [] };
-  // Virtual lower display buttons mirror the Push: toggle the modulation on column N.
+  // Virtual lower display buttons mirror the Push: button N is modulation N. Press toggles
+  // it, Shift-click steps its waveform, the first empty slot creates a new one.
+  const modulationSlots = () => { const list = modulations?.list?.() ?? []; return Array.from({ length: 8 }, (_, i) => list[i] ?? null); };
   const lowerButtons = Array.from({ length: 8 }, (_, index) => {
     const button = document.createElement('button');
     button.type = 'button'; button.dataset.lower = index; button.textContent = '∿';
-    button.setAttribute('aria-label', `Modulation for encoder ${index + 1}`);
-    button.title = 'Toggle a modulation on this column (Shift-click steps the waveform)';
+    button.setAttribute('aria-label', `Modulation slot ${index + 1}`);
+    button.title = 'Toggle this modulation (Shift-click steps the waveform); an empty slot adds one';
     button.onclick = event => {
-      const target = launcher.snapshot().targets[index];
-      if (!target || !modulations) return;
-      if (event.shiftKey) { const first = modulations.forTarget(target)[0]; if (first) modulations.cycleWave(first.id); }
-      else modulations.toggleForTarget(target);
+      if (!modulations) return;
+      const slots = modulationSlots();
+      const m = slots[index];
+      if (!m) { if (index === slots.findIndex(s => !s)) modulations.add({}); return; }
+      if (event.shiftKey) modulations.cycleWave(m.id); else modulations.toggle(m.id);
     };
     $('.surface-lower-buttons').append(button);
     return button;
   });
+  function slotLabels() {
+    return modulationSlots().map(m => (m ? { name: m.name, glyph: WAVE_GLYPHS[m.wave], rate: m.sync ? `${m.beats}b` : `${m.hz}Hz`, on: Boolean(m.on) } : null));
+  }
   function modulationInfo(name) {
     if (!modulations || !name) return null;
     const list = modulations.forTarget(name);
@@ -180,13 +186,15 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     const active = list.find(m => m.on) ?? list[0];
     return { glyph: WAVE_GLYPHS[active.wave], rate: active.sync ? `${active.beats}b` : `${active.hz}Hz`, running: Boolean(active.on), value: modulations.value(name) };
   }
-  function renderLowerButtons(targets) {
+  function renderLowerButtons() {
+    const labels = slotLabels();
+    const firstEmpty = labels.findIndex(s => !s);
     lowerButtons.forEach((button, index) => {
-      const target = targets[index];
-      const info = modulationInfo(target);
-      button.disabled = !target;
-      button.dataset.state = info ? (info.running ? 'running' : 'defined') : 'none';
-      button.textContent = info ? `${info.glyph} ${info.rate}` : '∿';
+      const slot = labels[index];
+      button.disabled = !slot && index !== firstEmpty;
+      button.dataset.state = slot ? (slot.on ? 'running' : 'defined') : 'none';
+      button.textContent = slot ? `${slot.glyph} ${slot.name}` : (index === firstEmpty ? '+' : '');
+      button.setAttribute('aria-label', slot ? `Modulation ${slot.name}: ${slot.on ? 'on' : 'off'}` : (index === firstEmpty ? 'Add a modulation' : `Modulation slot ${index + 1} (empty)`));
     });
   }
   const thumbnails = new Map(); // performance id → Image, decoded once for the screen
@@ -204,7 +212,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     const name = performanceName?.() ?? null;
     const status = name ? `${name} · ${lastSurface.status}` : lastSurface.status;
     const controls = lastSurface.controls.map(control => (control ? { ...control, modulation: modulationInfo(control.name) } : control));
-    renderSurfaceDisplay(canvas, { ...lastSurface, controls, status, tempo: tempo?.() ?? null, transport: transport?.() ?? null, browser: browserWithImage() });
+    renderSurfaceDisplay(canvas, { ...lastSurface, controls, status, tempo: tempo?.() ?? null, transport: transport?.() ?? null, browser: browserWithImage(), lowerLabels: modulations ? slotLabels() : null });
   }
   function render() {
     const state = launcher.snapshot(), entries = store.list(), params = registry.listParams().filter(p => typeof p.value === 'number');
@@ -214,7 +222,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     const status = state.loading ? 'Loading…' : state.error ? state.error.message : state.queued ? `Queued: ${entries.find(p => p.id === state.queued.id)?.name} · next beat` : `${active} · ${state.active ? 'playing' : 'live'}`;
     lastSurface = { title: active, status, controls: state.targets.map(name => params.find(p => p.name === name)) };
     if (!modal.open) return;
-    renderLowerButtons(state.targets);
+    renderLowerButtons();
     const signature = JSON.stringify(entries.map(p => [p.id, p.name]));
     if (signature !== optionSignature) {
       optionSignature = signature; const select = $('[data-assignment]'), previous = select.value;
