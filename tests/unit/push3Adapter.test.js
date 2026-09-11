@@ -1,16 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PUSH3_COLORS, animationChannel } from '../../src/performance/push3Map.js';
 import { PADS_PER_BANK } from '../../src/performance/launcher.js';
-import { PERFORMANCE_HUES, createPush3Adapter, padLed, renderPadFrame, slotStatus } from '../../src/performance/push3Adapter.js';
+import { PERFORMANCE_HUES, PLAY_LED, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderPadFrame, renderUpperButtons, slotStatus } from '../../src/performance/push3Adapter.js';
+import { PUSH3_BUTTONS } from '../../src/performance/push3Map.js';
 
 const entries = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }];
-const baseState = { bank: 0, slots: ['a', 'b', null, 'ghost'], active: null, queued: null, loading: null, error: null };
+const baseState = { bank: 0, slots: ['a', 'b', null, 'ghost'], active: null, queued: null, loading: null, error: null, targets: ['size', 'speed', null, null, null, null, null, null] };
+const baseParams = [{ name: 'size', value: 50, default: 50, min: 10, max: 110 }, { name: 'speed', value: 0.4, default: 0.3, min: 0, max: 1 }, { name: 'hue', value: 0, default: 0 }];
 
 function fakeLeds({ output = true } = {}) {
   const listeners = new Set();
   return {
     hasOutput: vi.fn(() => output),
     setPad: vi.fn(() => ({ ok: true })),
+    setButton: vi.fn(() => ({ ok: true })),
     animatePad: vi.fn(() => ({ ok: true })),
     clockRunning: vi.fn(() => false),
     startClock: vi.fn(() => ({ ok: true })),
@@ -19,22 +22,24 @@ function fakeLeds({ output = true } = {}) {
   };
 }
 
-function harness({ state = baseState, effects = [], output = true } = {}) {
+function harness({ state = baseState, effects = [], output = true, audio = { kind: 'none', loaded: false, playing: false } } = {}) {
   const launcherListeners = new Set();
   const launcher = {
     snapshot: vi.fn(() => ({ ...state })),
     dispatch: vi.fn(() => true),
+    assignEncoder: vi.fn(() => true),
     subscribe: fn => { launcherListeners.add(fn); return () => launcherListeners.delete(fn); },
     _notify: () => launcherListeners.forEach(fn => fn()),
   };
-  const registry = { subscribe: vi.fn(() => () => {}) };
+  const registry = { subscribe: vi.fn(() => () => {}), listParams: vi.fn(() => baseParams.map(p => ({ ...p }))), setParam: vi.fn() };
   const store = { list: () => entries };
   const board = { list: vi.fn(() => effects), toggle: vi.fn(index => (effects[index] ? { name: effects[index].name, value: !effects[index].value } : null)) };
   const leds = fakeLeds({ output });
   const queue = [];
-  const adapter = createPush3Adapter({ launcher, leds, store, registry, effects: board, schedule: fn => queue.push(fn) });
+  const transport = { toggle: vi.fn(async () => true), status: vi.fn(() => audio) };
+  const adapter = createPush3Adapter({ launcher, leds, store, registry, effects: board, transport, schedule: fn => queue.push(fn) });
   const flush = () => { while (queue.length) queue.shift()(); };
-  return { adapter, launcher, leds, board, flush };
+  return { adapter, launcher, leds, board, registry, transport, audio, flush };
 }
 
 describe('Push 3 adapter', () => {
@@ -73,7 +78,7 @@ describe('Push 3 adapter', () => {
     let state = { ...baseState };
     const h = harness({ state, effects: [{ name: 'glow', value: false }] });
     h.launcher.snapshot.mockImplementation(() => ({ ...state }));
-    expect(h.adapter.render()).toBe(64);
+    expect(h.adapter.render()).toBe(72);
     expect(h.leds.setPad).toHaveBeenCalledWith(0, PERFORMANCE_HUES[0]);
     expect(h.leds.setPad).toHaveBeenCalledWith(32, PUSH3_COLORS.darkGray);
     h.leds.setPad.mockClear(); h.leds.animatePad.mockClear();
@@ -112,7 +117,7 @@ describe('Push 3 adapter', () => {
     expect(h.adapter.handleInput({ kind: 'button', name: 'pageLeft', pressed: true })).toBe(true);
     expect(h.launcher.dispatch).toHaveBeenLastCalledWith({ action: 'bankPrevious' });
     expect(h.adapter.handleInput({ kind: 'encoder', encoder: 'tempo', delta: 1 })).toBe(false);
-    expect(h.adapter.handleInput({ kind: 'button', name: 'play', pressed: true })).toBe(false);
+    expect(h.adapter.handleInput({ kind: 'button', name: 'record', pressed: true })).toBe(false);
   });
 
   it('keeps a fixed 120 BPM animation clock running, independent of the app tempo', () => {
@@ -140,5 +145,48 @@ describe('Push 3 adapter', () => {
     h.adapter.frame({ running: false });
     h.flush();
     expect(h.leds.setPad).toHaveBeenCalledTimes(64);
+  });
+
+  it('lights the upper button under each assigned encoder, bright when the value has moved', () => {
+    const frame = renderUpperButtons({ targets: baseState.targets, params: baseParams });
+    expect(frame.get(UPPER_BUTTONS[0])).toEqual({ base: UPPER_LED.atDefault, channel: 0 });
+    expect(frame.get(UPPER_BUTTONS[1])).toEqual({ base: UPPER_LED.moved, channel: 0 });
+    expect(frame.get(UPPER_BUTTONS[2])).toEqual({ base: UPPER_LED.unassigned, channel: 0 });
+    const h = harness();
+    h.adapter.render();
+    expect(h.leds.setButton).toHaveBeenCalledWith(UPPER_BUTTONS[1], UPPER_LED.moved);
+    expect(h.leds.setButton).toHaveBeenCalledTimes(8);
+  });
+
+  it('upper button press resets the control; Shift + press moves the column to the next control', () => {
+    const h = harness();
+    expect(h.adapter.handleInput({ kind: 'button', name: 'upper2', cc: UPPER_BUTTONS[1], pressed: true, value: 127 })).toBe(true);
+    expect(h.registry.setParam).toHaveBeenCalledWith('speed', 0.3);
+    expect(h.adapter.handleInput({ kind: 'button', name: 'upper3', cc: UPPER_BUTTONS[2], pressed: true, value: 127 })).toBe(true);
+    expect(h.registry.setParam).toHaveBeenCalledTimes(1); // unassigned column: nothing to reset
+    h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
+    h.adapter.handleInput({ kind: 'button', name: 'upper1', cc: UPPER_BUTTONS[0], pressed: true, value: 127 });
+    expect(h.launcher.assignEncoder).toHaveBeenCalledWith(0, 'speed');
+    h.adapter.handleInput({ kind: 'button', name: 'upper3', cc: UPPER_BUTTONS[2], pressed: true, value: 127 });
+    expect(h.launcher.assignEncoder).toHaveBeenCalledWith(2, 'size'); // unassigned wraps to the first control
+  });
+
+  it('Play mirrors the audio transport and toggles it', () => {
+    expect(playLed({ kind: 'none', loaded: false, playing: false })).toBe(PLAY_LED.none);
+    expect(playLed({ kind: 'file', loaded: true, playing: false })).toBe(PLAY_LED.paused);
+    expect(playLed({ kind: 'file', loaded: true, playing: true })).toBe(PLAY_LED.playing);
+    expect(playLed({ kind: 'mic', loaded: true, playing: true })).toBe(PLAY_LED.none);
+
+    const h = harness({ audio: { kind: 'file', loaded: true, playing: false } });
+    h.adapter.frame({});
+    h.adapter.frame({});
+    expect(h.leds.setButton.mock.calls.filter(([cc]) => cc === PUSH3_BUTTONS.play)).toEqual([[PUSH3_BUTTONS.play, PLAY_LED.paused]]);
+    h.audio.playing = true;
+    h.adapter.frame({});
+    expect(h.leds.setButton).toHaveBeenLastCalledWith(PUSH3_BUTTONS.play, PLAY_LED.playing);
+    expect(h.adapter.handleInput({ kind: 'button', name: 'play', cc: PUSH3_BUTTONS.play, pressed: true, value: 127 })).toBe(true);
+    expect(h.transport.toggle).toHaveBeenCalledOnce();
+    expect(h.adapter.handleInput({ kind: 'button', name: 'play', cc: PUSH3_BUTTONS.play, pressed: false, value: 0 })).toBe(true);
+    expect(h.transport.toggle).toHaveBeenCalledOnce();
   });
 });

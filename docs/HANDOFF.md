@@ -174,7 +174,16 @@ virtual surface exactly:
   through the registry, so the Controls tab and MIDI Learn stay in sync. The patch
   gates its optional drawing on the flag.
 - **Encoders 1–8** drive the eight live controls shown under them on the display
-  (Shift for fine steps).
+  (Shift for fine steps). Empty encoders pick up newly declared numeric controls.
+- **Upper display buttons** (between each encoder and its column): off when the column
+  is unassigned, dim when assigned and at its saved default, bright when the value has
+  moved. Press resets the control to its default; Shift + press moves the column to
+  the next numeric control.
+- **Play** mirrors the toolbar's audio transport: green while the file plays, dim when
+  loaded but paused, off with no file. Pressing it is the same as the toolbar button.
+- Values changed anywhere (Push, controller dialog, Controls tab sliders, learned MIDI)
+  now propagate everywhere: the Controls tab re-renders its rows on registry changes,
+  and the Push screen model is refreshed even while the dialog is closed.
 - **Pad animations use a fixed clock, not the app tempo.** Push only advances LED
   animations on incoming MIDI clock (with Start and no ticks a pulse freezes at its
   target colour, verified on hardware). The adapter keeps a 120 BPM clock running

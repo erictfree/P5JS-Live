@@ -260,6 +260,14 @@ editor.setFolded(true);
 
 // Parameter and safety-setting changes also need to save, not only typing.
 registry.subscribe(() => projectStore.saveSoon(editor.value));
+// Keep the Controls tab's sliders following values changed elsewhere (Push encoders,
+// the controller dialog, learned MIDI), coalesced to one update per frame.
+let controlsRenderQueued = false;
+registry.subscribe(() => {
+  if (controlsRenderQueued) return;
+  controlsRenderQueued = true;
+  requestAnimationFrame(() => { controlsRenderQueued = false; panels.renderControls(); });
+});
 
 document.getElementById('clear-messages').addEventListener('click', () => diagnostics.clear());
 
@@ -1103,7 +1111,10 @@ controlManager.setMessageRouter(message => launcher.receive(message));
 controlManager.setDisconnectHandler(() => launcher.disconnect());
 const effectsBoard = createEffectsBoard({ registry });
 push3Tempo = createPush3TempoLink({ leds: push3Leds, rhythm, tap: () => panels.tapTempo() });
-push3Adapter = createPush3Adapter({ launcher, leds: push3Leds, store: performanceStore, registry, effects: effectsBoard, diagnostics });
+push3Adapter = createPush3Adapter({
+  launcher, leds: push3Leds, store: performanceStore, registry, effects: effectsBoard, diagnostics,
+  transport: { toggle: () => toggleAudio(), status: () => audio.status() },
+});
 push3Leds.onInput(event => { if (!push3Tempo.handleInput(event.decoded)) push3Adapter.handleInput(event.decoded); });
 performanceSurface = createPerformanceSurface({
   root: document.getElementById('performance-launcher'), launcher, store: performanceStore,

@@ -3,7 +3,7 @@
 // the current bank; rows 5–8 (32–63) are effect toggles. The virtual surface in
 // performanceLauncher.js splits the same way and remains the reference behaviour.
 
-import { PUSH3_COLORS, animationChannel } from './push3Map.js';
+import { PUSH3_BUTTONS, PUSH3_COLORS, animationChannel } from './push3Map.js';
 import { PADS_PER_BANK } from './launcher.js';
 
 
@@ -12,6 +12,25 @@ export const PERFORMANCE_HUES = Object.freeze([
   PUSH3_COLORS.skyBlue, PUSH3_COLORS.violet, PUSH3_COLORS.pink, PUSH3_COLORS.teal,
   PUSH3_COLORS.lime, PUSH3_COLORS.amber, PUSH3_COLORS.blue, PUSH3_COLORS.mint,
 ]);
+
+// Upper display buttons sit between each encoder and its display column.
+export const UPPER_BUTTONS = Object.freeze([
+  PUSH3_BUTTONS.upper1, PUSH3_BUTTONS.upper2, PUSH3_BUTTONS.upper3, PUSH3_BUTTONS.upper4,
+  PUSH3_BUTTONS.upper5, PUSH3_BUTTONS.upper6, PUSH3_BUTTONS.upper7, PUSH3_BUTTONS.upper8,
+]);
+export const UPPER_LED = Object.freeze({
+  unassigned: PUSH3_COLORS.off,
+  atDefault: PUSH3_COLORS.darkGray,   // assigned, untouched: findable but quiet
+  moved: PUSH3_COLORS.litWhite,       // value differs from its saved default: press to reset
+});
+
+// Play button mirrors the toolbar's audio transport: green while the file plays, dim when
+// a file is loaded but paused, off when there is nothing to play.
+export const PLAY_LED = Object.freeze({ playing: PUSH3_COLORS.green, paused: PUSH3_COLORS.darkGray, none: PUSH3_COLORS.off });
+export function playLed(status) {
+  if (!status || status.kind !== 'file' || !status.loaded) return PLAY_LED.none;
+  return status.playing ? PLAY_LED.playing : PLAY_LED.paused;
+}
 
 export const PAD_LED = Object.freeze({
   playingPulse: animationChannel('pulse', '1/2'), // slowest hardware pulse: one second per cycle at the fixed animation clock
@@ -66,6 +85,22 @@ export function renderPadFrame({ state, entries, effects }) {
   return frame;
 }
 
+// Upper button LEDs from the encoder targets: lit when the column has a control, bright
+// when that control has moved away from its default. Pure.
+export function renderUpperButtons({ targets, params }) {
+  const frame = new Map();
+  UPPER_BUTTONS.forEach((cc, index) => {
+    const param = params.find(p => p.name === targets[index]);
+    let color = UPPER_LED.unassigned;
+    if (param && typeof param.value === 'number') {
+      const moved = Number.isFinite(param.default) && Math.abs(param.value - param.default) > 1e-9;
+      color = moved ? UPPER_LED.moved : UPPER_LED.atDefault;
+    }
+    frame.set(cc, { base: color, channel: 0 });
+  });
+  return frame;
+}
+
 const ledKey = led => `${led.base}/${led.target ?? ''}/${led.channel}`;
 
 // Push only advances LED animations on incoming MIDI clock. Feed it a fixed rate that is
@@ -74,11 +109,13 @@ const ledKey = led => `${led.base}/${led.target ?? ''}/${led.channel}`;
 export const ANIMATION_CLOCK_BPM = 120;
 
 export function createPush3Adapter({
-  launcher, leds, store, registry, effects, diagnostics,
+  launcher, leds, store, registry, effects, diagnostics, transport = null,
   schedule = callback => (globalThis.requestAnimationFrame ?? setTimeout)(callback),
 } = {}) {
   let shiftHeld = false;
   let lastFrame = new Map();
+  let lastButtons = new Map();
+  let lastPlay = null;
   let renderQueued = false;
   let hadOutput = false;
 
@@ -95,10 +132,41 @@ export function createPush3Adapter({
     return sent;
   }
 
+  function sendButtons(frame) {
+    let sent = 0;
+    for (const [cc, led] of frame) {
+      const previous = lastButtons.get(cc);
+      if (previous && ledKey(previous) === ledKey(led)) continue;
+      if (leds.setButton(cc, led.base).ok) { lastButtons.set(cc, led); sent += 1; }
+    }
+    return sent;
+  }
+
   function render() {
     renderQueued = false;
-    if (!leds.hasOutput()) { lastFrame = new Map(); return 0; }
-    return sendFrame(renderPadFrame({ state: launcher.snapshot(), entries: store.list(), effects: effects.list() }));
+    if (!leds.hasOutput()) { lastFrame = new Map(); lastButtons = new Map(); return 0; }
+    const state = launcher.snapshot();
+    const params = registry.listParams();
+    return sendFrame(renderPadFrame({ state, entries: store.list(), effects: effects.list() }))
+      + sendButtons(renderUpperButtons({ targets: state.targets, params }));
+  }
+
+  // Upper button under encoder N: press resets its control to the saved default;
+  // Shift + press moves the column to the next numeric control.
+  function upperButton(index) {
+    const state = launcher.snapshot();
+    const numeric = registry.listParams().filter(p => typeof p.value === 'number');
+    const current = state.targets[index];
+    if (shiftHeld) {
+      if (!numeric.length) return false;
+      const at = numeric.findIndex(p => p.name === current);
+      const next = numeric[(at + 1) % numeric.length].name;
+      return launcher.assignEncoder(index, next);
+    }
+    const param = numeric.find(p => p.name === current);
+    if (!param || !Number.isFinite(param.default)) return false;
+    registry.setParam(param.name, param.default);
+    return true;
   }
 
   function scheduleRender() {
@@ -112,9 +180,13 @@ export function createPush3Adapter({
   // an output appears.
   function frame() {
     const has = leds.hasOutput();
-    if (has && !hadOutput) { lastFrame = new Map(); scheduleRender(); }
-    if (!has && hadOutput) lastFrame = new Map();
+    if (has && !hadOutput) { lastFrame = new Map(); lastButtons = new Map(); lastPlay = null; scheduleRender(); }
+    if (!has && hadOutput) { lastFrame = new Map(); lastButtons = new Map(); lastPlay = null; }
     if (has && !leds.clockRunning()) leds.startClock(ANIMATION_CLOCK_BPM);
+    if (has && transport) {
+      const color = playLed(transport.status());
+      if (color !== lastPlay && leds.setButton(PUSH3_BUTTONS.play, color).ok) lastPlay = color;
+    }
     hadOutput = has;
   }
 
@@ -139,8 +211,11 @@ export function createPush3Adapter({
     if (event.kind === 'button' && event.pressed) {
       if (event.name === 'pageLeft') { launcher.dispatch({ action: 'bankPrevious' }); return true; }
       if (event.name === 'pageRight') { launcher.dispatch({ action: 'bankNext' }); return true; }
+      const upper = UPPER_BUTTONS.indexOf(event.cc);
+      if (upper >= 0) { upperButton(upper); return true; }
+      if (event.name === 'play' && transport) { void transport.toggle(); return true; }
     }
-    return event.kind === 'button' && ['pageLeft', 'pageRight'].includes(event.name);
+    return event.kind === 'button' && (['pageLeft', 'pageRight', 'play'].includes(event.name) || UPPER_BUTTONS.includes(event.cc));
   }
 
   const unsubscribe = [
@@ -153,7 +228,7 @@ export function createPush3Adapter({
     frame,
     handleInput,
     render,
-    snapshot() { return { shiftHeld, lit: lastFrame.size }; },
+    snapshot() { return { shiftHeld, lit: lastFrame.size, buttons: lastButtons.size }; },
     dispose() { for (const stop of unsubscribe) stop(); },
   };
 }

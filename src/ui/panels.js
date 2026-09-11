@@ -1054,6 +1054,8 @@ export function createPanels({
 
   return {
     renderAll,
+    // Cheap path for value-only changes (knobs, sliders, Push): rows update in place.
+    renderControls: () => renderParams(controller.snapshot()),
     selectToolView,
     tapTempo: rhythmPanel.tapTempo,
     renderBeat: rhythmPanel.renderBeat,

@@ -160,8 +160,13 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     renderSurfaceDisplay(canvas, { ...lastSurface, tempo: tempo?.() ?? null });
   }
   function render() {
-    if (!modal.open) return;
     const state = launcher.snapshot(), entries = store.list(), params = registry.listParams().filter(p => typeof p.value === 'number');
+    // The surface model feeds the Push screen whether or not the dialog is open, so
+    // compute it first and only then bail out of the DOM work.
+    const active = entries.find(p => p.id === state.active)?.name ?? 'Untitled';
+    const status = state.loading ? 'Loading…' : state.error ? state.error.message : state.queued ? `Queued: ${entries.find(p => p.id === state.queued.id)?.name} · next beat` : `${active} · ${state.active ? 'playing' : 'live'}`;
+    lastSurface = { title: active, status, controls: state.targets.map(name => params.find(p => p.name === name)) };
+    if (!modal.open) return;
     const signature = JSON.stringify(entries.map(p => [p.id, p.name]));
     if (signature !== optionSignature) {
       optionSignature = signature; const select = $('[data-assignment]'), previous = select.value;
@@ -196,9 +201,6 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
       pad.dataset.status = status; pad.setAttribute('aria-label', `Pad ${i + 1}: ${entry?.name ?? 'Empty'} · ${status}`);
       pad.setAttribute('aria-pressed', String(state.selected === slot)); pad.disabled = Boolean(state.loading);
     });
-    // The header names the performance; with none active it is simply untitled.
-    const active = entries.find(p => p.id === state.active)?.name ?? 'Untitled';
-    const status = state.loading ? 'Loading…' : state.error ? state.error.message : state.queued ? `Queued: ${entries.find(p => p.id === state.queued.id)?.name} · next beat` : `${active} · ${state.active ? 'playing' : 'live'}`;
     $('.surface-status').textContent = status;
     $('[data-bank]').textContent = `Bank ${state.bank + 1}`;
     $('[data-timing]').value = state.timing;
@@ -207,7 +209,6 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
       const li = document.createElement('li'); li.textContent = `${route.device} · Ch ${route.channel} ${route.type} ${route.number} → ${route.action} ${route.index + 1}`; return li;
     }));
     const canvas = $('canvas'); canvas.setAttribute('aria-label', `${active}. ${status}`);
-    lastSurface = { title: active, status, controls: state.targets.map(name => params.find(p => p.name === name)) };
     drawSurface(canvas);
   }
   // Per-frame hook: keeps the modal's preview beat dot moving. Hardware streaming
@@ -217,6 +218,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   }
   launcher.subscribe(render);
   registry.subscribe(render);
+  render();
   controlManager.subscribe(() => { const state = controlManager.snapshot(); $('[data-midi-status]').textContent = state.midi.status; });
   const renderDisplayStatus = () => {
     const state = push3Display.snapshot();
