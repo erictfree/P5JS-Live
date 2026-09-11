@@ -82,7 +82,7 @@ describe('performance controller', () => {
     expect(h.launch).toHaveBeenCalledTimes(2);
   });
   it('uses bank-relative pad routes and keeps host actions shared', async () => {
-    const h = harness(); h.launcher.assign(64, 'b'); h.launcher.dispatch({ action: 'bankNext' });
+    const h = harness(); h.launcher.assign(32, 'b'); h.launcher.dispatch({ action: 'bankNext' });
     h.launcher.dispatch({ action: 'pad', index: 0 }); await flush(); expect(h.launcher.snapshot().active).toBe('b');
     h.launcher.dispatch({ action: 'tap' }); h.launcher.dispatch({ action: 'safe' });
     expect(h.tap).toHaveBeenCalledOnce(); expect(h.safe).toHaveBeenCalledOnce(); expect(h.launcher.snapshot().active).toBeNull();

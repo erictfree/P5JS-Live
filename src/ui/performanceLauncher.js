@@ -1,10 +1,11 @@
 import { SURFACE_PROFILES, renderSurfaceDisplay } from '../performance/surfaceDisplay.js';
 import { decodePush3Bgr565 } from '../performance/push3DisplayTransport.js';
 import { PUSH3_BUTTONS, PUSH3_COLORS, animationChannel } from '../performance/push3Map.js';
+import { PADS_PER_BANK } from '../performance/launcher.js';
 
 const startupImageUrl = new URL('../../assets/brand/startup.bgr565', import.meta.url).href;
 
-export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, tempo = null, recover, addDemos }) {
+export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, effects, tempo = null, recover, addDemos }) {
   root.innerHTML = `
     <div class="surface-heading"><h3>Live launcher</h3><button type="button" data-open>Open controller</button></div>
     <p class="hint">Pads launch visuals and saved values. Your audio, clock and MIDI setup keep running. Recall below restores the whole snapshot.</p>
@@ -33,9 +34,9 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
         <button type="button" data-cancel title="Cancel queued launch or MIDI Learn">Cancel</button>
         <button type="button" data-action="tap">Tap</button><button type="button" data-action="safe">Restore safe</button>
       </div>
-      <div class="surface-pads" aria-label="Performance pads"></div>
+      <div class="surface-pads" aria-label="Performance and effect pads"></div>
       <p class="surface-status" role="status"></p>
-      <div class="surface-toolbar"><label>Pad <input data-slot type="number" min="1" max="64" value="1" aria-label="Pad to assign"></label>
+      <div class="surface-toolbar"><label>Pad <input data-slot type="number" min="1" max="32" value="1" aria-label="Pad to assign"></label>
         <label>Performance <select data-assignment aria-label="Pad performance"></select></label>
         <button type="button" data-assign>Assign pad</button>
         <button type="button" data-recover>Recover previous edits</button></div>
@@ -46,7 +47,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
           <label>Encoder <select data-learn-mode aria-label="Encoder MIDI mode"><option value="absolute">Absolute · pickup</option><option value="relative">Relative · two’s complement</option></select></label>
           <button type="button" data-learn>Learn</button><button type="button" data-clear>Clear surface routes</button></div>
         <p data-learn-status></p><ul data-routes></ul>
-        <p class="hint">Pad numbers are relative to the current bank. For encoders, turn the knob; touch messages are ignored. Surface routes take priority over parameter mappings. Select an encoder’s target above; use − / + or arrow keys to adjust it (Shift for fine steps).</p>
+        <p class="hint">Pads 1–32 launch performances in the current bank; pads 33–64 switch the scene's toggle controls (<code>control(name, false, { mode: 'toggle' })</code>) on and off. Pad numbers are relative to the current bank. For encoders, turn the knob; touch messages are ignored. Surface routes take priority over parameter mappings. Select an encoder’s target above; use − / + or arrow keys to adjust it (Shift for fine steps).</p>
       </details>
     </dialog>`;
   // Keep all 64 pads visible beside the encoders on a laptop-sized display.
@@ -112,7 +113,12 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   for (const button of modal.querySelectorAll('[data-action]')) button.onclick = () => launcher.dispatch({ action: button.dataset.action });
   const pads = Array.from({ length: 64 }, (_, index) => {
     const button = document.createElement('button'); button.type = 'button'; button.dataset.pad = index;
-    button.onclick = () => { $('[data-slot]').value = index + 1; launcher.dispatch({ action: 'pad', index }); };
+    if (index < PADS_PER_BANK) {
+      button.onclick = () => { $('[data-slot]').value = index + 1; launcher.dispatch({ action: 'pad', index }); };
+    } else {
+      button.dataset.effect = index - PADS_PER_BANK;
+      button.onclick = () => { effects?.toggle(index - PADS_PER_BANK); render(); };
+    }
     $('.surface-pads').append(button); return button;
   });
   const encoders = Array.from({ length: 8 }, (_, index) => {
@@ -137,7 +143,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   $('[data-assign]').onclick = () => {
     const state = launcher.snapshot();
     const slot = Number($('[data-slot]').value) - 1;
-    if (Number.isInteger(slot) && slot >= 0 && slot < 64) launcher.assign(state.bank * 64 + slot, $('[data-assignment]').value || null);
+    if (Number.isInteger(slot) && slot >= 0 && slot < PADS_PER_BANK) launcher.assign(state.bank * PADS_PER_BANK + slot, $('[data-assignment]').value || null);
   };
   $('[data-learn]').onclick = () => {
     const action = $('[data-learn-action]').value, index = Number($('[data-learn-index]').value) - 1;
@@ -171,8 +177,18 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
       value.textContent = param ? String(Number(param.value.toFixed(3))) : '—';
       select.parentElement.dataset.assigned = String(Boolean(param));
     });
+    const effectList = effects?.list() ?? [];
     pads.forEach((pad, i) => {
-      const slot = state.bank * 64 + i, id = state.slots[slot], entry = entries.find(p => p.id === id);
+      if (i >= PADS_PER_BANK) {
+        const effect = effectList[i - PADS_PER_BANK];
+        const status = effect ? (effect.value ? 'on' : 'off') : 'unbound';
+        pad.textContent = `${i + 1} ${effect?.name ?? '—'}`;
+        pad.title = effect ? `Effect ${effect.name}: ${effect.value ? 'on' : 'off'}` : 'No toggle control bound';
+        pad.dataset.status = status; pad.setAttribute('aria-label', `Effect pad ${i + 1}: ${effect?.name ?? 'unbound'} · ${status}`);
+        pad.setAttribute('aria-pressed', String(Boolean(effect?.value))); pad.disabled = !effect;
+        return;
+      }
+      const slot = state.bank * PADS_PER_BANK + i, id = state.slots[slot], entry = entries.find(p => p.id === id);
       const status = id && state.loading === id ? 'loading' : id && state.queued?.id === id ? 'queued' : id && state.error?.id === id ? 'failed' : id && state.active === id ? 'playing' : entry ? 'ready' : 'empty';
       pad.textContent = `${i + 1} ${entry?.name.replace(/^Controller demo · /, '') ?? '—'}`;
       pad.title = entry?.name ?? 'Empty pad';

@@ -1,6 +1,6 @@
 # Push 3 bidirectional control — plan
 
-Status: draft v2, September 11, 2026. M0 and M1 code landed the same day (`push3Map.js`, `push3MidiTransport.js`, LED bench row in the controller modal); verified on hardware the same day; M2 (input → launcher actions) is next. Builds on [HANDOFF.md](HANDOFF.md) §"Push 3 status" and [PERFORMANCE-CONTROLLERS-PLAN.md](PERFORMANCE-CONTROLLERS-PLAN.md). Addresses, palette indices and animation semantics come from [PUSH3-LED-REFERENCE.md](PUSH3-LED-REFERENCE.md), which is the ground truth for this plan; do not use Push 2 numbers where the two differ. Display output over WebUSB is already proven; this plan covers the other direction and the loop back: pads, buttons and encoders as input, and LED color as feedback.
+Status: draft v2, September 11, 2026. M0–M3 landed the same day (LED transport, tempo link, pad/encoder/bank input, pad LED feedback, effects pads on rows 5–8). M0 and M1 code landed the same day (`push3Map.js`, `push3MidiTransport.js`, LED bench row in the controller modal); verified on hardware the same day; M2 (input → launcher actions) is next. Builds on [HANDOFF.md](HANDOFF.md) §"Push 3 status" and [PERFORMANCE-CONTROLLERS-PLAN.md](PERFORMANCE-CONTROLLERS-PLAN.md). Addresses, palette indices and animation semantics come from [PUSH3-LED-REFERENCE.md](PUSH3-LED-REFERENCE.md), which is the ground truth for this plan; do not use Push 2 numbers where the two differ. Display output over WebUSB is already proven; this plan covers the other direction and the loop back: pads, buttons and encoders as input, and LED color as feedback.
 
 ## Short answer to "can we light the buttons?"
 
@@ -86,9 +86,9 @@ M0 — **Done (variant).** Instead of extending `controlManager`, `push3MidiTran
 
 M1 — **Done, verified on hardware 2026-09-11.** `push3MidiTransport.js` and `push3Map.js` with tests; an LED bench row in the controller modal that runs the reference's eight-step safety sequence (light one pad, clear it, light an RGB and a white button, one-shot without clock, Start + clock then pulse/blink, clear owned, disconnect) and logs raw incoming messages. One hardware session verifies the map and colors on Eric's unit and records firmware, port name and observations in PUSH3-LED-REFERENCE.md.
 
-M2 — Input: `push3Adapter.js` decoding pads, encoders, modifiers and the default button map into launcher actions; passthrough for other devices; Learn overrides still win.
+M2 — **Done.** `push3Adapter.js` routes pads (rows 1–4 launch, rows 5–8 toggle effects via `effectsBoard.js`), encoders 1–8, Page ◀ ▶ and Shift into launcher actions. The tempo link takes Tap Tempo and the Tempo encoder first. Other buttons are still unmapped.
 
-M3 — LED feedback: `renderPushLeds`, diffing sender, clock sender from the rhythm clock, beat flash, bank row.
+M3 — **Mostly done.** `renderPadFrame` + diffing sender + clock sync from the rhythm clock in `push3Adapter.js`; Tap Tempo beat pulse in `push3Tempo.js`. Remaining: bank row on the resolution buttons, Play/Undo/Delete LEDs.
 
 M4 — Display content: `renderPerformanceDisplay` (header, encoder columns with touch highlight, footer status, screen-button labels), rendered from the launcher snapshot and streamed through the existing transport; splash ↔ performance view switching.
 
@@ -102,7 +102,7 @@ Pads as performance input to patches: expose pad pressure (and MPE slide if it a
 
 ## Decisions needed
 
-1. Pad 1 top-left (matches the virtual surface) or bottom-left (matches Ableton)? If bottom-left, the virtual surface should flip too so the two agree.
+1. **Decided:** pad 1 top-left, matching the virtual surface. Banks are 32 slots: rows 1–4 launch performances, rows 5–8 are effect toggles bound to the scene's toggle controls.
 2. Upper screen buttons: page encoder targets, pick the parameter for the encoder below, or leave unmapped until a need appears?
 3. Shift: fine encoder steps and immediate launch (proposed), or hold-Shift for a second bank of pad actions?
 4. Bank selection on the resolution row (proposed) versus the lower screen buttons?

@@ -2710,6 +2710,10 @@ button.glyph.danger { color: #ffb3bb; }
 .surface-pads [data-status="queued"], .surface-pads [data-status="loading"] { background: #645039; border-color: #ffb65d; }
 .surface-pads [data-status="failed"] { border-color: #ff6868; }
 .surface-pads [aria-pressed="true"] { outline: 1px solid #b6cac4; outline-offset: 2px; }
+.surface-pads [data-effect="0"], .surface-pads [data-effect="1"], .surface-pads [data-effect="2"], .surface-pads [data-effect="3"], .surface-pads [data-effect="4"], .surface-pads [data-effect="5"], .surface-pads [data-effect="6"], .surface-pads [data-effect="7"] { margin-top: 10px; }
+.surface-pads [data-status="on"] { color: #e0fff0; background: #2f5d3c; border-color: #7be08a; border-bottom-color: #7be08a; }
+.surface-pads [data-status="off"] { color: #b9c4c1; background: #2c3334; border-color: #4a5658; border-bottom-color: #5b6a6c; }
+.surface-pads [data-status="unbound"] { color: #5f6a68; background: #202526; border-color: #2d3435; border-bottom-color: #33393a; }
 .surface-status { color: #75d4b0; min-height: 1.4em; font-size: 11px; margin: 12px 0; overflow-wrap: anywhere; }
 .surface-toolbar label { display: inline-flex; align-items: center; gap: 5px; color: #9faaa9; }
 .surface-toolbar input { width: 50px; }

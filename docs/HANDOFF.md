@@ -149,6 +149,33 @@ lights top-left, the named colors match, one-shot and pulse animations run from 
 sent clock, and input decodes. Firmware version was not recorded; add it to the LED
 reference when convenient.
 
+### Pads: performances and effects
+
+Once Push MIDI is connected the pad grid is live in both directions, mirroring the
+virtual surface exactly:
+
+- **Rows 1–4 (pads 1–32): performances.** Each bank holds 32 slots (`PADS_PER_BANK`
+  in `launcher.js`, 128 banks). A pad with a performance is lit steadily in a hue
+  chosen by its position; the playing one pulses to white on the hardware clock;
+  queued pulses amber; loading blinks white; failed is red; empty is off. Pressing a
+  pad launches it with the current timing setting (Shift forces immediate). Page ◀ ▶
+  change bank.
+- **Rows 5–8 (pads 33–64): effects.** Bound automatically, in declaration order, to
+  the scene's boolean toggle controls — `control('glow', false, { mode: 'toggle' })`.
+  Green when on, dim when off, dark when nothing is bound. Pressing flips the value
+  through the registry, so the Controls tab and MIDI Learn stay in sync. The patch
+  gates its optional drawing on the flag.
+- **Encoders 1–8** drive the eight live controls shown under them on the display
+  (Shift for fine steps).
+- The **hardware animation clock** follows the app tempo (Start + 24 ticks per beat,
+  re-anchored when the BPM moves by more than 0.5), so pulses land on the beat. With
+  the clock off Push falls back to 120 BPM for animations.
+
+The adapter sends the full 64-pad frame when an output appears and only changed
+LEDs afterwards. Relevant files: `src/performance/push3Adapter.js` (input routing,
+pad frame, diffing sender, clock sync), `src/performance/effectsBoard.js` (toggle
+control binding), and their tests.
+
 ### Tempo on Push
 
 Once Push MIDI is connected, tempo is mirrored both ways without any bench button:

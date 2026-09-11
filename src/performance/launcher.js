@@ -1,5 +1,9 @@
 // The controller surface owns assignments; a performance snapshot never owns it.
 export const LAUNCHER_KEY = 'p5js-live.launcher.v1';
+// Rows 1–4 of the surface launch performances; rows 5–8 are effect toggles (effectsBoard.js).
+export const PADS_PER_BANK = 32;
+export const MAX_SLOTS = 4096;
+export const BANK_COUNT = MAX_SLOTS / PADS_PER_BANK;
 const copy = value => JSON.parse(JSON.stringify(value));
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const validIndex = (value, limit) => Number.isInteger(value) && value >= 0 && value < limit;
@@ -52,7 +56,7 @@ export function createPerformanceLauncher({ store, registry, launch, clock, tap,
     const entries = store.list(), ids = new Set(entries.map(p => p.id));
     saved.slots = saved.slots.map(id => ids.has(id) ? id : null);
     for (const entry of entries) if (!saved.known.includes(entry.id)) {
-      if (saved.slots.length >= 4096) { warn('All 64 controller banks are full'); break; }
+      if (saved.slots.length >= MAX_SLOTS) { warn(`All ${BANK_COUNT} controller banks are full`); break; }
       saved.slots.push(entry.id); saved.known.push(entry.id);
     }
     if (queued && !ids.has(queued.id)) queued = null;
@@ -113,7 +117,7 @@ export function createPerformanceLauncher({ store, registry, launch, clock, tap,
   }
   function dispatch(event) {
     switch (event.action) {
-      case 'pad': return request(bank * 64 + event.index, event.timing ?? timing);
+      case 'pad': return request(bank * PADS_PER_BANK + event.index, event.timing ?? timing);
       case 'encoder': return encoder(event.index, event.value, event.relative !== false, event.fine);
       case 'tap': tap(); return true;
       case 'safe': { const result = safe(); if (result?.ok === false) return false; reset(); return true; }
@@ -123,7 +127,7 @@ export function createPerformanceLauncher({ store, registry, launch, clock, tap,
     }
   }
   let timing = 'immediate';
-  function setBank(value) { bank = clamp(Math.trunc(value) || 0, 0, 63); notify(); }
+  function setBank(value) { bank = clamp(Math.trunc(value) || 0, 0, BANK_COUNT - 1); notify(); }
   function reset() { generation++; active = null; queued = null; loading = null; error = null; learning = null; pickup.clear(); pressed.clear(); notify(); }
   function receive(message) {
     const key = `${message.device}/${message.type}/${message.channel}/${message.number}`;
