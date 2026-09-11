@@ -268,8 +268,9 @@ control binding), and their tests.
 
 ### Modulations
 
-`src/performance/modulations.js` runs LFOs (sine, triangle, ramps, square, random step)
-on numeric live controls. The registry keeps the performer's base value; the engine
+`src/performance/modulations.js` runs LFOs (sine, triangle, ramps, square, random step).
+Every modulation is a named signal patches read as `modulations.<name>` (−1…1; filled
+into the draw inputs by `host.setModulationSource`); a control target is optional. The registry keeps the performer's base value; the engine
 computes a per-frame output and `registry.setModulator` applies it when patches read
 their controls, so knobs, sliders, MIDI Learn and saved values all see the base and a
 knob always wins. Rates lock to the rhythm clock (`beats`) or free-run (`hz`). Depth and

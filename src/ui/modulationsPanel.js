@@ -32,7 +32,9 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     nameInput.value = m.name; nameInput.setAttribute('aria-label', 'Modulation name'); nameInput.maxLength = 40;
     nameInput.addEventListener('change', () => engine.update(m.id, { name: nameInput.value }));
     const value = document.createElement('span'); value.className = 'modulation-value';
-    name.append(glyph, nameInput, value);
+    const code = document.createElement('code'); code.className = 'modulation-code'; code.textContent = `modulations.${m.name}`;
+    code.title = 'Read this signal in a patch: ({ modulations }) => modulations.' + m.name;
+    name.append(glyph, nameInput, code, value);
 
     const actions = document.createElement('div');
     actions.className = 'modulation-actions';
@@ -52,7 +54,8 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     fields.className = 'modulation-fields';
 
     const target = document.createElement('select'); target.setAttribute('aria-label', 'Modulation target');
-    if (!params.some(p => p.name === m.target)) option(target, m.target, `${m.target} (missing)`, true);
+    option(target, '', '— none (read it in code) —', !m.target);
+    if (m.target && !params.some(p => p.name === m.target)) option(target, m.target, `${m.target} (missing)`, true);
     for (const p of params) option(target, p.name, p.name, p.name === m.target);
     target.addEventListener('change', () => engine.update(m.id, { target: target.value }));
 
@@ -102,9 +105,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     if (!list.length) {
       const empty = document.createElement('div');
       empty.className = 'performance-empty';
-      empty.textContent = params.length
-        ? 'No modulations yet. Add one and pick the control it should move.'
-        : 'No modulations yet. Declare a numeric control() in the scene first, then add one here.';
+      empty.textContent = 'No modulations yet. Add one, then read it in code as modulations.<name>, or point it at a live control.';
       root.append(empty);
       return;
     }
@@ -120,30 +121,17 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     if (root.closest('[data-tool-panel]')?.hidden) return;
     for (const [id, { value }] of rows) {
       const m = engine.get(id);
-      const live = m && engine.value(m.target);
-      value.textContent = Number.isFinite(live) ? `→ ${Number(live.toFixed(3))}` : '';
+      if (!m) continue;
+      const live = engine.value(m.target);
+      const raw = engine.signal(m.name);
+      value.textContent = Number.isFinite(live) ? `→ ${Number(live.toFixed(3))}` : Number.isFinite(raw) ? `${raw >= 0 ? '+' : ''}${raw.toFixed(2)}` : '';
     }
-  }
-
-  function notice(text) {
-    render();
-    const note = document.createElement('div');
-    note.className = 'performance-empty modulation-notice';
-    note.setAttribute('role', 'alert');
-    note.textContent = text;
-    root.prepend(note);
   }
 
   addButton.addEventListener('click', () => {
-    const params = numericParams();
-    if (!params.length) {
-      notice('Nothing to modulate yet: the running scene has no numeric live controls. Add one in a patch — control(\'size\', 50, { min: 10, max: 110 }) — or use ＋ Live control on the Controls tab, then come back.');
-      diagnostics?.warn('No numeric controls to modulate', 'Declare a control() in the scene first.');
-      return;
-    }
-    const used = new Set(engine.list().map(m => m.target));
-    const target = params.find(p => !used.has(p.name))?.name ?? params[0].name;
-    engine.add({ target });
+    // Modulations exist on their own; a control target is optional.
+    const created = engine.add({});
+    if (created) diagnostics?.info?.(`Modulation ${created.name} added`, `Read it in a patch as modulations.${created.name}, or pick a control for it to move.`);
   });
 
   engine.subscribe(render);

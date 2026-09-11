@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { WAVEFORMS, createModulationEngine, validateModulation, waveValue } from '../../src/performance/modulations.js';
+import { WAVEFORMS, createModulationEngine, identifierName, validateModulation, waveValue } from '../../src/performance/modulations.js';
 
 function fakeRegistry(params) {
   const map = new Map(params.map(p => [p.name, { ...p }]));
@@ -26,8 +26,12 @@ describe('modulation waveforms', () => {
     expect(waveValue('nope', 0.3)).toBe(0);
   });
 
-  it('validates and clamps a modulation record', () => {
-    expect(validateModulation({})).toBeNull();
+  it('validates and clamps a modulation record; a target is optional', () => {
+    expect(validateModulation(null)).toBeNull();
+    expect(validateModulation({})).toMatchObject({ target: '', wave: 'sine', on: true });
+    expect(identifierName('Slow wobble!')).toBe('Slow_wobble');
+    expect(identifierName('2fast')).toBe('m_2fast');
+    expect(identifierName('')).toBe('mod');
     expect(validateModulation({ target: 'size', wave: 'weird', beats: 999, depth: 4, offset: -3, sync: 'yes' })).toMatchObject({ target: 'size', wave: 'sine', beats: 64, depth: 1, offset: -1, sync: true, on: true });
   });
 });
@@ -37,7 +41,7 @@ describe('modulation engine', () => {
     const registry = fakeRegistry([size, mix]);
     const engine = createModulationEngine({ registry, makeId: ids() });
     const m = engine.add({ target: 'size', wave: 'sine', beats: 1, depth: 0.5 });
-    expect(m).toMatchObject({ id: 'm1', target: 'size', on: true, name: 'size ∿' });
+    expect(m).toMatchObject({ id: 'm1', target: 'size', on: true, name: 'size' });
 
     engine.frame({ running: true, beat: 0.25, bpm: 120 }, 1);
     expect(engine.value('size')).toBe(100); // 50 + 1 * 0.5 * 100
@@ -88,7 +92,7 @@ describe('modulation engine', () => {
     const registry = fakeRegistry([size]);
     const engine = createModulationEngine({ registry, makeId: ids() });
     const listener = vi.fn(); engine.subscribe(listener);
-    expect(engine.toggleForTarget('size')).toMatchObject({ id: 'm1', wave: 'sine', beats: 1, on: true });
+    expect(engine.toggleForTarget('size')).toMatchObject({ id: 'm1', wave: 'sine', beats: 1, on: true, name: 'size' });
     expect(engine.toggleForTarget('size')).toMatchObject({ id: 'm1', on: false });
     expect(engine.list()).toHaveLength(1);
     engine.frame({ running: true, beat: 0.25 }, 1);
@@ -109,9 +113,27 @@ describe('modulation engine', () => {
     expect(saved).toEqual([expect.objectContaining({ id: 'm1', target: 'mix', wave: 'sine', beats: 1, depth: 0.9, on: true })]);
     expect(engine.remove('m1')).toBe(true);
     expect(engine.remove('m1')).toBe(false);
-    expect(engine.import([...saved, { junk: true }, { target: 'size', wave: 'square', on: false }])).toBe(2);
+    expect(engine.import([...saved, null, 'junk', { target: 'size', wave: 'square', on: false }])).toBe(2);
     expect(engine.list().map(m => [m.id, m.target, m.on])).toEqual([['m1', 'mix', true], [expect.any(String), 'size', false]]);
     engine.reset();
     expect(engine.list()).toEqual([]);
+  });
+
+  it('creates modulations with no target as named signals patches can read', () => {
+    const registry = fakeRegistry([]);
+    const engine = createModulationEngine({ registry, makeId: ids() });
+    expect(engine.add({})).toMatchObject({ id: 'm1', name: 'mod1', target: '' });
+    expect(engine.add({ name: 'wobble', wave: 'square', depth: 0.5, offset: 0.25 })).toMatchObject({ name: 'wobble' });
+    expect(engine.add({ name: 'wobble' }).name).toBe('wobble2'); // names stay unique
+    engine.frame({ running: true, beat: 0.25 }, 1);
+    const inputs = { stale: 1 };
+    expect(engine.readSignals(inputs)).toBe(inputs);
+    expect(inputs.stale).toBeUndefined();
+    expect(inputs.wobble).toBeCloseTo(0.75); // square +1 * 0.5 + 0.25
+    expect(inputs.mod1).toBeCloseTo(0.25); // sine at 0.25 → +1 * 0.25
+    expect(engine.signal('wobble2')).toBeCloseTo(0.25);
+    engine.setOn('m2', false);
+    engine.frame({ running: true, beat: 0.25 }, 2);
+    expect(engine.readSignals({}).wobble).toBeUndefined();
   });
 });

@@ -87,6 +87,7 @@ supplies the object on each frame.
 | `time` | Seconds since the host started |
 | `sceneTime` | Seconds since the active scene changed |
 | `controls` | Values declared with `control()` |
+| `modulations` | Signals created in **Tools → Modulations**, by name, −1…1 (see Modulations) |
 | `keyboard` | Read-only physical keyboard state |
 
 A patch may ignore the input:
@@ -372,6 +373,25 @@ initial starts at the first input. Its duration is an exponential time constant.
 ADSR behavior. Gate accepts a boolean, finite number, or context callback. Sustain
 is a 0–1 fraction of the min/max range. Choose gate or trigger, not both; the
 triggered form remains a one-shot attack/release envelope.
+
+## Modulations
+
+Create LFOs, ramps, squares and random steps in **Tools → Modulations** and read them in
+a patch by name:
+
+```js
+const breathe = ({ modulations }) => {
+  const size = 100 + 60 * (modulations.wobble ?? 0); // −1…1, scaled by depth, shifted by offset
+  circle(width / 2, height / 2, size);
+};
+```
+
+A modulation that has no target is just a signal. Give it a target control and it also
+swings that control around the value the performer set; the control's stored value stays
+the base, so knobs, sliders and saved scenes see the base and a knob always wins. Rates
+are in beats (locked to the rhythm clock) or Hz. Modulations save with the scene. On
+Push 3, the lower display buttons switch the modulation on the column's control on and
+off.
 
 ## Live controls
 

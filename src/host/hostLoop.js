@@ -54,8 +54,10 @@ export function createHostLoop({
     time: 0,
     sceneTime: 0,
     controls: liveControls,
+    modulations: {},
     keyboard,
   };
+  let modulationSource = null;
 
   /**
    * Instance ids that have run `enter` and not yet run `exit`.
@@ -90,6 +92,7 @@ export function createHostLoop({
     drawInputs.time = t - startTime;
     drawInputs.sceneTime = t - sceneEnteredAt;
     registry.paramValues(drawInputs.controls);
+    modulationSource?.(drawInputs.modulations);
     drawInputs.clock = rhythm.sample(t);
     evaluator.signals?.beginFrame(drawInputs);
     drawing.syncGroups?.(activeGroupIds());
@@ -413,6 +416,8 @@ export function createHostLoop({
 
   return {
     rhythm,
+    // Provider that fills drawInputs.modulations each frame (see modulations.js).
+    setModulationSource(fn) { modulationSource = typeof fn === 'function' ? fn : null; },
     beginFrame,
     drawScene,
     commitPendingChanges,

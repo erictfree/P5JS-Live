@@ -200,6 +200,7 @@ const rhythm = host.rhythm;
 audio.connectRhythm(rhythm);
 const modulations = createModulationEngine({ registry });
 registry.setModulator((name, base) => modulations.modulate(name, base));
+host.setModulationSource(target => modulations.readSignals(target));
 const projectStore = createProjectStore({ registry, diagnostics, controlManager, rhythm, modulations });
 const performanceStore = createPerformanceStore({ diagnostics });
 const performanceLibrary = createPerformanceLibrary({ diagnostics });

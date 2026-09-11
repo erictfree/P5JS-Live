@@ -1511,10 +1511,10 @@ order, and press it to load.
 
 #### Modulations
 
-**Tools → Modulations** adds movement to a live control without code: an LFO, ramp,
-square or random step that swings the control around the value you set. Add one, pick
-the control, choose a waveform, and set the rate in beats (locked to the tempo) or Hz,
-plus depth and offset. Knobs, sliders and learned MIDI keep moving the base value; the
+**Tools → Modulations** creates signals: an LFO, ramp, square or random step you read
+in a patch as `modulations.name` (−1…1), or point at a live control so it swings that
+control around the value you set. Add one, name it, choose a waveform, set the rate in
+beats (locked to the tempo) or Hz, plus depth and offset, and optionally pick a control. Knobs, sliders and learned MIDI keep moving the base value; the
 swing follows. Modulations save with the scene. On Push 3 the lower display buttons
 switch the modulation on the control above them on and off (Shift steps the waveform),
 and the display column shows the waveform and rate.
