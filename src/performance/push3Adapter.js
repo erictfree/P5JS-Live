@@ -14,7 +14,7 @@ export const PERFORMANCE_HUES = Object.freeze([
 ]);
 
 export const PAD_LED = Object.freeze({
-  playingPulse: animationChannel('pulse', '1/4'),
+  playingBlink: animationChannel('blink', '1/4'), // hard on/off each beat reads as a pulse; the soft fade read as a dim
   queuedPulse: animationChannel('pulse', '1/8'),
   loadingBlink: animationChannel('blink', '1/8'),
   effectOn: PUSH3_COLORS.green,
@@ -41,8 +41,8 @@ export function slotStatus(state, entries, slot) {
 export function padLed(status, index) {
   const hue = PERFORMANCE_HUES[index % PERFORMANCE_HUES.length];
   switch (status) {
-    // Breathe in the pad's own hue: pulse between the hue and off, never toward white.
-    case 'playing': return { base: hue, target: PAD_LED.off, channel: PAD_LED.playingPulse };
+    // Blink in the pad's own hue on the beat, never toward white.
+    case 'playing': return { base: hue, target: PAD_LED.off, channel: PAD_LED.playingBlink };
     case 'queued': return { base: PAD_LED.queued, target: PAD_LED.queuedTarget, channel: PAD_LED.queuedPulse };
     case 'loading': return { base: PAD_LED.loading, target: PAD_LED.off, channel: PAD_LED.loadingBlink };
     case 'failed': return { base: PAD_LED.failed, channel: 0 };
