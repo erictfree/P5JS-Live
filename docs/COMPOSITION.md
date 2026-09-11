@@ -250,17 +250,10 @@ for independent object-owned resources or feedback.
 
 ## Inspect and edit
 
-Open **Tools → Scene** to inspect the live sources, groups, effects, and shader pass
-counts. Select a patch, group binding, or operator to open its code.
-
-The up/down arrows edit top-level array expressions in source. The change is
-undoable and does not execute automatically. **Review scene & run** opens the edited
-scene; use Run or `Cmd/Ctrl+Enter` to apply it. Until then, the inspector shows the
-live tree. Arrows are unavailable for pending edits or expressions that cannot be
-reliably matched to rows, such as spread and generated root structure.
-
-Edit nested order, mute, and shader bypass in source. Live controls and MIDI remain
-in **Tools → Controls**.
+The composition is the array in your code. Reorder, nest, mute and bypass by editing
+the scene cell and running it; there is no separate tree to keep in sync. **Tools →
+Scene** shows the name of the running scene and your saved scenes. Live controls and
+MIDI remain in **Tools → Controls**.
 
 ## Try Layer Lab
 

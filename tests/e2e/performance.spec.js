@@ -235,7 +235,6 @@ test.describe('multiple copies of one strategy', () => {
     // The reference shows the count; the scene itself remains authoritative in code.
     await expect(page.locator('[data-strategy="plasma"]')).toContainText('×3');
     await expect(page.locator('#scene-panel')).toHaveCount(1);
-    await expect(page.locator('#scene-tree [data-scene-node="plasma#2"]')).toHaveCount(1);
     expect(await page.evaluate(() => window.p5jsLive.registry.activeOrder())).toEqual([
       'asciiNoise',
       'plasma',

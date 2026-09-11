@@ -132,8 +132,7 @@ test('code image works through modulation and opacity, resizes and survives Safe
 test('the Code Scene example is runnable, exports pixels without the editor, and survives reload', async ({page},testInfo) => {
   await boot(page);
   await page.locator('#tools-toggle').click();
-  await page.getByRole('tab',{name:'Scene',exact:true}).click();
-  await page.getByText('Put your code inside the scene',{exact:true}).click();
+  await page.getByRole('tab',{name:'Library',exact:true}).click();
   await page.getByRole('button',{name:'Run Code Scene',exact:true}).click();
   await expect.poll(()=>page.evaluate(()=>window.p5jsLive.registry.activeSceneName())).toBe('codeScene');
   await settled(page);

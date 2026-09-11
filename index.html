@@ -253,7 +253,7 @@
         <div id="panels">
           <section class="tool-view" id="scene-panel" role="tabpanel" aria-labelledby="tools-tab-scene" data-tool-panel="scene" hidden>
             <div class="body">
-              <div class="scene-heading"><div><span class="scene-eyebrow">Composition</span><h2 id="scene-inspector-name">No scene</h2></div><button id="scene-edit-source" type="button">Edit scene</button></div>
+              <div class="scene-heading"><div><span class="scene-eyebrow">Running</span><h2 id="scene-inspector-name">No scene</h2></div></div>
               <form id="save-performance-form" class="performance-save-row" aria-label="Save this scene">
                 <input
                   id="performance-name"
@@ -265,21 +265,8 @@
                 />
                 <button id="save-performance" type="submit">Save scene</button>
               </form>
-              <p class="hint">Saving keeps this window — source, tuned values, audio analysis and view — as a scene and a pad. Recall, update or delete saved scenes below.</p>
+              <p class="hint">Saving keeps this window — source, tuned values, modulations, audio analysis and view — as a scene and a pad. Click a saved scene to switch to it.</p>
               <div id="performance-list" class="performance-list" aria-live="polite"></div>
-              <p class="hint">Sources and effects run from top to bottom. Each group processes its own image.</p>
-              <div id="scene-inspector-status" class="scene-inspector-status" role="status"></div>
-              <div id="scene-pending" class="library-pending" hidden><strong>Scene edits are waiting to run</strong><p>The tree below shows the live composition.</p><button id="scene-review-source" type="button">Review scene &amp; run</button></div>
-              <ol id="scene-tree" class="scene-tree" aria-label="Live scene composition"></ol>
-              <details class="tool-disclosure scene-recipe"><summary>Let one image distort another</summary><p><code>[lettering].modulate([rings], 0.08)</code> uses the rings to bend the lettering. The image input stays offstage unless you also add it to the scene.</p><button id="run-image-modulation" type="button">Run Image Modulation</button></details>
-              <details class="tool-disclosure scene-recipe"><summary>Put your code inside the scene</summary><p><code>codeView()</code> turns the editor into transparent, syntax-coloured pixels. Edit your code, then bend its image.</p><button id="run-code-scene" type="button">Run Code Scene</button></details>
-              <details class="tool-disclosure scene-recipe"><summary>Chain effects onto a sketch</summary><p>Put one or more installed sketches in an array, then chain effects onto that array. Edit its scene cell, then Run.</p><pre><code>const scene = [
-  [waveScope]
-    .kaleid(6)
-    .opacity(({ audio }) =&gt;
-      0.4 + audio.bass * 0.6),
-];
-scene.draw();</code></pre><p><code>[waveScope, laserFan].rotate(0, 0.2)</code> rotates both sketches together. Nest that array to keep its effects separate from other patches. <code>.mute()</code> pauses its drawing while retaining state.</p></details>
             </div>
           </section>
           <section
@@ -518,6 +505,8 @@ const publishMain = room.publish({
               </div>
               <div class="library-browse-row"><label>Show <select id="library-category" aria-label="Patch category"><option value="all">All categories</option><option value="utility">Utilities</option><option value="visual">Drawing</option><option value="shader">Effects / shaders</option><option value="community">Community</option><option value="shared">Shared</option></select></label><span id="library-result-count" role="status"></span></div>
               <button id="run-teapot" type="button">Run Teapot example</button>
+              <button id="run-image-modulation" type="button" title="Example: one image distorts another">Run Image Modulation</button>
+              <button id="run-code-scene" type="button" title="Example: the editor as pixels inside the scene">Run Code Scene</button>
               <div id="strategy-library"></div>
               <div id="library-pending" class="library-pending" hidden><strong id="library-pending-label"></strong><p>Review the scene source before running.</p><button id="library-review-scene" type="button">Review scene &amp; run</button></div>
               <p class="hint library-scope">Counts refer to catalog patches; configured copies appear in Project patches.</p>

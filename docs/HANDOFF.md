@@ -134,9 +134,11 @@ Behaviour, in `src/main.js` under "performance library":
   the library and loaded after the trusted-code confirmation; a library file is added
   without running anything. **Rename** applies the typed name to the current entry;
   **↑ ↓** reorder the list, which is also the jog-wheel browsing order.
-- **Scenes live on the Scene tab**: the save form and the recall/update/delete list sit
-  at the top of the composition view. The Performance tab keeps the Live launcher
-  (Open controller) next to the library. **Reset to starter** is the only thing left
+- **The Scene tab is only the running scene's name, the save form and the saved-scene
+  list** (click a row to switch to it; the running one is marked). The composition tree,
+  reorder arrows, Edit scene and the tutorial recipes were removed on 2026-09-11: the
+  code is the composition. The two example buttons moved to the Library tab. The
+  Performance tab keeps the Live launcher (Open controller) next to the library. **Reset to starter** is the only thing left
   in the collapsed "Start over" disclosure.
 - **Jog wheel on Push** browses the library: turn (or the click buttons beside it) to
   highlight, press to load. The screen swaps the encoder row for a browser strip with

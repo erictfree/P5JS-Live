@@ -94,15 +94,9 @@ test('protection errors leave the running scene intact and native methods unchan
 test('array effects remain editable, reloadable and inspectable', async ({ page }, testInfo) => {
   await boot(page, 'const scene = [blue, [red].hue(1/3).blur(3)]; scene.draw();');
   await expect.poll(() => pixel(page)).toEqual([0, 255, 0, 255]);
-  await page.locator('#tools-toggle').click();
-  await page.getByRole('tab', { name: 'Scene', exact: true }).click();
-  await expect(page.locator('#scene-tree')).toContainText('hue(0.333');
-  await expect(page.locator('#scene-tree')).toContainText('2 shader passes');
-  await page.getByRole('button', { name: 'Move blue down', exact: true }).click();
-  await expect(page.locator('#scene-pending')).toBeVisible();
-  await page.locator('#scene-review-source').click();
+  // Reordering is done in code: swap the two entries and run the scene cell.
+  await page.evaluate(() => { window.p5jsLive.editor.value = window.p5jsLive.editor.value.replace('[blue, [red].hue(1/3).blur(3)]', '[[red].hue(1/3).blur(3), blue]'); });
   await page.getByRole('textbox', { name: 'Edit scene scene', exact: true }).press('Control+Enter');
-  await expect(page.locator('#scene-pending')).toBeHidden();
   await expect.poll(() => pixel(page)).toEqual([0, 0, 255, 255]);
   expect(await page.evaluate(() => window.p5jsLive.editor.value)).toContain('scene.draw()');
   await page.reload();

@@ -90,36 +90,6 @@ test('fused transformations and repeated operators match separate ordered patche
   expect(matches.length / combined.length).toBeGreaterThan(.95);
 });
 
-test('Scene inspector shows scopes, preserves live order until Run, and links to source', async ({ page }, testInfo) => {
-  await boot(page, 'blue, [red].fx(new ShaderChain().hue(.2).blur(3))');
-  await page.locator('#tools-toggle').click();
-  await page.getByRole('tab', { name: 'Scene', exact: true }).click();
-  await expect(page.locator('#scene-tree')).toContainText('Isolated');
-  await expect(page.locator('#scene-tree')).toContainText('hue(0.2)');
-  await expect(page.locator('#scene-tree')).toContainText('2 shader passes');
-  await expect(page.locator('#scene-pending')).toBeHidden();
-  await page.screenshot({ path: testInfo.outputPath('scene-inspector.png') });
-  await page.getByRole('button', { name: 'Move blue down', exact: true }).click();
-  await expect(page.locator('#scene-pending')).toBeVisible();
-  expect((await page.evaluate(() => window.p5jsLive.registry.activeTree()))[0].strategy).toBe('blue');
-  await page.locator('#scene-review-source').click();
-  await page.getByRole('button', { name: 'Run scene show', exact: true }).click();
-  await expect(page.locator('#scene-pending')).toBeHidden();
-  expect((await page.evaluate(() => window.p5jsLive.registry.activeTree()))[0].kind).toBe('group');
-  await page.getByRole('button', { name: 'Edit source for red', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Run patch red', exact: true })).toBeVisible();
-});
-
-test('Scene inspector fits a narrow screen and keeps keyboard tab navigation', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await boot(page, 'blue, [red].fx(new ShaderChain().hue(.2))');
-  await page.locator('#tools-toggle').click();
-  await page.getByRole('tab', { name: 'Scene', exact: true }).click();
-  expect(await page.locator('#scene-panel').evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
-  await page.getByRole('tab', { name: 'Scene', exact: true }).press('ArrowRight');
-  await expect(page.getByRole('tab', { name: 'Library', exact: true })).toBeFocused();
-});
-
 test('Layer Lab imports, animates silently, isolates opacity, and recalls its order comparison', async ({ page }, testInfo) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -141,6 +111,7 @@ test('Layer Lab imports, animates silently, isolates opacity, and recalls its or
   await page.screenshot({path:testInfo.outputPath('layer-lab.png')});
   await page.locator('#tools-toggle').click();
   await page.getByRole('tab', { name: 'Performance', exact: true }).click();
+  await page.getByRole('tab', { name: 'Scene', exact: true }).click();
   await page.getByTitle('Recall Layer Lab — effect order', { exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeSceneName())).toBe('orderLab');
   await page.evaluate(() => window.p5jsLive.registry.setParam('labPixels', 30));

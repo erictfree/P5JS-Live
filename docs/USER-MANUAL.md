@@ -1252,13 +1252,13 @@ const scene = [
 scene.draw();
 ```
 
-For a complete working example, open **Tools → Scene → Let one image distort
+For a complete working example, open **Tools → Library → Run Image Modulation** (was: Tools → Scene → Let one image distort
 another → Run Image Modulation**. Press Esc, then hold H to compare the original
 image. Adjust **Modulation depth** in Controls. Edit `modRings` and Run its patch
 to change the distortion while the scene continues. The example also works without
 sound, and keeps your existing source in the project.
 
-The Scene inspector shows an **Image input** branch beneath the effect. Those
+The rings are an **image input** feeding the effect rather than a visible layer. Those
 patches receive the usual state, time, audio, clock, and lifecycle calls. Reusing
 an input creates separate occurrences, as with ordinary nested arrays. Its
 object-owned fields and resources still follow the normal sharing rules.
@@ -1287,7 +1287,7 @@ const scene = [
 scene.draw();
 ```
 
-For the complete example, open **Tools → Scene → Put your code inside the scene →
+For the complete example, open **Tools → Library → Run Code Scene** (was: Tools → Scene → Put your code inside the scene →
 Run Code Scene**. Open a code cell and type. Press Esc, then E to hide the editor:
 its text remains in the scene, bending through the animated image input. Hold H
 outside the editor to compare the undistorted text. Press E again to resume editing.
@@ -1917,7 +1917,7 @@ function composition over an image.
 Compatible operators share a pass; neighborhood filters materialize their input when
 needed. Every operation receives its predecessor's result. Native
 [array effect methods](COMPOSITION.md) add fluent composition around ordinary sketches,
-and **Tools → Scene** shows the running groups, effects, and shader pass counts.
+and the scene cell in the editor is the single source of truth for groups, effects and order.
 
 Nested arrays introduce texture scope. An effect inside a group samples that group's
 current pixels, while an outer effect samples the already-composited parent image.

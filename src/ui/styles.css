@@ -2394,7 +2394,10 @@ button.glyph.danger { color: #ffb3bb; }
 .library-current { display: flex; align-items: center; gap: 10px; }
 .library-current .name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .library-thumb { width: 44px; height: 44px; flex: 0 0 44px; object-fit: cover; border-radius: 4px; background: #000; border: 1px solid #343c3e; }
-.library-list .performance-row { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
+.library-list .scene-row { cursor: pointer; }
+.scene-row.is-current { border-color: #62d7b1; box-shadow: inset 0 0 0 1px #62d7b155; }
+.scene-row:focus-visible { outline: 2px solid #b6cac4; outline-offset: 2px; }
+.performance-row { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
 .library-list .performance-row.is-current { border-color: #62d7b1; }
 .library-list .performance-row.is-browsing { outline: 2px solid #ffb65d; outline-offset: 2px; }
 .library-badge { font: 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: #62d7b1; margin-left: 6px; }

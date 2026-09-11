@@ -1259,10 +1259,16 @@ function renderPerformances() {
     return;
   }
 
+  const active = launcher.snapshot().active;
   for (const [index, performance] of performances.entries()) {
     const row = document.createElement('div');
-    row.className = 'performance-row';
+    row.className = 'performance-row scene-row';
     row.dataset.performanceId = performance.id;
+    row.classList.toggle('is-current', performance.id === active);
+    row.setAttribute('role', 'button');
+    row.tabIndex = 0;
+    row.setAttribute('aria-label', `Switch to ${performance.name}`);
+    row.setAttribute('aria-pressed', String(performance.id === active));
 
     const copy = document.createElement('div');
     copy.className = 'performance-copy';
@@ -1453,9 +1459,23 @@ document.getElementById('save-performance-form').addEventListener('submit', (eve
   diagnostics.success(`Scene saved — ${name}`);
 });
 
+// Clicking a scene row (anywhere but its buttons) switches to it, like pressing its pad.
+performanceList.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const row = event.target.closest('.scene-row');
+  if (!row || event.target !== row) return;
+  event.preventDefault();
+  const performance = performanceStore.get(row.dataset.performanceId);
+  if (performance) recallPerformance(performance);
+});
 performanceList.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-performance-action]');
-  const row = button?.closest('[data-performance-id]');
+  const row = event.target.closest('[data-performance-id]');
+  if (row && !button) {
+    const performance = performanceStore.get(row.dataset.performanceId);
+    if (performance && performance.id !== launcher.snapshot().active) recallPerformance(performance);
+    return;
+  }
   if (!button || !row) return;
   const performance = performanceStore.get(row.dataset.performanceId);
   if (!performance) {
@@ -1576,6 +1596,10 @@ function autosavePerformanceSoon(delay = 1500) {
   projectStore.saveSoon = (...args) => { persistWorking(...args); autosavePerformanceSoon(); };
 }
 launcher.subscribe(() => autosavePerformanceSoon());
+{
+  let lastActive = null;
+  launcher.subscribe(() => { const active = launcher.snapshot().active; if (active !== lastActive) { lastActive = active; renderPerformances(); } });
+}
 
 async function loadPerformance(id) {
   const entry = performanceLibrary.get(id);

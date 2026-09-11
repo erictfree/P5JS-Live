@@ -82,13 +82,11 @@ test('bad image edits and invalid amounts recover without losing the working com
 test('the runnable example exposes its input in the Scene inspector and survives reload', async ({page},testInfo) => {
   await boot(page);
   await page.locator('#tools-toggle').click();
-  await page.getByRole('tab',{name:'Scene',exact:true}).click();
-  await page.getByText('Let one image distort another',{exact:true}).click();
+  await page.getByRole('tab',{name:'Library',exact:true}).click();
   await page.getByRole('button',{name:'Run Image Modulation',exact:true}).click();
   await expect.poll(()=>page.evaluate(()=>window.p5jsLive.registry.activeSceneName())).toBe('imageModulation');
   await settled(page);
-  await expect(page.locator('#scene-tree')).toContainText('Image input');
-  await expect(page.locator('#scene-tree')).toContainText('modRings');
+  expect(await page.evaluate(()=>window.p5jsLive.registry.activeOrder())).toContain('modRings');
   expect(await page.evaluate(()=>window.p5jsLive.registry.listStrategies().filter(r=>r.status==='failed').map(r=>r.name))).toEqual([]);
   await page.keyboard.press('Escape');
   await page.keyboard.press('e');
