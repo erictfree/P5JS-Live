@@ -209,13 +209,13 @@
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>]</kbd></dt><dd>unfold all while keeping every fold control available</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>/</kbd></dt><dd>show or hide this key-command sheet while editing</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd></dt><dd>open the AI source editor</dd>
-            <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Option/Alt</kbd>+<kbd>1…9</kbd></dt><dd>recall the corresponding numbered saved performance</dd>
-            <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Option/Alt</kbd>+<kbd>S</kbd></dt><dd>quick-save the current window to a new numbered performance slot</dd>
+            <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Option/Alt</kbd>+<kbd>1…9</kbd></dt><dd>recall the corresponding numbered saved scene</dd>
+            <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Option/Alt</kbd>+<kbd>S</kbd></dt><dd>quick-save the current window to a new numbered scene slot</dd>
             <dt><kbd>Esc</kbd></dt><dd>release editor focus</dd>
             <dt><kbd>Space</kbd> / <kbd>t</kbd></dt><dd>tap tempo (release editor focus first)</dd>
             <dt><kbd>Shift</kbd>+<kbd>Space</kbd></dt><dd>play / pause</dd>
             <dt><kbd>0</kbd></dt><dd>restore the complete safe state</dd>
-            <dt><kbd>s</kbd></dt><dd>capture the current project as the safe state</dd>
+            <dt><kbd>s</kbd></dt><dd>capture the current performance as the safe state</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>N</kbd></dt><dd>start a new performance with the default scene</dd>
             <dt><kbd>Cmd/Ctrl</kbd>+<kbd>\</kbd></dt><dd>show / hide the tools drawer</dd>
             <dt><kbd>r</kbd></dt><dd>show / hide the installed-patch reference</dd>
@@ -246,7 +246,7 @@
           <button id="tools-tab-library" type="button" role="tab" aria-selected="true" aria-controls="library-panel" data-tool-view="library">Library</button>
           <button id="tools-tab-controls" type="button" role="tab" aria-selected="false" aria-controls="controls-panel" data-tool-view="controls">Controls</button>
           <button id="tools-tab-audio" type="button" role="tab" aria-selected="false" aria-controls="audio-panel" data-tool-view="audio">Audio</button>
-          <button id="tools-tab-project" type="button" role="tab" aria-selected="false" aria-controls="project-panel" data-tool-view="project">Performances</button>
+          <button id="tools-tab-project" type="button" role="tab" aria-selected="false" aria-controls="project-panel" data-tool-view="project">Performance</button>
         </div>
 
         <div id="panels">
@@ -580,7 +580,7 @@ const publishMain = room.publish({
           >
             <section class="tool-section performance-section">
               <header class="tool-section-heading performance-heading">
-                <h2>Performances</h2>
+                <h2>Scenes</h2>
                 <button
                   id="new-performance"
                   type="button"
@@ -590,7 +590,7 @@ const publishMain = room.publish({
               </header>
               <div class="body">
                 <p class="hint performance-hint">
-                  Save a complete working window to a numbered recall slot. Audio files stay separate.
+                  A scene is a saved working window: source, tuned values, audio analysis and view. Pads and the list below recall it. Audio files stay separate.
                 </p>
                 <form id="save-performance-form" class="performance-save-row">
                   <input
@@ -598,10 +598,10 @@ const publishMain = room.publish({
                     type="text"
                     maxlength="60"
                     autocomplete="off"
-                    placeholder="Performance name"
-                    aria-label="Performance name"
+                    placeholder="Scene name"
+                    aria-label="Scene name"
                   />
-                  <button id="save-performance" type="submit">Save current</button>
+                  <button id="save-performance" type="submit">Save scene</button>
                 </form>
                 <div id="performance-launcher"></div>
                 <div id="performance-list" class="performance-list" aria-live="polite"></div>
@@ -621,15 +621,15 @@ const publishMain = room.publish({
               </div>
             </section>
             <details class="tool-disclosure project-file">
-              <summary>Project files</summary>
+              <summary>Performance files</summary>
             <div class="body">
               <div class="row">
-                <span class="name">project file</span>
+                <span class="name">performance file</span>
                 <span class="actions">
-                  <button id="export-project" type="button" title="Export this project and all named performances as JSON" aria-label="Export this project and all named performances as JSON">
+                  <button id="export-project" type="button" title="Export this performance — source, controls, layout and every scene — as JSON" aria-label="Export this performance as JSON">
                     export
                   </button>
-                  <button id="import-project" type="button" title="Import a project file and merge its named performances" aria-label="Import a project file and merge its named performances">
+                  <button id="import-project" type="button" title="Import a performance file and merge its scenes" aria-label="Import a performance file and merge its scenes">
                     import
                   </button>
 
@@ -641,10 +641,10 @@ const publishMain = room.publish({
                     id="reset-project"
                     type="button"
                     class="danger"
-                    title="Discard everything and go back to the starter project"
-                    aria-label="Discard everything and go back to the starter project"
+                    title="Discard everything and go back to the starter"
+                    aria-label="Discard everything and go back to the starter"
                   >
-                    Reset project…
+                    Reset to starter…
                 </button>
               </div>
             </div>

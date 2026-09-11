@@ -75,7 +75,7 @@ export function createPerformanceLauncher({ store, registry, launch, clock, tap,
     try {
       const result = await launch(performance);
       if (token !== generation) return false;
-      if (!result?.ok) throw new Error(result?.error?.message ?? result?.reason ?? 'Launch failed; previous performance restored');
+      if (!result?.ok) throw new Error(result?.error?.message ?? result?.reason ?? 'Launch failed; previous scene restored');
       active = id; pickup.clear();
       return true;
     } catch (e) {

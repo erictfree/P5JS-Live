@@ -68,7 +68,7 @@ p5js live includes:
 - GPU post-processing through standard `ShaderChain` effects, wet/dry mix, blend
   modes, feedback, and custom WebGL patches;
 - a beta AI source editor that stages code changes before they run;
-- version history, Safe State, named performances, and project import/export;
+- version history, Safe State, saved scenes, and performance import/export;
 - fullscreen, projected code, and a separate audience window;
 - beta peer-to-peer canvas sharing through `StreamRoom` objects.
 
@@ -215,8 +215,8 @@ projects or exports. A ChatGPT subscription does not include API access.
 | `Cmd/Ctrl+Option/Alt+T` | Tidy the current cell |
 | `Cmd/Ctrl+Shift+Up/Down` | Move the current line or selected lines (`Option/Alt+Up/Down` also works) |
 | `Cmd/Ctrl+Option/Alt+A` | Open the AI source editor |
-| `Cmd/Ctrl+Option/Alt+1…9` | Recall the corresponding stable numbered performance slot |
-| `Cmd/Ctrl+Option/Alt+S` | Quick-save to a new numbered performance slot |
+| `Cmd/Ctrl+Option/Alt+1…9` | Recall the corresponding numbered scene slot |
+| `Cmd/Ctrl+Option/Alt+S` | Quick-save to a new numbered scene slot |
 | `Cmd/Ctrl+Alt+N` | Start a new performance from the default scene |
 | `Esc` | Release editor focus |
 | `Space` / `t` | Tap tempo |
@@ -311,9 +311,9 @@ source you trust. See [SECURITY.md](SECURITY.md).
 
 ### Performance controller preview
 
-Under **Tools → Performances → Open controller**, use the virtual 64-pad surface to
-launch saved performances immediately or on the next beat. **Add two demo
-performances** provides Orbits and Tiles with eight live controls. Pad launches keep
+Under **Tools → Performance → Open controller**, use the virtual 64-pad surface to
+launch saved scenes immediately or on the next beat. **Add two demo
+scenes** provides Orbits and Tiles with eight live controls. Pad launches keep
 current audio, tempo and MIDI setup; the existing **Recall** restores full snapshots.
 Eight assignable encoders, stable banks, generic MIDI Learn and absolute pickup work
 without a Push attached. Controller assignments travel with project exports.

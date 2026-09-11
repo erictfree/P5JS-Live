@@ -140,7 +140,7 @@ test('Layer Lab imports, animates silently, isolates opacity, and recalls its or
   await expect.poll(async () => (await pixel(page))[0]).toBeGreaterThan(80);
   await page.screenshot({path:testInfo.outputPath('layer-lab.png')});
   await page.locator('#tools-toggle').click();
-  await page.getByRole('tab', { name: 'Performances', exact: true }).click();
+  await page.getByRole('tab', { name: 'Performance', exact: true }).click();
   await page.getByTitle('Recall Layer Lab — effect order', { exact: true }).click();
   await expect.poll(() => page.evaluate(() => window.p5jsLive.registry.activeSceneName())).toBe('orderLab');
   await page.evaluate(() => window.p5jsLive.registry.setParam('labPixels', 30));

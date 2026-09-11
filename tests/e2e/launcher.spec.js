@@ -18,7 +18,7 @@ async function boot(page) {
     app.editor.setFolded(false);
   }, { red: source('#ff0000'), blue: source('#0000ff') });
   if (await page.locator('#side').evaluate(el => el.classList.contains('is-hidden'))) await page.locator('#tools-toggle').click();
-  await page.getByRole('tab', { name: /^Performances/ }).click();
+  await page.getByRole('tab', { name: /^Performance/ }).click();
   await page.getByRole('button', { name: 'Open controller', exact: true }).click();
 }
 const pad = (page, index) => page.locator(`[data-pad="${index}"]`);
@@ -90,8 +90,8 @@ test('next-beat queue and learned MIDI pad use the same launcher', async ({ page
 
 test('demo performances expose eight useful encoders and remain deduplicated', async ({ page }) => {
   await boot(page);
-  await page.getByRole('button', { name: 'Add two demo performances' }).click();
-  await page.getByRole('button', { name: 'Add two demo performances' }).click();
+  await page.getByRole('button', { name: 'Add two demo scenes' }).click();
+  await page.getByRole('button', { name: 'Add two demo scenes' }).click();
   expect(await page.evaluate(() => window.p5jsLive.performanceStore.list().filter(p => p.id.startsWith('controller-demo')).length)).toBe(2);
   await page.getByRole('button', { name: /Pad \d+: Controller demo · Orbits/ }).click();
   await expect(page.getByRole('button', { name: /Controller demo · Orbits · playing/ })).toBeVisible();

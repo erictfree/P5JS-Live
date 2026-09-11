@@ -26,7 +26,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
         <p class="hint">LED bench uses three-byte MIDI on the Push User Port; no sysex. Pulse starts a 120 BPM clock. Last input: <span data-led-input>—</span></p>
       </div>
       <div class="surface-encoders"></div>
-      <p><button type="button" data-demos>Add two demo performances</button> <span class="hint">Eight controls each. Plays when you select a pad.</span></p>
+      <p><button type="button" data-demos>Add two demo scenes</button> <span class="hint">Eight controls each. Plays when you select a pad.</span></p>
       <div class="surface-toolbar">
         <button type="button" data-action="bankPrevious" aria-label="Previous pad bank">←</button>
         <strong data-bank></strong><button type="button" data-action="bankNext" aria-label="Next pad bank">→</button>
@@ -34,10 +34,10 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
         <button type="button" data-cancel title="Cancel queued launch or MIDI Learn">Cancel</button>
         <button type="button" data-action="tap">Tap</button><button type="button" data-action="safe">Restore safe</button>
       </div>
-      <div class="surface-pads" aria-label="Performance and effect pads"></div>
+      <div class="surface-pads" aria-label="Scene and effect pads"></div>
       <p class="surface-status" role="status"></p>
       <div class="surface-toolbar"><label>Pad <input data-slot type="number" min="1" max="32" value="1" aria-label="Pad to assign"></label>
-        <label>Performance <select data-assignment aria-label="Pad performance"></select></label>
+        <label>Scene <select data-assignment aria-label="Pad scene"></select></label>
         <button type="button" data-assign>Assign pad</button>
         <button type="button" data-recover>Recover previous edits</button></div>
       <details><summary>MIDI Learn and hardware status</summary>
@@ -47,7 +47,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
           <label>Encoder <select data-learn-mode aria-label="Encoder MIDI mode"><option value="absolute">Absolute · pickup</option><option value="relative">Relative · two’s complement</option></select></label>
           <button type="button" data-learn>Learn</button><button type="button" data-clear>Clear surface routes</button></div>
         <p data-learn-status></p><ul data-routes></ul>
-        <p class="hint">Encoders take the scene's numeric controls in order; an empty encoder picks up the next control you add. Pads 1–32 launch performances in the current bank; pads 33–64 switch the scene's toggle controls (<code>control(name, false, { mode: 'toggle' })</code>) on and off. Pad numbers are relative to the current bank. For encoders, turn the knob; touch messages are ignored. Surface routes take priority over parameter mappings. Select an encoder’s target above; use − / + or arrow keys to adjust it (Shift for fine steps).</p>
+        <p class="hint">Encoders take the scene's numeric controls in order; an empty encoder picks up the next control you add. Pads 1–32 launch scenes in the current bank; pads 33–64 switch the scene's toggle controls (<code>control(name, false, { mode: 'toggle' })</code>) on and off. Pad numbers are relative to the current bank. For encoders, turn the knob; touch messages are ignored. Surface routes take priority over parameter mappings. Select an encoder’s target above; use − / + or arrow keys to adjust it (Shift for fine steps).</p>
       </details>
     </dialog>`;
   // Keep all 64 pads visible beside the encoders on a laptop-sized display.
@@ -65,7 +65,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   setup.querySelector('summary').after(root.querySelector('[data-profile]').closest('.surface-toolbar'));
   const demoButton = root.querySelector('[data-demos]');
   demoButton.textContent = 'Add demos';
-  demoButton.setAttribute('aria-label', 'Add two demo performances');
+  demoButton.setAttribute('aria-label', 'Add two demo scenes');
   root.querySelector('[data-close]').before(demoButton);
   demoRow.remove();
   const modal = root.querySelector('dialog');

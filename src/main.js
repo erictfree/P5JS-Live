@@ -1179,7 +1179,7 @@ async function launchPerformance(performance) {
     if (sequence !== performanceRecallSequence) return { ok: false, reason: 'Launch superseded' };
     const failed = registry.listStrategies().find(record => record.lastError || record.status === 'error');
     if (failed) throw new Error(`${failed.name} failed on its first rendered frame`);
-    diagnostics.success(`Performance launched — ${performance.name}`, 'Audio, clock, MIDI mappings and view preserved.');
+    diagnostics.success(`Scene launched — ${performance.name}`, 'Audio, clock, MIDI mappings and view preserved.');
     return { ok: true };
   } catch (error) {
     if (sequence === performanceRecallSequence) {
@@ -1227,7 +1227,7 @@ function renderPerformances() {
   if (performances.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'performance-empty';
-    empty.textContent = 'No saved performances yet.';
+    empty.textContent = 'No saved scenes yet.';
     performanceList.append(empty);
     return;
   }
@@ -1317,7 +1317,7 @@ function restoreBeforePerformance(checkpoint, performance, detail) {
     controller.sourceChanged();
   }
   diagnostics.error(
-    `Could not recall ${performance.name} — previous performance restored`,
+    `Could not recall ${performance.name} — previous scene restored`,
     detail,
   );
 }
@@ -1347,7 +1347,7 @@ function recallPerformance(performance) {
   projectStore.saveSoon(performanceSource, 0);
   controller.sourceChanged();
   diagnostics.success(
-    `Performance recalled — ${performance.name}`,
+    `Scene recalled — ${performance.name}`,
     `${performance.sceneName ?? 'No named scene'} · source, parameters, audio analysis and view restored.`,
   );
 
@@ -1374,8 +1374,8 @@ function recallPerformanceSlot(index) {
   const performance = performanceStore.list()[index];
   if (!performance) {
     diagnostics.warn(
-      `No saved performance in slot ${index + 1}`,
-      'Slots follow the numbered order shown under Project → Performances.',
+      `No saved scene in slot ${index + 1}`,
+      'Slots follow the numbered order shown under Tools → Performance.',
     );
     return null;
   }
@@ -1391,7 +1391,7 @@ function quickSavePerformance() {
   })}`;
   const result = performanceStore.save(performanceSnapshot(name));
   if (!result.ok) {
-    diagnostics.error('Could not quick-save performance', result.reason);
+    diagnostics.error('Could not quick-save scene', result.reason);
     return result;
   }
   const slot = performanceStore.list().findIndex(
@@ -1399,10 +1399,10 @@ function quickSavePerformance() {
   ) + 1;
   renderPerformances();
   diagnostics.success(
-    `Quick-saved performance to slot ${slot}`,
+    `Quick-saved scene to slot ${slot}`,
     slot <= 9
       ? `${name} · recall with Cmd/Ctrl+Option/Alt+${slot}`
-      : `${name} · recall it from Project → Performances`,
+      : `${name} · recall it from Tools → Performance`,
   );
   return { ...result, slot };
 }
@@ -1411,18 +1411,18 @@ document.getElementById('save-performance-form').addEventListener('submit', (eve
   event.preventDefault();
   const name = performanceNameInput.value.trim();
   if (!name) {
-    diagnostics.warn('Name the performance before saving it');
+    diagnostics.warn('Name the scene before saving it');
     performanceNameInput.focus();
     return;
   }
   const result = performanceStore.save(performanceSnapshot(name));
   if (!result.ok) {
-    diagnostics.error('Could not save performance', result.reason);
+    diagnostics.error('Could not save scene', result.reason);
     return;
   }
   performanceNameInput.value = '';
   renderPerformances();
-  diagnostics.success(`Performance saved — ${name}`);
+  diagnostics.success(`Scene saved — ${name}`);
 });
 
 performanceList.addEventListener('click', async (event) => {
@@ -1440,18 +1440,18 @@ performanceList.addEventListener('click', async (event) => {
     const result = performanceStore.save(performanceSnapshot(performance.name), {
       id: performance.id,
     });
-    if (result.ok) diagnostics.success(`Performance updated — ${performance.name}`);
+    if (result.ok) diagnostics.success(`Scene updated — ${performance.name}`);
     else diagnostics.error(`Could not update ${performance.name}`, result.reason);
     renderPerformances();
   } else if (button.dataset.performanceAction === 'delete') {
     const confirmed = await dialog.ask({
       title: `Delete “${performance.name}”?`,
-      body: 'This removes the local recall point. It does not change the performance currently running.',
-      warning: 'There is no undo, though exported project files are unaffected.',
-      confirmLabel: 'Delete performance',
+      body: 'This removes the saved scene. It does not change what is currently running.',
+      warning: 'There is no undo, though exported performance files are unaffected.',
+      confirmLabel: 'Delete scene',
     });
     if (confirmed && performanceStore.remove(performance.id)) {
-      diagnostics.info(`Performance deleted — ${performance.name}`);
+      diagnostics.info(`Scene deleted — ${performance.name}`);
       renderPerformances();
     }
   }
@@ -1592,7 +1592,7 @@ function connectExample(buttonId, file, sceneName, title, message) {
   });
 }
 connectExample('run-teapot', 'teapot.js', 'teapotScene', 'Teapot',
-  'Controls has teapotSpin, teapotDots, teapotMotion, and teapotAudio. Load audio for reactive motion; save a named performance to recall this scene.');
+  'Controls has teapotSpin, teapotDots, teapotMotion, and teapotAudio. Load audio for reactive motion; save a scene to recall this later.');
 connectExample('run-motion-lab', 'motion-lab.js', 'motionLab', 'Motion Lab',
   'Press Esc, then hold and release H for the ADSR; tap Space for tempo. The Lag cell compares raw steps with smooth motion. Your existing source remains in the project.');
 connectExample('run-image-modulation', 'image-modulation.js', 'imageModulation', 'Image Modulation',
@@ -1607,7 +1607,7 @@ document.getElementById('export-project').addEventListener('click', () => {
   const name = projectStore.download(editor.value, { performances, launcher: launcher.export() });
   diagnostics.success(
     `Exported ${name}`,
-    `${performances.length} named performance${performances.length === 1 ? '' : 's'} included. Audio files remain separate.`,
+    `${performances.length} scene${performances.length === 1 ? '' : 's'} included. Audio files remain separate.`,
   );
 });
 
@@ -1662,8 +1662,8 @@ async function startNewPerformance() {
     title: 'Start a new performance?',
     body: (strategyCount) =>
       `This replaces the working source, all ${strategyCount} installed patches, ` +
-      `their history, scenes, and state with the default starter. Your named ` +
-      `performances stay saved, and the music and canvas keep running.`,
+      `their history, scenes, and state with the default starter. Your saved ` +
+      `scenes stay saved, and the music and canvas keep running.`,
     warning: 'Unsaved working edits cannot be recovered. Save, update, or export them first if needed.',
     confirmLabel: 'Start fresh',
     message: 'New performance ready — pulsing square',
@@ -1679,14 +1679,14 @@ document.getElementById('new-performance').addEventListener('click', startNewPer
  * performance action above. */
 document.getElementById('reset-project').addEventListener('click', () => {
   confirmStarterProject({
-    title: 'Reset this project?',
+    title: 'Reset to the starter?',
     body: (strategyCount) =>
       `This discards your editor contents, all ${strategyCount} installed patches, ` +
       `their versions and history, every scene, and all patch state, and goes back to ` +
-      `the starter project. The music and the canvas keep running.`,
+      `the starter. The music and the canvas keep running.`,
     warning: 'There is no undo for this. Export first if you might want it back.',
     confirmLabel: 'Reset to starter',
-    message: 'Project reset to the starter',
+    message: 'Reset to the starter',
   });
 });
 
@@ -1707,15 +1707,15 @@ document.getElementById('import-file').addEventListener('change', async (event) 
   const confirmed = await dialog.ask({
     title: `Import "${file.name}"?`,
     body:
-      `This project contains ${importedSource.split('\n').length} lines of JavaScript ` +
-      `including its scene arrays and ${parsed.data.performances.length} named ` +
-      `performance${parsed.data.performances.length === 1 ? '' : 's'}. Importing replaces ` +
-      `your current editor contents, runs this code immediately, and merges the named ` +
-      `performances with those already in this browser.`,
+      `This performance contains ${importedSource.split('\n').length} lines of JavaScript ` +
+      `including its scene arrays and ${parsed.data.performances.length} saved ` +
+      `scene${parsed.data.performances.length === 1 ? '' : 's'}. Importing replaces ` +
+      `your current editor contents, runs this code immediately, and merges the saved ` +
+      `scenes with those already in this browser.`,
     preview: importedSource.slice(0, 1200),
     warning:
       'p5js live runs imported code with the same privileges as your own. It is not a ' +
-      'sandbox — imported code can freeze this tab. Only import projects from someone you trust.',
+      'sandbox — imported code can freeze this tab. Only import performances from someone you trust.',
     confirmLabel: 'Import and run',
   });
   if (!confirmed) {
@@ -1743,7 +1743,7 @@ document.getElementById('import-file').addEventListener('change', async (event) 
   if (parsed.data.launcher) launcher.import(parsed.data.launcher);
   if (!performanceImport.ok) {
     diagnostics.warn(
-      `Imported ${file.name}, but could not restore its named performances`,
+      `Imported ${file.name}, but could not restore its scenes`,
       performanceImport.reason,
     );
   }
@@ -1752,7 +1752,7 @@ document.getElementById('import-file').addEventListener('change', async (event) 
   diagnostics.success(
     `Imported ${file.name}`,
     performanceImport.ok
-      ? `${performanceImport.imported} named performance${performanceImport.imported === 1 ? '' : 's'} restored.`
+      ? `${performanceImport.imported} scene${performanceImport.imported === 1 ? '' : 's'} restored.`
       : 'Working source and parameters restored.',
   );
 });

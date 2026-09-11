@@ -88,6 +88,18 @@ and [RHYTHM.md](RHYTHM.md) before changing these semantics.
 - The starter scene is an intentionally rich audio/beat-reactive visual used to
   exercise composition, shaders, and recovery.
 
+## Vocabulary: performance and scene
+
+Decided 2026-09-11. A **performance** is the whole set a performer brings to a show:
+working source, saved scenes, pad layout and encoder assignments, MIDI control
+mappings, tempo and audio settings. A **scene** is one saved working window that a pad
+or the Performance tab recalls. The **Scene** tab shows the current scene's composition.
+
+The code predates this: `performanceStore` holds *scenes*, `projectStore` holds the
+*performance* bundle, and identifiers such as `performance-list`, `performanceLauncher`
+and `launcher.slots` refer to scenes. Storage keys are unchanged so nothing saved is
+lost. User-facing text uses the new words; rename internals opportunistically.
+
 ## Push 3 status
 
 Real Push 3 display output has been proven on tethered Push 3 hardware. This work is

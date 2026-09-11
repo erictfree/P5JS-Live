@@ -340,7 +340,7 @@ The stage is both the visual output and the editor background. The main areas ar
 
 - **Code**: editable patch and scene cells over the stage.
 - **Transport**: play, pause, and loop controls.
-- **Tools**: Scene, Library, Controls, Audio, and Performances; Settings, Messages,
+- **Tools**: Scene, Library, Controls, Audio, and Performance; Settings, Messages,
   and AI assistant are below the scrolling panel.
 - **Reference**: a compact view of installed patch interfaces.
 - **Audience window**: a clean output window for a projector or second display.
@@ -1487,16 +1487,16 @@ normally restores the last editor source and project settings.
 
 #### Named performances
 
-A named performance is a recallable snapshot of the current window, including source,
+A saved scene is a recallable snapshot of the current window, including source,
 the active scene, controls and mappings, audio-analysis settings, and view settings.
 
-Open **Tools → Performances**, enter a name, and select **Save current**. Each row can be:
+Open **Tools → Performance**, enter a name, and select **Save scene**. Each row can be:
 
 - recalled;
 - updated from the current window;
 - deleted.
 
-Slots have stable insertion order. New performances appear at the bottom, so adding a
+Slots have stable insertion order. New scenes appear at the bottom, so adding a
 performance does not renumber earlier slots.
 
 | Command | Action |
@@ -1508,11 +1508,11 @@ performance does not renumber earlier slots.
 | `0` | Restore Safe State after leaving the editor |
 
 Quick-save reports the assigned slot in the bottom message area. Starting a new
-performance does not delete named performances or stop the current music.
+performance does not delete saved scenes or stop the current music.
 
 #### Live launcher and virtual Push
 
-Open **Tools → Performances → Open controller**. Select **Add two demo
+Open **Tools → Performance → Open controller**. Select **Add two demo
 performances** to try Orbits and Tiles with eight live controls. Adding demos leaves
 your current code and visuals alone; select a pad to launch one.
 
@@ -1575,9 +1575,9 @@ files without a controller layout leave your current assignments in place.
 
 #### Project export and import
 
-Under **Tools → Performances → Project files**, **Export project** creates a
-portable JSON file containing the working project, all named performances, and the controller layout. **Import project** first validates and runs the working source,
-then merges valid named performances by identity. It does not delete unrelated
+Under **Tools → Performance → Performance files**, **Export** creates a
+portable JSON file containing the whole performance: working source, every scene, and the controller layout. **Import** first validates and runs the working source,
+then merges valid scenes by identity. It does not delete unrelated
 performances already in the browser.
 
 Audio and local video files remain separate. Back them up beside the JSON file.
@@ -1589,7 +1589,7 @@ current project is known to work. The snapshot records the source, installed pat
 versions, active scene, live values and mappings, compatible runtime state, and other
 settings required to recover.
 
-The Performances panel shows when the snapshot was created and whether the current project
+The Performance panel shows when the scene was created and whether the current source
 differs from it. Select **Restore**, press `0`, or use the panic control to recover.
 Restoration reports success and any parts that could not be restored.
 
@@ -1652,7 +1652,7 @@ Before rehearsal:
 4. Name important inline ideas so their identity and state stay stable.
 5. Bound histories and test the heaviest scene at the target resolution.
 6. Create controls and map MIDI by semantic name.
-7. Save named performances in desired slot order.
+7. Save scenes in desired slot order.
 8. Export the project and copy media files separately.
 
 Before the audience arrives:
@@ -2084,7 +2084,7 @@ Open or close Tools with `Cmd/Ctrl+\`.
 | **Scene** | Inspect the live tree and shader order, open source, and prepare reorder edits; apply them with `Cmd/Ctrl+Enter` in the scene |
 | **Library** | Browse catalog patches, install source, prepare scene additions, and share a patch |
 | **Messages** | Read diagnostics and revert to a successful patch version from Evaluation history |
-| **Performances** | Save and recall performances, set or restore Safe State, and import/export/reset project files |
+| **Performance** | Save and load performances, save and recall scenes, set or restore Safe State, and import/export performance files |
 | **Settings** | Set FPS warnings, code size, panel opacity, and audience layout |
 | **AI assistant** | Configure the optional staged source assistant, inspect its proposal, and accept or cancel it |
 | **Controls** | Declare live controls, operate them onscreen, connect MIDI, learn or remove mappings, and see connected devices |
@@ -2396,7 +2396,7 @@ adds the patch, scene, context, control, and replacement model described here.
 | Browser autosave | Working source, Safe Scene preference, live-control values, and MIDI mappings | Current browser profile and origin | Survive refresh/restart |
 | Named performance | Source, active scene name, Safe Scene preference, values/mappings, audio-analysis and loop settings, and view settings | Browser storage; also included in project export | Fast recall during a set |
 | Safe State | Exact confirmed definitions and bindings, version data, recursive active scene, controls/mappings, source, and clone-compatible occurrence state | Current running session | Emergency rollback |
-| Project file | Working project plus every named performance | Downloaded JSON file | Backup and transfer |
+| Performance file | The whole performance: working source, scenes, controls, layout | Downloaded JSON file | Backup and transfer |
 | Patch file | One source cell plus metadata | `.p5patch.js` file | Share one patch |
 | Patch link | One patch's source encoded in the URL fragment | Copied URL | Quick source exchange |
 
@@ -2406,7 +2406,7 @@ functions and live browser resource handles are also not serialized.
 #### New performance, reset, and reload
 
 - **Reload** restores the last browser-autosaved working source and settings.
-- **New performance** loads the starter source while preserving saved performances
+- **New performance** loads the starter source while preserving saved scenes
   and the current music/canvas session.
 - **Reset project** discards the working project and returns to the starter. Export a
   backup first when any current work matters.
@@ -2695,7 +2695,7 @@ version from Messages.
 An infinite loop or blocking operation cannot be caught while it is still running.
 Reload the tab. If startup recovery can isolate the failed source, repair or remove
 the offending cell before evaluating it again. Otherwise export any recoverable work
-and use **Performances → Project files → Reset project** only as a last resort.
+and use **Performance → Performance files → Reset to starter** only as a last resort.
 
 #### A performance will not recall
 
@@ -2706,7 +2706,7 @@ its source.
 
 #### Import or export is incomplete
 
-Project JSON contains source, controls, mappings, and named performances, but not audio
+Performance JSON contains source, controls, mappings, and scenes, but not audio
 or local-video files. Move those media files separately. Patch export contains only
 the cell under the cursor, not its external dependencies; include or document any
 helper it requires.
@@ -2849,7 +2849,7 @@ algorithm choice is saved with projects and performances.
 
 Open **Tools → Library → Run Teapot example**. This adds editable controls, a
 `teapotPoints` patch, and a `teapotScene` scene, then runs the example. Existing source
-stays in the project. Use **Performances** to save it as a named performance.
+stays in the working source. Use **Performance** to save it as a scene.
 
 The teapot loads a bundled, downloaded Utah teapot OBJ with p5 `loadModel()`, then
 renders its vertices into a private, transparent WebGL canvas. Loading is asynchronous;

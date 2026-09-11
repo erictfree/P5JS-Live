@@ -19,7 +19,7 @@ in **Tools → Audio**.
 
 The instrument restores your browser's saved project. **New performance** starts
 the moving-circle starter below. Save your current work first if you want a named
-copy to return to. Named saves remain available in **Tools → Performances**.
+copy to return to. Saved scenes remain available in **Tools → Performance**.
 
 Projects open with patch cells collapsed and scene cells expanded. The scene shows
 what runs; open a patch's disclosure arrow when you want to edit its drawing code.
@@ -167,8 +167,8 @@ separate Undo button. You can also keep unused patch source for later reuse.
 
 ## Save and recover
 
-Save a named performance in **Tools → Performances**. **Project files → Export
-project** backs up working source, controls, mappings, and named performances.
+Save a scene in **Tools → Performance**. **Performance files → Export** backs up the
+whole performance: working source, controls, mappings, layout, and every scene.
 Audio and local video files remain separate. Browser storage belongs to that
 browser and URL; it is not a shared backup.
 
