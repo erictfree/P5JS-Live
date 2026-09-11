@@ -260,6 +260,7 @@ export function createPush3MidiTransport({
 
   return {
     connect,
+    hasOutput: () => Boolean(output),
     listPorts,
     selectOutput,
     setPad,

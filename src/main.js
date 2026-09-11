@@ -17,6 +17,7 @@ import { createAudioEngine } from './audio/audioEngine.js';
 import { createPerformanceLauncher } from './performance/launcher.js';
 import { createPush3DisplayTransport } from './performance/push3DisplayTransport.js';
 import { createPush3MidiTransport } from './performance/push3MidiTransport.js';
+import { createPush3TempoLink, describeTempo } from './performance/push3Tempo.js';
 import { createPerformanceSurface } from './ui/performanceLauncher.js';
 import { controllerDemoPerformances } from '../starter/controller-demos.js';
 import { LIVE_API_NAMES } from './host/liveApi.js';
@@ -92,6 +93,8 @@ const network = getDefaultNetworkManager();
 const controlManager = createControlManager({ registry, diagnostics });
 const push3Display = createPush3DisplayTransport({ diagnostics });
 const push3Leds = createPush3MidiTransport({ diagnostics });
+let push3Tempo = null; // created once the rhythm manager and panels exist
+let performanceSurface = null;
 
 // Read-only keyboard state, handed to strategies as one of the draw inputs.
 const keyboard = { keys: new Set(), shift: false, alt: false };
@@ -604,6 +607,8 @@ window.draw = function draw() {
   const snapshot = audio.readFrame(); // once per frame, shared by every strategy
   const drawInputs = host.beginFrame(snapshot, stageCanvas);
   panels.renderBeat(drawInputs.clock);
+  push3Tempo?.frame(drawInputs.clock);
+  performanceSurface?.frame();
 
   // The live coder configures the scene as an ordered array of strategy values.
   // Each function or object exposes the current drawing behavior.
@@ -1091,11 +1096,14 @@ const launcher = createPerformanceLauncher({
 });
 controlManager.setMessageRouter(message => launcher.receive(message));
 controlManager.setDisconnectHandler(() => launcher.disconnect());
-createPerformanceSurface({
+push3Tempo = createPush3TempoLink({ leds: push3Leds, rhythm, tap: () => panels.tapTempo() });
+push3Leds.onInput(event => push3Tempo.handleInput(event.decoded));
+performanceSurface = createPerformanceSurface({
   root: document.getElementById('performance-launcher'), launcher, store: performanceStore,
   registry, controlManager,
   push3Display,
   push3Leds,
+  tempo: () => describeTempo(rhythm.snapshot(), rhythm.settings()),
   addDemos() {
     for (const demo of controllerDemoPerformances()) {
       if (!performanceStore.get(demo.id)) {

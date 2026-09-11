@@ -38,14 +38,15 @@ The architecture rule from the handoff holds: hardware translates into logical l
 | Encoders 1–8 | CC 71–78 relative; touch notes 0–7 | `encoder` relative; Shift = fine; touch highlights the column on the display |
 | Page ← / → | CC 62 / 63 | `bankPrevious` / `bankNext` |
 | Resolution row (1/4 … 1/32t) | CC 36–43 | select bank 1–8 directly; the current bank's button is lit |
-| Tap Tempo | CC 3 | `tap` |
+| Tap Tempo | CC 3 | `tap` — **done** (`push3Tempo.js`), LED mirrors the toolbar beat flash |
 | Play | CC 85 | play / pause |
 | Undo | CC 119 | `safe` (restore last safe state) |
 | Delete (alone) | CC 118 | cancel queued launch |
 | Upper screen buttons | CC 102–109 | encoder-target paging or parameter pick (decision below) |
 | Lower screen buttons | CC 20–27 | unmapped for now |
 | Shift / Select | CC 49 / 48 | modifiers only; no action |
-| Jog wheel, D-pad, touch strip, Volume, Tempo | CC 70/93–95, 44–47/91, note 12, CC 79, CC 14 | reserved; later candidates for scene browse, ninth control, master opacity |
+| Tempo encoder | CC 14 relative | **done**: nudge manual BPM ±1 (Shift ±0.1) |
+| Jog wheel, D-pad, touch strip, Volume | CC 70/93–95, 44–47/91, note 12, CC 79 | reserved; later candidates for scene browse, ninth control, master opacity |
 
 The resolution row takes the role Push 2's right-hand scene buttons would have had: eight lit buttons in a row are a natural bank selector, and they have LEDs.
 

@@ -149,8 +149,26 @@ lights top-left, the named colors match, one-shot and pulse animations run from 
 sent clock, and input decodes. Firmware version was not recorded; add it to the LED
 reference when convenient.
 
+### Tempo on Push
+
+Once Push MIDI is connected, tempo is mirrored both ways without any bench button:
+
+- The Push **Tap Tempo** LED flashes lit-white for the first 80 ms of every beat, the
+  same rule as the toolbar tap button, and sits dark gray otherwise. It goes dark when
+  the clock is off.
+- Pressing **Tap Tempo** on the Push calls the same tap action as the toolbar button.
+- Turning the **Tempo** encoder nudges the manual BPM by 1 per click, or 0.1 with
+  Shift held. In Auto mode it starts from the tracked tempo and switches to Manual.
+- The Push screen (**Show controller** on the display row) shows the BPM, the mode
+  label (Manual, Tracking, Off…), and a beat dot in the header's right-hand block.
+  The stream redraws the surface on every pull, so this stays live with the modal
+  closed. The modal preview redraws each frame while open.
+
 Relevant files:
 
+- `src/performance/push3Tempo.js` — beat-window rule, `describeTempo`, and the link
+  that owns the Tap LED and routes Tap/Tempo-encoder input into the rhythm manager.
+- `tests/unit/push3Tempo.test.js`.
 - `src/performance/push3Map.js` — pad notes, button CCs, encoder CCs, palette names,
   animation channels, and `decodePushMessage`. Pure and unit-tested.
 - `src/performance/push3MidiTransport.js` — Web MIDI output/input, LED send with

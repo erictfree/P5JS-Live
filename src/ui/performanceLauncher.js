@@ -4,7 +4,7 @@ import { PUSH3_BUTTONS, PUSH3_COLORS, animationChannel } from '../performance/pu
 
 const startupImageUrl = new URL('../../assets/brand/startup.bgr565', import.meta.url).href;
 
-export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, recover, addDemos }) {
+export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, tempo = null, recover, addDemos }) {
   root.innerHTML = `
     <div class="surface-heading"><h3>Live launcher</h3><button type="button" data-open>Open controller</button></div>
     <p class="hint">Pads launch visuals and saved values. Your audio, clock and MIDI setup keep running. Recall below restores the whole snapshot.</p>
@@ -96,8 +96,11 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     const frame = await getStartupFrame();
     return push3Display.startStream(() => frame, { fps: 5, label: 'startup' });
   };
+  // The hardware stream pulls at 15 fps; redraw the surface on each pull so the BPM
+  // readout and beat dot stay live on the Push even while the modal is closed.
   $('[data-start-display]').onclick = () => push3Display.startStream(() => {
     const canvas = $('canvas');
+    drawSurface(canvas);
     return canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
   });
   $('[data-stop-display]').onclick = () => push3Display.stopStream();
@@ -145,6 +148,10 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   };
   $('[data-clear]').onclick = () => launcher.clearRoutes();
   let optionSignature = '', paramSignature = '';
+  let lastSurface = { title: 'Working scene', status: 'Working scene · live', controls: [] };
+  function drawSurface(canvas) {
+    renderSurfaceDisplay(canvas, { ...lastSurface, tempo: tempo?.() ?? null });
+  }
   function render() {
     if (!modal.open) return;
     const state = launcher.snapshot(), entries = store.list(), params = registry.listParams().filter(p => typeof p.value === 'number');
@@ -182,7 +189,13 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
       const li = document.createElement('li'); li.textContent = `${route.device} · Ch ${route.channel} ${route.type} ${route.number} → ${route.action} ${route.index + 1}`; return li;
     }));
     const canvas = $('canvas'); canvas.setAttribute('aria-label', `${active}. ${status}`);
-    renderSurfaceDisplay(canvas, { title: active, status, controls: state.targets.map(name => params.find(p => p.name === name)) });
+    lastSurface = { title: active, status, controls: state.targets.map(name => params.find(p => p.name === name)) };
+    drawSurface(canvas);
+  }
+  // Per-frame hook: keeps the modal's preview beat dot moving. Hardware streaming
+  // redraws on its own pull, so nothing happens here unless the modal is open.
+  function frame() {
+    if (modal.open && tempo) drawSurface($('canvas'));
   }
   launcher.subscribe(render);
   registry.subscribe(render);
@@ -238,5 +251,5 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     push3Leds.subscribe(renderLedStatus);
     renderLedStatus();
   }
-  return { render };
+  return { render, frame };
 }
