@@ -128,6 +128,9 @@ describe('Push 3 adapter', () => {
     h.adapter.handleInput({ kind: 'button', name: 'shift', pressed: false });
     h.adapter.handleInput({ kind: 'encoder', encoder: 'volume', delta: 50 });
     expect(h.transport.setVolume).toHaveBeenLastCalledWith(1);
+    expect(h.adapter.volumeOverlay()).toEqual({ level: 1, active: true });
+    h.time.now = 3000;
+    expect(h.adapter.volumeOverlay().active).toBe(false);
     expect(h.adapter.handleInput({ kind: 'button', name: 'record', pressed: true })).toBe(false);
   });
 

@@ -1206,6 +1206,7 @@ performanceSurface = createPerformanceSurface({
   tempo: () => describeTempo(rhythm.snapshot(), rhythm.settings()),
   transport: () => audio.status(),
   browser: () => push3Adapter?.browseState() ?? null,
+  volume: () => push3Adapter?.volumeOverlay() ?? null,
   performanceName: () => performanceLibrary.current()?.name ?? null,
   modulations,
   addDemos() {

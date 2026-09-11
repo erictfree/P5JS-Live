@@ -251,7 +251,8 @@ virtual surface exactly:
 - **Volume encoder** sets the master output level (2% per click, 0.5% with Shift). The
   engine routes file playback through a master gain placed *after* the analyzer tap,
   so lowering it changes what the room hears without dimming audio-reactive visuals.
-  The level shows at the right of the Push header, under the encoder.
+  While the encoder moves (and for 2.5 s after) the screen shows the level and a bar
+  under it whatever the source; with a file loaded the level stays visible there.
 - Values changed anywhere (Push, controller dialog, Controls tab sliders, learned MIDI)
   now propagate everywhere: the Controls tab re-renders its rows on registry changes,
   and the Push screen model is refreshed even while the dialog is closed.

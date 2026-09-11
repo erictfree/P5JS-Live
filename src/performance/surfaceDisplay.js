@@ -11,7 +11,7 @@ export const SURFACE_PROFILES = Object.freeze([
 // encoder, and mirrors the toolbar BPM readout with a dot that lights on the same
 // 80 ms beat window as the tap button. Title and status shift right to make room.
 const TEMPO_WIDTH = 190;
-export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null, lowerLabels = null }) {
+export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null, lowerLabels = null, volume = null }) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#171a1c'; ctx.fillRect(0, 0, 960, 160);
   const left = tempo ? 15 + TEMPO_WIDTH + 10 : 15;
@@ -31,7 +31,18 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
     ctx.fillText(tempo.bpm ? `BPM · ${tempo.label}` : 'Tempo', 44, 58);
     ctx.fillStyle = '#42474b'; ctx.fillRect(15 + TEMPO_WIDTH, 12, 2, 50);
   }
-  if (transport && transport.kind === 'file' && transport.loaded) {
+  if (volume?.active) {
+    // The Volume encoder just moved: show the level under it, whatever the source.
+    const level = Math.max(0, Math.min(1, volume.level ?? 1));
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#62d7b1'; ctx.font = 'bold 26px monospace';
+    ctx.fillText(`${Math.round(level * 100)}%`, 945, 34);
+    ctx.fillStyle = '#b9bdc1'; ctx.font = '12px monospace';
+    ctx.fillText('VOLUME', 945, 50);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#2b3234'; ctx.fillRect(805, 55, 140, 6);
+    ctx.fillStyle = '#62d7b1'; ctx.fillRect(805, 55, 140 * level, 6);
+  } else if (transport && transport.kind === 'file' && transport.loaded) {
     // Under the Volume encoder at the far right: level and play state.
     ctx.textAlign = 'right';
     ctx.fillStyle = transport.playing ? '#62d7b1' : '#8a9390'; ctx.font = 'bold 22px monospace';

@@ -144,6 +144,8 @@ export function createPush3Adapter({
   let lastPlay = null;
   let browse = null; // { index, until } while the jog wheel is browsing performances
   const heldLower = new Map(); // lower button index → { moved } while pressed
+  let volumeShownUntil = 0; // the screen shows the level for a moment after the Volume encoder moves
+  const VOLUME_FLASH_MS = 2500;
   let renderQueued = false;
   let hadOutput = false;
 
@@ -312,6 +314,7 @@ export function createPush3Adapter({
     if (event.kind === 'encoder' && event.encoder === 'volume' && transport?.setVolume && Number.isFinite(event.delta)) {
       const current = transport.status()?.volume ?? 1;
       transport.setVolume(Math.min(1, Math.max(0, current + event.delta * (shiftHeld ? 0.005 : 0.02))));
+      volumeShownUntil = now() + VOLUME_FLASH_MS;
       return true;
     }
     if (event.kind === 'button' && event.pressed) {
@@ -342,6 +345,8 @@ export function createPush3Adapter({
     handleInput,
     render,
     browseState,
+    // Level readout for the screen: active for a moment after the Volume encoder moves.
+    volumeOverlay() { return { level: transport?.status?.()?.volume ?? 1, active: now() < volumeShownUntil }; },
     snapshot() { return { shiftHeld, lit: lastFrame.size, buttons: lastButtons.size, browsing: browseState(), heldLower: [...heldLower.keys()] }; },
     dispose() { for (const stop of unsubscribe) stop(); },
   };
