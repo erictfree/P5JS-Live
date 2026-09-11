@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PUSH3_COLORS, animationChannel } from '../../src/performance/push3Map.js';
 import { PADS_PER_BANK } from '../../src/performance/launcher.js';
-import { PERFORMANCE_HUES, PLAY_LED, STOP_BUTTON, STOP_LED, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderPadFrame, renderUpperButtons, slotStatus, stopLed } from '../../src/performance/push3Adapter.js';
+import { PERFORMANCE_HUES, PLAY_LED, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderPadFrame, renderUpperButtons, slotStatus } from '../../src/performance/push3Adapter.js';
 import { PUSH3_BUTTONS } from '../../src/performance/push3Map.js';
 
 const entries = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }];
@@ -36,7 +36,7 @@ function harness({ state = baseState, effects = [], output = true, audio = { kin
   const board = { list: vi.fn(() => effects), toggle: vi.fn(index => (effects[index] ? { name: effects[index].name, value: !effects[index].value } : null)) };
   const leds = fakeLeds({ output });
   const queue = [];
-  const transport = { toggle: vi.fn(async () => true), stop: vi.fn(() => true), status: vi.fn(() => audio) };
+  const transport = { toggle: vi.fn(async () => true), status: vi.fn(() => audio) };
   const adapter = createPush3Adapter({ launcher, leds, store, registry, effects: board, transport, schedule: fn => queue.push(fn) });
   const flush = () => { while (queue.length) queue.shift()(); };
   return { adapter, launcher, leds, board, registry, transport, audio, flush };
@@ -183,27 +183,10 @@ describe('Push 3 adapter', () => {
     expect(h.leds.setButton.mock.calls.filter(([cc]) => cc === PUSH3_BUTTONS.play)).toEqual([[PUSH3_BUTTONS.play, PLAY_LED.paused]]);
     h.audio.playing = true;
     h.adapter.frame({});
-    expect(h.leds.setButton.mock.calls.filter(([cc]) => cc === PUSH3_BUTTONS.play).at(-1)).toEqual([PUSH3_BUTTONS.play, PLAY_LED.playing]);
+    expect(h.leds.setButton).toHaveBeenLastCalledWith(PUSH3_BUTTONS.play, PLAY_LED.playing);
     expect(h.adapter.handleInput({ kind: 'button', name: 'play', cc: PUSH3_BUTTONS.play, pressed: true, value: 127 })).toBe(true);
     expect(h.transport.toggle).toHaveBeenCalledOnce();
     expect(h.adapter.handleInput({ kind: 'button', name: 'play', cc: PUSH3_BUTTONS.play, pressed: false, value: 0 })).toBe(true);
     expect(h.transport.toggle).toHaveBeenCalledOnce();
-  });
-
-  it('Stop lights when a file is loaded and not playing, and stops and resets the file', () => {
-    expect(stopLed({ kind: 'file', loaded: true, playing: false })).toBe(STOP_LED.armed);
-    expect(stopLed({ kind: 'file', loaded: true, playing: true })).toBe(STOP_LED.off);
-    expect(stopLed({ kind: 'none', loaded: false, playing: false })).toBe(STOP_LED.off);
-
-    const h = harness({ audio: { kind: 'file', loaded: true, playing: true } });
-    h.adapter.frame({});
-    expect(h.leds.setButton).toHaveBeenCalledWith(STOP_BUTTON, STOP_LED.off);
-    h.audio.playing = false;
-    h.adapter.frame({});
-    expect(h.leds.setButton).toHaveBeenLastCalledWith(STOP_BUTTON, STOP_LED.armed);
-    expect(h.adapter.handleInput({ kind: 'button', name: 'stopClips', cc: STOP_BUTTON, pressed: true, value: 127 })).toBe(true);
-    expect(h.transport.stop).toHaveBeenCalledOnce();
-    h.adapter.handleInput({ kind: 'button', name: 'stopClips', cc: STOP_BUTTON, pressed: false, value: 0 });
-    expect(h.transport.stop).toHaveBeenCalledOnce();
   });
 });

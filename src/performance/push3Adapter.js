@@ -32,14 +32,6 @@ export function playLed(status) {
   return status.playing ? PLAY_LED.playing : PLAY_LED.paused;
 }
 
-// Stop (the Stop Clips button on Push 3) lights whenever a file is loaded and not playing,
-// as the counterpart to Play. Plain on/off so it reads the same on a white or RGB LED.
-export const STOP_BUTTON = PUSH3_BUTTONS.stopClips;
-export const STOP_LED = Object.freeze({ armed: PUSH3_COLORS.litWhite, off: PUSH3_COLORS.off });
-export function stopLed(status) {
-  return status?.kind === 'file' && status.loaded && !status.playing ? STOP_LED.armed : STOP_LED.off;
-}
-
 export const PAD_LED = Object.freeze({
   playingPulse: animationChannel('pulse', '1/2'), // slowest hardware pulse: one second per cycle at the fixed animation clock
   queuedPulse: animationChannel('pulse', '1/8'),
@@ -124,7 +116,6 @@ export function createPush3Adapter({
   let lastFrame = new Map();
   let lastButtons = new Map();
   let lastPlay = null;
-  let lastStop = null;
   let renderQueued = false;
   let hadOutput = false;
 
@@ -189,15 +180,12 @@ export function createPush3Adapter({
   // an output appears.
   function frame() {
     const has = leds.hasOutput();
-    if (has && !hadOutput) { lastFrame = new Map(); lastButtons = new Map(); lastPlay = null; lastStop = null; scheduleRender(); }
-    if (!has && hadOutput) { lastFrame = new Map(); lastButtons = new Map(); lastPlay = null; lastStop = null; }
+    if (has && !hadOutput) { lastFrame = new Map(); lastButtons = new Map(); lastPlay = null; scheduleRender(); }
+    if (!has && hadOutput) { lastFrame = new Map(); lastButtons = new Map(); lastPlay = null; }
     if (has && !leds.clockRunning()) leds.startClock(ANIMATION_CLOCK_BPM);
     if (has && transport) {
-      const status = transport.status();
-      const play = playLed(status);
-      if (play !== lastPlay && leds.setButton(PUSH3_BUTTONS.play, play).ok) lastPlay = play;
-      const stop = stopLed(status);
-      if (stop !== lastStop && leds.setButton(STOP_BUTTON, stop).ok) lastStop = stop;
+      const color = playLed(transport.status());
+      if (color !== lastPlay && leds.setButton(PUSH3_BUTTONS.play, color).ok) lastPlay = color;
     }
     hadOutput = has;
   }
@@ -226,9 +214,8 @@ export function createPush3Adapter({
       const upper = UPPER_BUTTONS.indexOf(event.cc);
       if (upper >= 0) { upperButton(upper); return true; }
       if (event.name === 'play' && transport) { void transport.toggle(); return true; }
-      if (event.cc === STOP_BUTTON && transport) { transport.stop?.(); return true; }
     }
-    return event.kind === 'button' && (['pageLeft', 'pageRight', 'play'].includes(event.name) || event.cc === STOP_BUTTON || UPPER_BUTTONS.includes(event.cc));
+    return event.kind === 'button' && (['pageLeft', 'pageRight', 'play'].includes(event.name) || UPPER_BUTTONS.includes(event.cc));
   }
 
   const unsubscribe = [

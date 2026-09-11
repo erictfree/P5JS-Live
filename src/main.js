@@ -1113,7 +1113,7 @@ const effectsBoard = createEffectsBoard({ registry });
 push3Tempo = createPush3TempoLink({ leds: push3Leds, rhythm, tap: () => panels.tapTempo() });
 push3Adapter = createPush3Adapter({
   launcher, leds: push3Leds, store: performanceStore, registry, effects: effectsBoard, diagnostics,
-  transport: { toggle: () => toggleAudio(), stop: () => audio.stop(), status: () => audio.status() },
+  transport: { toggle: () => toggleAudio(), status: () => audio.status() },
 });
 push3Leds.onInput(event => { if (!push3Tempo.handleInput(event.decoded)) push3Adapter.handleInput(event.decoded); });
 performanceSurface = createPerformanceSurface({

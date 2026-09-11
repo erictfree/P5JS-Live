@@ -399,17 +399,6 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
     soundFile.pause();
   }
 
-  // Stop the file and return to the start, keeping it loaded. Works from playing or paused.
-  function stop() {
-    if (sourceKind !== 'file' || !soundFile) return false;
-    if (soundFile.isPlaying() || soundFile.paused) soundFile.stop();
-    if (soundFile.paused) { soundFile.rate(soundFile.speed || 1); soundFile.paused = false; }
-    soundFile.playing = false;
-    playbackOffset = 0;
-    playbackStartedAt = null;
-    return true;
-  }
-
   async function toggle() {
     if (sourceKind !== 'file' || !soundFile) return false;
     if (soundFile.isPlaying()) {
@@ -495,7 +484,6 @@ export function createAudioEngine({ diagnostics, platform = {} } = {}) {
     listInputs,
     start,
     pause,
-    stop,
     toggle,
     setLoop,
     readFrame,
