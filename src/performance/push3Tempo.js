@@ -1,8 +1,8 @@
-// Mirrors the browser's tempo controls onto Push 3 the way Live does: Tap Tempo blinks on
-// each beat using the same 80 ms window as the toolbar beat light, and the Metronome
-// button's two-dot icon swings side to side by alternating colour every beat. Pressing
-// Tap Tempo taps tempo; the Tempo encoder nudges the manual BPM. Pure logic over the LED
-// transport; no DOM, no timers.
+// Mirrors the browser's tempo controls onto Push 3: Tap Tempo pulses on each beat (lit for
+// the first quarter of the beat, never shorter than the toolbar's 80 ms flash) and taps
+// tempo when pressed; the Tempo encoder nudges the manual BPM. The Metronome button has a
+// single LED with no way to show its two dots separately, so it is kept off. Pure logic
+// over the LED transport; no DOM, no timers.
 
 import { PUSH3_BUTTONS, PUSH3_WHITE } from './push3Map.js';
 
@@ -13,6 +13,13 @@ const BPM_MAX = 300;
 // Same rule as the browser tap button: lit for the first 80 ms of every beat.
 export function beatLit(clock, flashMs = TAP_FLASH_MS) {
   return Boolean(clock?.running && clock.bpm > 0 && clock.phase * 60000 / clock.bpm < flashMs);
+}
+
+// Hardware pulse: lit for the first quarter of each beat so the rhythm reads clearly on
+// the LED, but never shorter than the browser flash.
+export const TAP_DUTY = 0.25;
+export function beatPulse(clock, flashMs = TAP_FLASH_MS, duty = TAP_DUTY) {
+  return beatLit(clock, flashMs) || Boolean(clock?.running && clock.bpm > 0 && clock.phase < duty);
 }
 
 // One tempo description shared by the Push screen and anything else that shows BPM.
@@ -37,7 +44,7 @@ export function createPush3TempoLink({
   // Tap Tempo and Metronome are white LEDs, so these are white-palette brightness steps.
   colors: {
     tapIdle = PUSH3_WHITE.dim, tapBeat = PUSH3_WHITE.full, tapPressed = PUSH3_WHITE.full,
-    metronomeLeft = PUSH3_WHITE.full, metronomeRight = PUSH3_WHITE.dim, metronomeOff = PUSH3_WHITE.off,
+    metronomeOff = PUSH3_WHITE.off,
   } = {},
 } = {}) {
   const lastSent = { metronome: null, tap: null }; // palette index last written per LED
@@ -56,12 +63,11 @@ export function createPush3TempoLink({
   // Tap Tempo is lit for this beat.
   function frame(clock) {
     if (!leds.hasOutput()) { lastSent.metronome = null; lastSent.tap = null; return false; }
-    const lit = beatLit(clock, flashMs);
+    const lit = beatPulse(clock, flashMs);
     const pressed = now() - tappedAt < flashMs;
     write('tap', PUSH3_BUTTONS.tapTempo, pressed ? tapPressed : lit ? tapBeat : tapIdle);
-    // Alternate every beat so the ○● icon reads as a pendulum; steady when the clock is off.
-    const swing = clock?.running && Number.isFinite(clock.beat) ? (Math.floor(clock.beat + 1e-9) % 2 === 0 ? metronomeLeft : metronomeRight) : metronomeOff;
-    write('metronome', PUSH3_BUTTONS.metronome, swing);
+    // Single LED, so it cannot swing its two dots; keep it off rather than merely blink.
+    write('metronome', PUSH3_BUTTONS.metronome, metronomeOff);
     return lit;
   }
 
