@@ -2635,6 +2635,23 @@ button.glyph.danger { color: #ffb3bb; }
 #side [data-tool-view='controls'] { --section-color: #66c9cc; }
 #side [data-tool-view='audio'] { --section-color: #65dcac; }
 #side [data-tool-view='project'] { --section-color: #b2a0de; }
+#side [data-tool-view='modulations'] { --section-color: #f2c14e; }
+.modulation-list { display: grid; gap: 10px; }
+.modulation-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 10px 12px; background: #191e1f; border: 1px solid #343c3e; border-radius: 6px; }
+.modulation-row.is-on { border-color: #f2c14e; }
+.modulation-row .modulation-name { font: 600 13px var(--mono); display: flex; align-items: center; gap: 8px; min-width: 0; }
+.modulation-row .modulation-name input { font: inherit; background: transparent; border: 0; border-bottom: 1px solid #343c3e; color: inherit; min-width: 0; width: 100%; }
+.modulation-row .modulation-value { font: 12px var(--mono); color: #ffb65d; white-space: nowrap; }
+.modulation-fields { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px 12px; }
+.modulation-fields label { display: flex; flex-direction: column; gap: 4px; font: 11px var(--mono); color: #b9bdc1; min-width: 0; }
+.modulation-fields select, .modulation-fields input[type='number'] { font: 12px var(--mono); }
+.modulation-fields input[type='range'] { width: 100%; }
+.modulation-actions { display: flex; gap: 6px; align-items: flex-start; }
+.modulation-actions button.is-on { background: #5c4a14; border-color: #f2c14e; color: #fff3cf; }
+.surface-lower-buttons { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.surface-lower-buttons button { height: 26px; font: 12px var(--mono); padding: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #23292a; border: 1px solid #343c3e; color: #7c8886; }
+.surface-lower-buttons button[data-state='defined'] { color: #d8c07a; border-color: #5c4a14; }
+.surface-lower-buttons button[data-state='running'] { color: #fff3cf; background: #5c4a14; border-color: #f2c14e; }
 #side #tool-tabs button { border-top: 3px solid var(--section-color); font-weight: 600; }
 #side #stagebar .brand { text-transform: uppercase; letter-spacing: .12em; }
 #side .tool-view-heading h2 { font-family: var(--mono); font-weight: 600; }

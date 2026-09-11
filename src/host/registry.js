@@ -390,9 +390,14 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     return changed;
   }
 
+  // Optional per-frame transform applied when patches read their controls. The stored
+  // value stays the performer's base; modulations swing what patches see.
+  let modulator = null;
+  function setModulator(fn) { modulator = typeof fn === 'function' ? fn : null; }
+
   function paramValues(target = {}) {
     for (const key of Object.keys(target)) delete target[key];
-    for (const [name, entry] of params) target[name] = entry.value;
+    for (const [name, entry] of params) target[name] = modulator ? modulator(name, entry.value, entry) : entry.value;
     return target;
   }
 
@@ -441,6 +446,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     declareParam,
     setParam,
     setParams,
+    setModulator,
     paramValues,
     listParams: () => [...params.entries()].map(([name, entry]) => ({ name, ...entry })),
     subscribe(listener) {

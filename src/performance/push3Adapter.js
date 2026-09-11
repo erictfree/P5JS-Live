@@ -18,6 +18,29 @@ export const UPPER_BUTTONS = Object.freeze([
   PUSH3_BUTTONS.upper1, PUSH3_BUTTONS.upper2, PUSH3_BUTTONS.upper3, PUSH3_BUTTONS.upper4,
   PUSH3_BUTTONS.upper5, PUSH3_BUTTONS.upper6, PUSH3_BUTTONS.upper7, PUSH3_BUTTONS.upper8,
 ]);
+export const LOWER_BUTTONS = Object.freeze([
+  PUSH3_BUTTONS.lower1, PUSH3_BUTTONS.lower2, PUSH3_BUTTONS.lower3, PUSH3_BUTTONS.lower4,
+  PUSH3_BUTTONS.lower5, PUSH3_BUTTONS.lower6, PUSH3_BUTTONS.lower7, PUSH3_BUTTONS.lower8,
+]);
+// Lower display buttons: modulation on the column's control. Off = no control, dim =
+// defined but stopped, bright amber = running.
+export const LOWER_LED = Object.freeze({ none: PUSH3_COLORS.off, defined: PUSH3_COLORS.darkGray, running: PUSH3_COLORS.amber });
+
+export function renderLowerButtons({ targets, modulations }) {
+  const frame = new Map();
+  LOWER_BUTTONS.forEach((cc, index) => {
+    const target = targets[index];
+    let color = LOWER_LED.none;
+    if (target && modulations) {
+      const list = modulations.forTarget(target);
+      if (list.some(m => m.on)) color = LOWER_LED.running;
+      else if (list.length) color = LOWER_LED.defined;
+    }
+    frame.set(cc, { base: color, channel: 0 });
+  });
+  return frame;
+}
+
 export const UPPER_LED = Object.freeze({
   unassigned: PUSH3_COLORS.off,
   atDefault: PUSH3_COLORS.darkGray,   // assigned, untouched: findable but quiet
@@ -112,7 +135,7 @@ export const ANIMATION_CLOCK_BPM = 120;
 export const BROWSE_TIMEOUT_MS = 8000;
 
 export function createPush3Adapter({
-  launcher, leds, store, registry, effects, diagnostics, transport = null,
+  launcher, leds, store, registry, effects, diagnostics, transport = null, modulations = null,
   library = null, onBrowse = null, now = () => (globalThis.performance?.now?.() ?? Date.now()),
   schedule = callback => (globalThis.requestAnimationFrame ?? setTimeout)(callback),
 } = {}) {
@@ -153,7 +176,21 @@ export function createPush3Adapter({
     const state = launcher.snapshot();
     const params = registry.listParams();
     return sendFrame(renderPadFrame({ state, entries: store.list(), effects: effects.list() }))
-      + sendButtons(renderUpperButtons({ targets: state.targets, params }));
+      + sendButtons(renderUpperButtons({ targets: state.targets, params }))
+      + sendButtons(renderLowerButtons({ targets: state.targets, modulations }));
+  }
+
+  // Lower button under column N: toggle the modulation on that column's control (creating
+  // a default one), Shift + press steps its waveform.
+  function lowerButton(index) {
+    if (!modulations) return false;
+    const target = launcher.snapshot().targets[index];
+    if (!target) return false;
+    if (shiftHeld) {
+      const first = modulations.forTarget(target)[0];
+      return first ? Boolean(modulations.cycleWave(first.id)) : false;
+    }
+    return Boolean(modulations.toggleForTarget(target));
   }
 
   // Upper button under encoder N: press resets its control to the saved default;
@@ -257,17 +294,20 @@ export function createPush3Adapter({
       if (event.name === 'pageRight') { launcher.dispatch({ action: 'bankNext' }); return true; }
       const upper = UPPER_BUTTONS.indexOf(event.cc);
       if (upper >= 0) { upperButton(upper); return true; }
+      const lower = LOWER_BUTTONS.indexOf(event.cc);
+      if (lower >= 0) { lowerButton(lower); return true; }
       if (event.name === 'play' && transport) { void transport.toggle(); return true; }
       if (event.name === 'jogPress') return browseLoad() || true;
       if (event.name === 'jogLeft') return browseStep(-1);
       if (event.name === 'jogRight') return browseStep(1);
     }
-    return event.kind === 'button' && (['pageLeft', 'pageRight', 'play', 'jogPress', 'jogLeft', 'jogRight'].includes(event.name) || UPPER_BUTTONS.includes(event.cc));
+    return event.kind === 'button' && (['pageLeft', 'pageRight', 'play', 'jogPress', 'jogLeft', 'jogRight'].includes(event.name) || UPPER_BUTTONS.includes(event.cc) || LOWER_BUTTONS.includes(event.cc));
   }
 
   const unsubscribe = [
     launcher.subscribe(scheduleRender),
     registry.subscribe(scheduleRender),
+    modulations?.subscribe?.(scheduleRender) ?? (() => {}),
     leds.subscribe(() => { if (leds.hasOutput() !== hadOutput) scheduleRender(); }),
   ];
 

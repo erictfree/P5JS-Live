@@ -247,6 +247,7 @@
           <button id="tools-tab-controls" type="button" role="tab" aria-selected="false" aria-controls="controls-panel" data-tool-view="controls">Controls</button>
           <button id="tools-tab-audio" type="button" role="tab" aria-selected="false" aria-controls="audio-panel" data-tool-view="audio">Audio</button>
           <button id="tools-tab-project" type="button" role="tab" aria-selected="false" aria-controls="project-panel" data-tool-view="project">Performance</button>
+          <button id="tools-tab-modulations" type="button" role="tab" aria-selected="false" aria-controls="modulations-panel" data-tool-view="modulations">Modulations</button>
         </div>
 
         <div id="panels">
@@ -678,6 +679,18 @@ const publishMain = room.publish({
             </details>
           </section>
 
+          <section class="tool-view" id="modulations-panel" role="tabpanel" aria-labelledby="tools-tab-modulations" data-tool-panel="modulations" hidden>
+            <section class="tool-section modulations-section">
+              <header class="tool-section-heading">
+                <h2>Modulations</h2>
+                <button id="add-modulation" type="button" title="Add a modulation to a live control" aria-label="Add a modulation">＋ Modulation</button>
+              </header>
+              <div class="body">
+                <p class="hint">A modulation swings a live control around the value you set — an LFO, ramp, square or random step. Knobs and sliders keep moving the base; the swing follows. Rates lock to the beat when the clock runs. Modulations save with the scene. On Push 3 the lower display buttons switch them on and off per column.</p>
+                <div id="modulation-list" class="modulation-list" aria-live="polite"></div>
+              </div>
+            </section>
+          </section>
           <section class="tool-view" id="settings-panel" role="tabpanel" aria-labelledby="tools-tab-settings" data-tool-panel="settings" hidden>
             <div class="body">
             <div class="tool-view-heading"><h2>Interface settings</h2><p>Make your working view comfortable.</p></div>

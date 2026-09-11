@@ -2,10 +2,11 @@ import { SURFACE_PROFILES, renderSurfaceDisplay } from '../performance/surfaceDi
 import { decodePush3Bgr565 } from '../performance/push3DisplayTransport.js';
 import { PUSH3_BUTTONS, PUSH3_COLORS, animationChannel } from '../performance/push3Map.js';
 import { PADS_PER_BANK } from '../performance/launcher.js';
+import { WAVE_GLYPHS } from '../performance/modulations.js';
 
 const startupImageUrl = new URL('../../assets/brand/startup.bgr565', import.meta.url).href;
 
-export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, effects, tempo = null, transport = null, browser = null, performanceName = null, recover, addDemos }) {
+export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, effects, tempo = null, transport = null, browser = null, performanceName = null, modulations = null, recover, addDemos }) {
   root.innerHTML = `
     <div class="surface-heading"><h3>Live launcher</h3><button type="button" data-open>Open controller</button></div>
     <p class="hint">Pads launch visuals and saved values. Your audio, clock and MIDI setup keep running. Recall below restores the whole snapshot.</p>
@@ -17,6 +18,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
         <button type="button" data-connect>Connect MIDI</button><span data-midi-status></span>
       </div>
       <canvas width="960" height="160" role="img" aria-label="Controller display preview"></canvas>
+      <div class="surface-lower-buttons" aria-label="Lower display buttons: modulations"></div>
       <div data-display-controls>
         <div class="surface-toolbar"><button type="button" data-connect-display>Connect Push display</button><button type="button" data-claim-display>Claim interface 0</button><button type="button" data-test-display>Test once</button><button type="button" data-startup-display>Show startup</button><button type="button" data-start-display>Show controller</button><button type="button" data-stop-display>Stop</button><button type="button" data-release-display>Release</button><span data-display-status role="status"></span></div>
         <p class="hint">Test shows color bars briefly. Startup and controller modes remain visible until stopped.</p>
@@ -59,7 +61,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   const controlTitle = document.createElement('h3'); controlTitle.className = 'surface-section-label'; controlTitle.textContent = 'Live controls';
   encoderArea.append(controlTitle, root.querySelector('.surface-encoders'), root.querySelector('.surface-status'), root.querySelector('[data-slot]').closest('.surface-toolbar'));
   playArea.append(padArea, encoderArea);
-  root.querySelector('canvas').after(root.querySelector('[data-display-controls]'), root.querySelector('[data-led-controls]'), playArea);
+  root.querySelector('canvas').after(root.querySelector('.surface-lower-buttons'), root.querySelector('[data-display-controls]'), root.querySelector('[data-led-controls]'), playArea);
   const demoRow = root.querySelector('[data-demos]').closest('p');
   const setup = root.querySelector('details');
   setup.querySelector('summary').after(root.querySelector('[data-profile]').closest('.surface-toolbar'));
@@ -156,6 +158,37 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   $('[data-clear]').onclick = () => launcher.clearRoutes();
   let optionSignature = '', paramSignature = '';
   let lastSurface = { title: 'Untitled', status: 'Untitled · live', controls: [] };
+  // Virtual lower display buttons mirror the Push: toggle the modulation on column N.
+  const lowerButtons = Array.from({ length: 8 }, (_, index) => {
+    const button = document.createElement('button');
+    button.type = 'button'; button.dataset.lower = index; button.textContent = '∿';
+    button.setAttribute('aria-label', `Modulation for encoder ${index + 1}`);
+    button.title = 'Toggle a modulation on this column (Shift-click steps the waveform)';
+    button.onclick = event => {
+      const target = launcher.snapshot().targets[index];
+      if (!target || !modulations) return;
+      if (event.shiftKey) { const first = modulations.forTarget(target)[0]; if (first) modulations.cycleWave(first.id); }
+      else modulations.toggleForTarget(target);
+    };
+    $('.surface-lower-buttons').append(button);
+    return button;
+  });
+  function modulationInfo(name) {
+    if (!modulations || !name) return null;
+    const list = modulations.forTarget(name);
+    if (!list.length) return null;
+    const active = list.find(m => m.on) ?? list[0];
+    return { glyph: WAVE_GLYPHS[active.wave], rate: active.sync ? `${active.beats}b` : `${active.hz}Hz`, running: Boolean(active.on), value: modulations.value(name) };
+  }
+  function renderLowerButtons(targets) {
+    lowerButtons.forEach((button, index) => {
+      const target = targets[index];
+      const info = modulationInfo(target);
+      button.disabled = !target;
+      button.dataset.state = info ? (info.running ? 'running' : 'defined') : 'none';
+      button.textContent = info ? `${info.glyph} ${info.rate}` : '∿';
+    });
+  }
   const thumbnails = new Map(); // performance id → Image, decoded once for the screen
   function browserWithImage() {
     const state = browser?.() ?? null;
@@ -170,7 +203,8 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   function drawSurface(canvas) {
     const name = performanceName?.() ?? null;
     const status = name ? `${name} · ${lastSurface.status}` : lastSurface.status;
-    renderSurfaceDisplay(canvas, { ...lastSurface, status, tempo: tempo?.() ?? null, transport: transport?.() ?? null, browser: browserWithImage() });
+    const controls = lastSurface.controls.map(control => (control ? { ...control, modulation: modulationInfo(control.name) } : control));
+    renderSurfaceDisplay(canvas, { ...lastSurface, controls, status, tempo: tempo?.() ?? null, transport: transport?.() ?? null, browser: browserWithImage() });
   }
   function render() {
     const state = launcher.snapshot(), entries = store.list(), params = registry.listParams().filter(p => typeof p.value === 'number');
@@ -180,6 +214,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     const status = state.loading ? 'Loading…' : state.error ? state.error.message : state.queued ? `Queued: ${entries.find(p => p.id === state.queued.id)?.name} · next beat` : `${active} · ${state.active ? 'playing' : 'live'}`;
     lastSurface = { title: active, status, controls: state.targets.map(name => params.find(p => p.name === name)) };
     if (!modal.open) return;
+    renderLowerButtons(state.targets);
     const signature = JSON.stringify(entries.map(p => [p.id, p.name]));
     if (signature !== optionSignature) {
       optionSignature = signature; const select = $('[data-assignment]'), previous = select.value;
@@ -231,6 +266,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   }
   launcher.subscribe(render);
   registry.subscribe(render);
+  modulations?.subscribe?.(render);
   render();
   controlManager.subscribe(() => { const state = controlManager.snapshot(); $('[data-midi-status]').textContent = state.midi.status; });
   const renderDisplayStatus = () => {

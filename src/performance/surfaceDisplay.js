@@ -61,7 +61,16 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
     const x = i * 120;
     ctx.fillStyle = '#42474b'; ctx.fillRect(x + 5, 75, 110, 2);
     ctx.fillStyle = '#e2e4e5'; ctx.font = '14px monospace'; ctx.fillText((control?.name ?? 'Unassigned').slice(0, 12), x + 8, 103);
-    ctx.fillStyle = '#ffb65d'; ctx.font = '20px monospace';
-    ctx.fillText(typeof control?.value === 'number' ? String(Number(control.value.toFixed(3))).slice(0, 9) : '—', x + 8, 137);
+    // A modulation shows its waveform glyph and rate; the readout follows the live value.
+    const mod = control?.modulation ?? null;
+    const shown = mod && Number.isFinite(mod.value) ? mod.value : control?.value;
+    ctx.fillStyle = mod?.running ? '#f2c14e' : '#ffb65d'; ctx.font = '20px monospace';
+    ctx.fillText(typeof shown === 'number' ? String(Number(shown.toFixed(3))).slice(0, 9) : '—', x + 8, 137);
+    if (mod) {
+      ctx.textAlign = 'right';
+      ctx.fillStyle = mod.running ? '#f2c14e' : '#7c8886'; ctx.font = '13px monospace';
+      ctx.fillText(`${mod.glyph} ${mod.rate}`, x + 114, 120);
+      ctx.textAlign = 'left';
+    }
   });
 }

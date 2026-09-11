@@ -23,6 +23,8 @@ import { createEffectsBoard } from './performance/effectsBoard.js';
 import { createPush3AutoConnect } from './performance/push3AutoConnect.js';
 import { createPerformanceLibrary } from './persistence/performanceLibrary.js';
 import { captureSquare, thumbnailFromFile } from './performance/thumbnail.js';
+import { createModulationEngine } from './performance/modulations.js';
+import { createModulationsPanel } from './ui/modulationsPanel.js';
 import { createPerformanceSurface } from './ui/performanceLauncher.js';
 import { controllerDemoPerformances } from '../starter/controller-demos.js';
 import { LIVE_API_NAMES } from './host/liveApi.js';
@@ -100,6 +102,7 @@ const push3Display = createPush3DisplayTransport({ diagnostics });
 const push3Leds = createPush3MidiTransport({ diagnostics });
 let push3Tempo = null; // created once the rhythm manager and panels exist
 let push3Adapter = null;
+let modulationsPanel = null;
 let performanceSurface = null;
 
 // Read-only keyboard state, handed to strategies as one of the draw inputs.
@@ -194,7 +197,9 @@ const controller = createAppController({
 });
 const rhythm = host.rhythm;
 audio.connectRhythm(rhythm);
-const projectStore = createProjectStore({ registry, diagnostics, controlManager, rhythm });
+const modulations = createModulationEngine({ registry });
+registry.setModulator((name, base) => modulations.modulate(name, base));
+const projectStore = createProjectStore({ registry, diagnostics, controlManager, rhythm, modulations });
 const performanceStore = createPerformanceStore({ diagnostics });
 const performanceLibrary = createPerformanceLibrary({ diagnostics });
 let thumbnailRequest = null; // resolved inside the draw loop so WebGL frames are captured intact
@@ -621,11 +626,15 @@ window.setup = function setup() {
 
 window.draw = function draw() {
   const snapshot = audio.readFrame(); // once per frame, shared by every strategy
+  // Modulations use last frame's clock (one frame of lag) so the swing is ready before
+  // patches read their controls inside beginFrame.
+  modulations.frame(rhythm.snapshot());
   const drawInputs = host.beginFrame(snapshot, stageCanvas);
   panels.renderBeat(drawInputs.clock);
   push3Tempo?.frame(drawInputs.clock);
   push3Adapter?.frame(drawInputs.clock);
   performanceSurface?.frame();
+  modulationsPanel?.frame();
 
   // The live coder configures the scene as an ordered array of strategy values.
   // Each function or object exposes the current drawing behavior.
@@ -1117,7 +1126,7 @@ controlManager.setDisconnectHandler(() => launcher.disconnect());
 const effectsBoard = createEffectsBoard({ registry });
 push3Tempo = createPush3TempoLink({ leds: push3Leds, rhythm, tap: () => panels.tapTempo() });
 push3Adapter = createPush3Adapter({
-  launcher, leds: push3Leds, store: performanceStore, registry, effects: effectsBoard, diagnostics,
+  launcher, leds: push3Leds, store: performanceStore, registry, effects: effectsBoard, diagnostics, modulations,
   transport: { toggle: () => toggleAudio(), status: () => audio.status(), setVolume: level => audio.setVolume(level) },
   library: { list: () => performanceLibrary.list(), currentId: () => performanceLibrary.currentId(), load: id => loadPerformance(id) },
   onBrowse: () => renderLibrary(),
@@ -1133,6 +1142,7 @@ performanceSurface = createPerformanceSurface({
   transport: () => audio.status(),
   browser: () => push3Adapter?.browseState() ?? null,
   performanceName: () => performanceLibrary.current()?.name ?? null,
+  modulations,
   addDemos() {
     for (const demo of controllerDemoPerformances()) {
       if (!performanceStore.get(demo.id)) {
@@ -1153,6 +1163,12 @@ performanceSurface = createPerformanceSurface({
     } catch (error) { diagnostics.warn('Could not recover previous edits', error.message); }
   },
 });
+modulationsPanel = createModulationsPanel({
+  root: document.getElementById('modulation-list'),
+  addButton: document.getElementById('add-modulation'),
+  engine: modulations, registry, diagnostics,
+});
+
 // Bring the Push up silently when Chrome already remembers it (display + MIDI). The
 // chooser is still needed once per origin; after that, reloads just work.
 const push3Auto = createPush3AutoConnect({
@@ -1182,6 +1198,7 @@ async function launchPerformance(performance) {
     for (const param of performance.params ?? []) {
       if (registry.listParams().some(entry => entry.name === param.name)) registry.setParam(param.name, param.value);
     }
+    modulations.import(performance.modulations ?? []);
     projection.setActiveCode(performance.source);
     controller.sourceChanged(); projectStore.saveSoon(performance.source, 0);
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -1213,6 +1230,7 @@ function performanceSnapshot(name) {
       step,
     })),
     controls: controlManager.snapshotMappings(),
+    modulations: modulations.export(),
     rhythm: rhythm.settings(),
     audio: {
       analysis: audio.featureOptions(),
@@ -1291,6 +1309,7 @@ function renderPerformances() {
 
 function applyPerformanceSettings(performance) {
   projectStore.restoreSettings(performance);
+  modulations.import(performance.modulations ?? []);
 
   const analysis = audio.configure(performance.audio?.analysis ?? {});
   smoothingInput.value = analysis.smoothing;
@@ -1918,6 +1937,7 @@ function loadStarterProject(message) {
   registry.reset();
   stateStore.clear();
   controlManager.restoreMappings([]);
+  modulations.reset();
 
   editor.value = STARTER_SOURCE;
   evaluator.evaluate(STARTER_SOURCE, { label: 'starter' });
@@ -2219,4 +2239,5 @@ window.p5jsLive = {
   effectsBoard,
   performanceLibrary,
   loadPerformance,
+  modulations,
 };

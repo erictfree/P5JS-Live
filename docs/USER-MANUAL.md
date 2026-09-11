@@ -1504,6 +1504,16 @@ library to one file. **import** accepts either kind: a single performance is add
 loaded, a library file is added without running anything. On Push 3, turn the jog wheel to browse performances on the screen, in list
 order, and press it to load.
 
+#### Modulations
+
+**Tools → Modulations** adds movement to a live control without code: an LFO, ramp,
+square or random step that swings the control around the value you set. Add one, pick
+the control, choose a waveform, and set the rate in beats (locked to the tempo) or Hz,
+plus depth and offset. Knobs, sliders and learned MIDI keep moving the base value; the
+swing follows. Modulations save with the scene. On Push 3 the lower display buttons
+switch the modulation on the control above them on and off (Shift steps the waveform),
+and the display column shows the waveform and rate.
+
 #### Scenes
 
 A saved scene is a recallable snapshot of the current window, including source,

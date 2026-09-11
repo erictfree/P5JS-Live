@@ -83,6 +83,7 @@ export function createPerformanceStore({
       safeScene: snapshot.safeScene ?? null,
       params: Array.isArray(snapshot.params) ? clone(snapshot.params) : [],
       controls: Array.isArray(snapshot.controls) ? clone(snapshot.controls) : [],
+      modulations: Array.isArray(snapshot.modulations) ? clone(snapshot.modulations) : [],
       audio: clone(snapshot.audio ?? {}),
       rhythm,
       view: clone(snapshot.view ?? {}),

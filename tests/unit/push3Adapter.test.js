@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PUSH3_COLORS, animationChannel } from '../../src/performance/push3Map.js';
 import { PADS_PER_BANK } from '../../src/performance/launcher.js';
-import { BROWSE_TIMEOUT_MS, PERFORMANCE_HUES, PLAY_LED, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderPadFrame, renderUpperButtons, slotStatus } from '../../src/performance/push3Adapter.js';
+import { BROWSE_TIMEOUT_MS, LOWER_BUTTONS, LOWER_LED, PERFORMANCE_HUES, PLAY_LED, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderLowerButtons, renderPadFrame, renderUpperButtons, slotStatus } from '../../src/performance/push3Adapter.js';
 import { PUSH3_BUTTONS } from '../../src/performance/push3Map.js';
 
 const entries = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }];
@@ -22,7 +22,7 @@ function fakeLeds({ output = true } = {}) {
   };
 }
 
-function harness({ state = baseState, effects = [], output = true, audio = { kind: 'none', loaded: false, playing: false, volume: 1 }, performances = null, currentId = null, time = { now: 0 } } = {}) {
+function harness({ state = baseState, effects = [], output = true, audio = { kind: 'none', loaded: false, playing: false, volume: 1 }, performances = null, currentId = null, time = { now: 0 }, mods = null } = {}) {
   const launcherListeners = new Set();
   const launcher = {
     snapshot: vi.fn(() => ({ ...state })),
@@ -39,9 +39,10 @@ function harness({ state = baseState, effects = [], output = true, audio = { kin
   const transport = { toggle: vi.fn(async () => true), status: vi.fn(() => audio), setVolume: vi.fn(level => { audio.volume = level; return level; }) };
   const library = performances ? { list: vi.fn(() => performances), currentId: vi.fn(() => currentId), load: vi.fn(async () => ({ ok: true })) } : null;
   const onBrowse = vi.fn();
-  const adapter = createPush3Adapter({ launcher, leds, store, registry, effects: board, transport, library, onBrowse, now: () => time.now, schedule: fn => queue.push(fn) });
+  const modulations = mods ? { forTarget: vi.fn(t => mods.filter(m => m.target === t)), toggleForTarget: vi.fn(() => ({ ok: true })), cycleWave: vi.fn(() => ({ ok: true })), subscribe: vi.fn(() => () => {}) } : null;
+  const adapter = createPush3Adapter({ launcher, leds, store, registry, effects: board, transport, library, onBrowse, modulations, now: () => time.now, schedule: fn => queue.push(fn) });
   const flush = () => { while (queue.length) queue.shift()(); };
-  return { adapter, launcher, leds, board, registry, transport, audio, library, onBrowse, time, flush };
+  return { adapter, launcher, leds, board, registry, transport, audio, library, onBrowse, modulations, time, flush };
 }
 
 describe('Push 3 adapter', () => {
@@ -80,7 +81,7 @@ describe('Push 3 adapter', () => {
     let state = { ...baseState };
     const h = harness({ state, effects: [{ name: 'glow', value: false }] });
     h.launcher.snapshot.mockImplementation(() => ({ ...state }));
-    expect(h.adapter.render()).toBe(72);
+    expect(h.adapter.render()).toBe(80);
     expect(h.leds.setPad).toHaveBeenCalledWith(0, PERFORMANCE_HUES[0]);
     expect(h.leds.setPad).toHaveBeenCalledWith(32, PUSH3_COLORS.darkGray);
     h.leds.setPad.mockClear(); h.leds.animatePad.mockClear();
@@ -165,7 +166,7 @@ describe('Push 3 adapter', () => {
     const h = harness();
     h.adapter.render();
     expect(h.leds.setButton).toHaveBeenCalledWith(UPPER_BUTTONS[1], UPPER_LED.moved);
-    expect(h.leds.setButton).toHaveBeenCalledTimes(8);
+    expect(h.leds.setButton).toHaveBeenCalledTimes(16); // 8 upper + 8 lower
   });
 
   it('upper button press resets the control; Shift + press moves the column to the next control', () => {
@@ -242,5 +243,22 @@ describe('Push 3 adapter', () => {
     const empty = harness({ performances: [] });
     expect(empty.adapter.handleInput({ kind: 'encoder', encoder: 'jog', delta: 1 })).toBe(true);
     expect(empty.adapter.browseState()).toBeNull();
+  });
+
+  it('lower buttons show and toggle the modulation on each column, Shift steps the wave', () => {
+    const mods = [{ id: 'a', target: 'speed', on: true, wave: 'sine' }, { id: 'b', target: 'size', on: false, wave: 'square' }];
+    const frame = renderLowerButtons({ targets: baseState.targets, modulations: { forTarget: t => mods.filter(m => m.target === t) } });
+    expect(frame.get(LOWER_BUTTONS[0])).toEqual({ base: LOWER_LED.defined, channel: 0 }); // size: defined, off
+    expect(frame.get(LOWER_BUTTONS[1])).toEqual({ base: LOWER_LED.running, channel: 0 }); // speed: running
+    expect(frame.get(LOWER_BUTTONS[2])).toEqual({ base: LOWER_LED.none, channel: 0 });
+
+    const h = harness({ mods });
+    expect(h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: true, value: 127 })).toBe(true);
+    expect(h.modulations.toggleForTarget).toHaveBeenCalledWith('size');
+    expect(h.adapter.handleInput({ kind: 'button', name: 'lower3', cc: LOWER_BUTTONS[2], pressed: true, value: 127 })).toBe(true);
+    expect(h.modulations.toggleForTarget).toHaveBeenCalledTimes(1); // unassigned column
+    h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
+    h.adapter.handleInput({ kind: 'button', name: 'lower2', cc: LOWER_BUTTONS[1], pressed: true, value: 127 });
+    expect(h.modulations.cycleWave).toHaveBeenCalledWith('a');
   });
 });

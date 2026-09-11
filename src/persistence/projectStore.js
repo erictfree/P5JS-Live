@@ -27,6 +27,7 @@ export function createProjectStore({
   diagnostics,
   controlManager = null,
   rhythm = null,
+  modulations = null,
   storage = globalThis.localStorage,
 } = {}) {
   let timer = null;
@@ -45,6 +46,7 @@ export function createProjectStore({
         step,
       })),
       controls: controlManager?.snapshotMappings?.() ?? [],
+      modulations: modulations?.export?.() ?? [],
       rhythm: validateRhythmSettings(rhythm?.settings()),
     };
   }
@@ -104,6 +106,7 @@ export function createProjectStore({
       registry.setParam(param.name, param.value);
     }
     controlManager?.restoreMappings?.(data.controls ?? []);
+    modulations?.import?.(data.modulations ?? []);
     rhythm?.configure(rhythmSettings);
   }
 
@@ -135,6 +138,7 @@ export function createProjectStore({
         safeScene: data.safeScene,
         params: data.params,
         controls: data.controls,
+        modulations: data.modulations,
         rhythm: data.rhythm,
         ...extra,
       },
@@ -154,6 +158,7 @@ export function createProjectStore({
         safeScene: data.safeScene ?? null,
         params: data.params ?? [],
         controls: data.controls ?? [],
+        modulations: data.modulations ?? [],
         rhythm: data.rhythm,
         performances: data.performances ?? [],
         ...(data.launcher ? { launcher: data.launcher } : {}),
@@ -297,6 +302,7 @@ export function createProjectStore({
         safeScene: data.safeScene ?? null,
         params: Array.isArray(data.params) ? data.params : [],
         controls: Array.isArray(data.controls) ? data.controls : [],
+        modulations: Array.isArray(data.modulations) ? data.modulations : [],
         rhythm: data.rhythm,
         performances: data.performances ?? [],
         ...(data.launcher ? { launcher: data.launcher } : {}),

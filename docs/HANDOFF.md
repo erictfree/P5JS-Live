@@ -255,6 +255,24 @@ LEDs afterwards. Relevant files: `src/performance/push3Adapter.js` (input routin
 pad frame, diffing sender, clock sync), `src/performance/effectsBoard.js` (toggle
 control binding), and their tests.
 
+### Modulations
+
+`src/performance/modulations.js` runs LFOs (sine, triangle, ramps, square, random step)
+on numeric live controls. The registry keeps the performer's base value; the engine
+computes a per-frame output and `registry.setModulator` applies it when patches read
+their controls, so knobs, sliders, MIDI Learn and saved values all see the base and a
+knob always wins. Rates lock to the rhythm clock (`beats`) or free-run (`hz`). Depth and
+offset are fractions of the control's range. `frame()` runs at the top of `draw` with
+last frame's clock. Modulations save with the scene (`modulations` on the scene record
+and in the project/performance bundle).
+
+UI: the **Modulations** tab (`src/ui/modulationsPanel.js`). Push: the **lower display
+buttons** toggle the modulation on the control in that column, creating a default sine
+at one beat the first time; Shift + press steps the waveform; LED off/dim/amber for
+none/defined/running. The display column shows the waveform glyph and rate and its
+readout follows the live value. The virtual controller has the same eight buttons under
+its display strip.
+
 ### Tempo on Push
 
 Once Push MIDI is connected, tempo is mirrored both ways without any bench button:

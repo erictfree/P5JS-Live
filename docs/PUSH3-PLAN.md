@@ -43,7 +43,7 @@ The architecture rule from the handoff holds: hardware translates into logical l
 | Undo | CC 119 | `safe` (restore last safe state) |
 | Delete (alone) | CC 118 | cancel queued launch |
 | Upper screen buttons | CC 102–109 | **done**: press resets the control under it to default; Shift + press cycles the column's control; LED off/dim/bright = unassigned/at default/moved |
-| Lower screen buttons | CC 20–27 | unmapped for now |
+| Lower screen buttons | CC 20–27 | **done**: toggle the modulation on the column's control; Shift + press steps the waveform; LED off/dim/amber |
 | Shift / Select | CC 49 / 48 | modifiers only; no action |
 | Tempo encoder | CC 14 relative | **done**: nudge manual BPM ±1 (Shift ±0.1) |
 | Volume encoder | CC 79 relative | **done**: master output level via a post-analyzer gain |
@@ -100,7 +100,7 @@ M5 — Docs and tests: USER-MANUAL Push section, e2e test with a fake MIDI devic
 
 ## Later, once the loop works
 
-**Modulators on the lower display buttons (decided 2026-09-11).** Treat an LFO, ramp,
+**Modulations on the lower display buttons (built 2026-09-11; see HANDOFF).** Treat an LFO, ramp,
 envelope or random walk as something you *play*: the eight lower display buttons, one
 under each display column, toggle a modulator on the control shown in that column, the
 button LED shows it running, and pressing it in the browser (or Shift + button on Push)
