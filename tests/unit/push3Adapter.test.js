@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PUSH3_COLORS, animationChannel } from '../../src/performance/push3Map.js';
 import { PADS_PER_BANK } from '../../src/performance/launcher.js';
-import { BROWSE_TIMEOUT_MS, LOWER_BUTTONS, LOWER_LED, PERFORMANCE_HUES, PLAY_LED, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderLowerButtons, renderPadFrame, renderUpperButtons, sceneAccentHue, slotStatus } from '../../src/performance/push3Adapter.js';
+import { BROWSE_TIMEOUT_MS, CONTROL_EDIT_COLUMNS, LOWER_BUTTONS, LOWER_LED, PERFORMANCE_HUES, PLAY_LED, STEP_LADDER, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderLowerButtons, renderPadFrame, renderUpperButtons, sceneAccentHue, slotStatus } from '../../src/performance/push3Adapter.js';
 import { PUSH3_BUTTONS } from '../../src/performance/push3Map.js';
 
 const entries = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }];
@@ -31,7 +31,7 @@ function harness({ state = baseState, effects = [], output = true, audio = { kin
     subscribe: fn => { launcherListeners.add(fn); return () => launcherListeners.delete(fn); },
     _notify: () => launcherListeners.forEach(fn => fn()),
   };
-  const registry = { subscribe: vi.fn(() => () => {}), listParams: vi.fn(() => baseParams.map(p => ({ ...p }))), setParam: vi.fn() };
+  const registry = { subscribe: vi.fn(() => () => {}), listParams: vi.fn(() => baseParams.map(p => ({ ...p }))), setParam: vi.fn(), updateParam: vi.fn() };
   const store = { list: () => entries };
   const board = { list: vi.fn(() => effects), toggle: vi.fn(index => (effects[index] ? { name: effects[index].name, value: !effects[index].value } : null)) };
   const leds = fakeLeds({ output });
@@ -174,7 +174,7 @@ describe('Push 3 adapter', () => {
     expect(h.leds.setButton).toHaveBeenCalledTimes(16); // 8 upper + 8 lower
   });
 
-  it('upper button press resets the control; Shift + press moves the column to the next control', () => {
+  it('upper button press resets the control; Shift + press edits the column (again leaves)', () => {
     const h = harness();
     expect(h.adapter.handleInput({ kind: 'button', name: 'upper2', cc: UPPER_BUTTONS[1], pressed: true, value: 127 })).toBe(true);
     expect(h.registry.setParam).toHaveBeenCalledWith('speed', 0.3);
@@ -182,9 +182,50 @@ describe('Push 3 adapter', () => {
     expect(h.registry.setParam).toHaveBeenCalledTimes(1); // unassigned column: nothing to reset
     h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
     h.adapter.handleInput({ kind: 'button', name: 'upper1', cc: UPPER_BUTTONS[0], pressed: true, value: 127 });
-    expect(h.launcher.assignEncoder).toHaveBeenCalledWith(0, 'speed');
+    expect(h.adapter.editState()).toMatchObject({ kind: 'control', column: 0, name: 'size', value: 50, min: 10, max: 110, step: 0, default: 50, controls: ['size', 'speed', 'hue'], columns: CONTROL_EDIT_COLUMNS });
+    h.flush();
+    expect(h.leds.setButton).toHaveBeenCalledWith(UPPER_BUTTONS[0], UPPER_LED.editing); // the editing button goes white
     h.adapter.handleInput({ kind: 'button', name: 'upper3', cc: UPPER_BUTTONS[2], pressed: true, value: 127 });
-    expect(h.launcher.assignEncoder).toHaveBeenCalledWith(2, 'size'); // unassigned wraps to the first control
+    expect(h.adapter.editState()).toMatchObject({ kind: 'control', column: 2, name: '' }); // another column switches; an empty one still opens
+    h.adapter.handleInput({ kind: 'button', name: 'upper3', cc: UPPER_BUTTONS[2], pressed: true, value: 127 });
+    expect(h.adapter.editState()).toBeNull(); // the same button again leaves
+  });
+
+  it('control edit mode maps the encoders to control, value, range, step, default and modulation', () => {
+    const mods = [{ id: 'a', name: 'lfo1', target: '', on: true, wave: 'sine', depth: 0.25, offset: 0, beats: 1, hz: 1, sync: true }];
+    const h = harness({ mods });
+    h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
+    h.adapter.handleInput({ kind: 'button', name: 'upper2', cc: UPPER_BUTTONS[1], pressed: true, value: 127 });
+    h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: false, value: 0 });
+    expect(h.adapter.editState()).toMatchObject({ kind: 'control', column: 1, name: 'speed', modulation: '', modulations: ['lfo1'] });
+
+    h.adapter.handleInput({ kind: 'encoder', encoder: 0, delta: 1 });
+    expect(h.launcher.assignEncoder).toHaveBeenLastCalledWith(1, 'hue'); // next control into this column
+    h.adapter.handleInput({ kind: 'encoder', encoder: 0, delta: -3 });
+    expect(h.launcher.assignEncoder).toHaveBeenLastCalledWith(1, 'size'); // one option per turn, wrapping
+    h.adapter.handleInput({ kind: 'encoder', encoder: 1, delta: 2 });
+    expect(h.launcher.dispatch).toHaveBeenLastCalledWith({ action: 'encoder', index: 1, value: 2, relative: true, fine: false }); // value edits the edited column, not column 2
+    h.adapter.handleInput({ kind: 'encoder', encoder: 2, delta: 1 });
+    expect(h.registry.updateParam).toHaveBeenLastCalledWith('speed', { min: 0.01 }); // 1% of the range with no step
+    h.adapter.handleInput({ kind: 'encoder', encoder: 3, delta: -1 });
+    expect(h.registry.updateParam).toHaveBeenLastCalledWith('speed', { max: 0.99 });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 4, delta: 1 });
+    expect(h.registry.updateParam).toHaveBeenLastCalledWith('speed', { step: STEP_LADDER[1] });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 4, delta: -1 });
+    expect(h.registry.updateParam).toHaveBeenLastCalledWith('speed', { step: 0 }); // stays free at the bottom
+    h.adapter.handleInput({ kind: 'encoder', encoder: 5, delta: 2 });
+    expect(h.registry.updateParam).toHaveBeenLastCalledWith('speed', { default: 0.32 });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 6, delta: 1 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { target: 'speed' }); // lfo1 now moves this control
+    h.adapter.handleInput({ kind: 'encoder', encoder: 6, delta: 1 });
+    expect(h.modulations.update).toHaveBeenLastCalledWith('a', { target: '' }); // back to none
+    h.adapter.handleInput({ kind: 'encoder', encoder: 7, delta: 1 }); // spare column
+    expect(h.launcher.dispatch).toHaveBeenCalledTimes(1); // only the Value column reached the launcher
+
+    h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
+    h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: true, value: 127 });
+    h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: false, value: 0 });
+    expect(h.adapter.editState()).toMatchObject({ kind: 'modulation', id: 'a' }); // one edit screen at a time
   });
 
   it('Play mirrors the audio transport and toggles it', () => {

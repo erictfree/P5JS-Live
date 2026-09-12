@@ -131,12 +131,74 @@ function renderEditScreen(ctx, edit, lowerLabels, accent = AMBER) {
   drawLowerStrip(ctx, lowerLabels, accent);
 }
 
+// Control edit screen (Shift + upper button): the same bands as the modulation screen.
+// Columns follow the encoders: which control sits in the column, its value, range, step,
+// the default a press resets to, and the modulation that moves it. A range bar under the
+// first three columns places the value and the default inside min…max.
+function renderControlEditScreen(ctx, edit, lowerLabels, accent = TEAL) {
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, GRID.width, GRID.height);
+  ctx.textAlign = 'left';
+  reverseTab(ctx, 4, 1, 140, GRID.topStrip - 2, accent, `${edit.column + 1} · ${edit.name || 'empty'}`, font('tab'));
+  ctx.fillStyle = DIM; ctx.font = font('infoSmall');
+  const range = `${fmt(edit.min)} – ${fmt(edit.max)}`;
+  ctx.fillText(edit.name ? `Control · ${range}${edit.step > 0 ? ` · step ${fmt(edit.step)}` : ''}${edit.modulation ? ` · moved by ${edit.modulation}` : ''}` : 'No control in this column · turn encoder 1 to choose one', 154, 13);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = DIM; ctx.font = font('infoSmall');
+  ctx.fillText('Shift + button to leave', 948, 13);
+  if (Number.isFinite(edit.value)) { ctx.fillStyle = INK; ctx.font = font('tab'); ctx.fillText(fmt(edit.value), 800, 13); }
+  ctx.textAlign = 'left';
+  ctx.fillStyle = COLORS.hair; ctx.fillRect(0, GRID.topStrip, GRID.width, 1);
+
+  const span = edit.max - edit.min;
+  const t = value => (span > 0 && Number.isFinite(value) ? Math.min(1, Math.max(0, (value - edit.min) / span)) : 0);
+  const labelY = 36, valueY = 66;
+  const cards = [
+    { label: 'Control', value: edit.name || 'none', dim: !edit.name },
+    { label: 'Value', value: Number.isFinite(edit.value) ? fmt(edit.value) : '—', arc: Number.isFinite(edit.value) ? t(edit.value) : null },
+    { label: 'Min', value: fmt(edit.min) },
+    { label: 'Max', value: fmt(edit.max) },
+    { label: 'Step', value: edit.step > 0 ? fmt(edit.step) : 'free', dim: !(edit.step > 0) },
+    { label: 'Initial', value: Number.isFinite(edit.default) ? fmt(edit.default) : '—', arc: Number.isFinite(edit.default) ? t(edit.default) : null },
+    { label: 'Mod', value: edit.modulation || 'none', dim: !edit.modulation },
+    null,
+  ];
+  cards.forEach((card, i) => {
+    if (!card) return;
+    const x = i * COL;
+    ctx.fillStyle = DIM; ctx.font = font('caption'); ctx.fillText(card.label, x + 8, labelY);
+    ctx.fillStyle = card.dim ? DIM : accent; ctx.font = font('value');
+    ctx.fillText(String(card.value).slice(0, 9), x + 8, valueY);
+    if (Number.isFinite(card.arc)) drawArc(ctx, x + 60, 108, 22, card.arc, accent, { marker: false });
+  });
+  // Range bar across the first three columns: min at the left, max at the right, the
+  // value as a filled dot and the default as a hollow one.
+  if (edit.name) {
+    const x0 = 16, x1 = COL * 3 - 16, y = 112;
+    ctx.strokeStyle = FAINT; ctx.lineWidth = STROKES.arc; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+    if (Number.isFinite(edit.value)) {
+      const vx = x0 + t(edit.value) * (x1 - x0);
+      ctx.strokeStyle = accent; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(vx, y); ctx.stroke();
+      ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(vx, y, 6, 0, Math.PI * 2); ctx.fill();
+    }
+    if (Number.isFinite(edit.default)) {
+      const dx = x0 + t(edit.default) * (x1 - x0);
+      ctx.strokeStyle = INK; ctx.lineWidth = STROKES.rule; ctx.beginPath(); ctx.arc(dx, y, 5, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = DIM; ctx.font = font('caption');
+    ctx.fillText(fmt(edit.min), x0, 136);
+    ctx.textAlign = 'right'; ctx.fillText(fmt(edit.max), x1, 136); ctx.textAlign = 'left';
+  }
+  drawLowerStrip(ctx, lowerLabels, accent);
+}
+
 // `tempo` ({ bpm, label, running, lit }) and `transport` ({ kind, loaded, playing, volume })
 // feed one compact info line; `controls` are the eight encoder targets (registry params
 // with an optional `modulation` summary); `lowerLabels` are the modulation slots;
 // `touched` is the column index whose encoder moved most recently (reverse-video tab).
 export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null, lowerLabels = null, volume = null, edit = null, touched = null, accent = TEAL }) {
   const ctx = canvas.getContext('2d');
+  if (edit?.kind === 'control') { renderControlEditScreen(ctx, edit, lowerLabels, edit.color ?? accent); return; }
   if (edit) { renderEditScreen(ctx, edit, lowerLabels, edit.color ?? AMBER); return; }
   ctx.fillStyle = BG; ctx.fillRect(0, 0, GRID.width, GRID.height);
   ctx.textAlign = 'left';

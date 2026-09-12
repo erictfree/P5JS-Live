@@ -245,8 +245,16 @@ virtual surface exactly:
 - **Upper display buttons** (between each encoder and its column): lit in the column's
   colour when a control is assigned there (the screen tab above the column uses the same
   hue), off when empty; a ↺ mark on the tab shows the value has moved from its default.
-  Press resets the control to its default; Shift + press moves the column to the next
-  numeric control.
+  Press resets the control to its default. **Shift + press edits that column's control on
+  the screen** (the button goes white; Shift + press again leaves, another upper button
+  switches column): the encoders become Control (which control sits in the column),
+  Value, Min, Max, Step (a ladder from free to 100), Initial (what a press resets to) and
+  Mod (which modulation moves it; picking one hands the control over from the previous
+  one). Range, step and default edits go through `registry.updateParam` and persist in
+  the scene snapshot; re-running a `control()` declaration restores what the code says.
+  The screen shows a range bar under the first three columns with the value as a filled
+  dot and the default as a hollow one. One edit screen at a time: opening a control edit
+  closes a modulation edit and vice versa.
 - **Screen style** is documented in [PUSH3-DISPLAY-STYLE.md](PUSH3-DISPLAY-STYLE.md); tokens
   live in `src/performance/displayTheme.js`, and **Show style sheet** on the display row
   streams a specimen screen to the Push for judging type, colour and strokes in situ.

@@ -32,6 +32,13 @@ export const LOWER_LED = Object.freeze({ none: PUSH3_COLORS.off, defined: PUSH3_
 
 // Encoder layout while editing a modulation (one parameter per column).
 export const EDIT_COLUMNS = Object.freeze(['wave', 'rate', 'rateMode', 'depth', 'offset', 'moves', 'on', null]);
+// Encoder layout while editing a control (Shift + upper button): which control sits in
+// the column, its value, range, step, the default a press resets to, and the modulation
+// that moves it. Same fields as the browser's live-control form.
+export const CONTROL_EDIT_COLUMNS = Object.freeze(['control', 'value', 'min', 'max', 'step', 'default', 'mod', null]);
+// Step sizes the Step column walks through; 0 = free (no quantising).
+export const STEP_LADDER = Object.freeze([0, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 50, 100]);
+const tidy = value => Number(value.toFixed(6));
 
 export function modulationSlots(modulations) {
   const list = modulations?.list?.() ?? [];
@@ -49,7 +56,7 @@ export function renderLowerButtons({ modulations, editingId = null }) {
   return frame;
 }
 
-export const UPPER_LED = Object.freeze({ unassigned: PUSH3_COLORS.off });
+export const UPPER_LED = Object.freeze({ unassigned: PUSH3_COLORS.off, editing: PUSH3_COLORS.white });
 
 // Play button mirrors the toolbar's audio transport: green while the file plays, dim when
 // a file is loaded but paused, off when there is nothing to play.
@@ -123,12 +130,12 @@ export function sceneAccentHue(state) {
   return slot >= 0 ? PERFORMANCE_HUES[(slot % PADS_PER_BANK) % PERFORMANCE_HUES.length] : PUSH3_COLORS.litWhite;
 }
 
-export function renderUpperButtons({ targets, params, accent = PUSH3_COLORS.litWhite }) {
+export function renderUpperButtons({ targets, params, accent = PUSH3_COLORS.litWhite, editingColumn = null }) {
   const frame = new Map();
   UPPER_BUTTONS.forEach((cc, index) => {
     const param = params.find(p => p.name === targets[index]);
     const assigned = Boolean(param) && typeof param.value === 'number';
-    frame.set(cc, { base: assigned ? accent : UPPER_LED.unassigned, channel: 0 });
+    frame.set(cc, { base: index === editingColumn ? UPPER_LED.editing : assigned ? accent : UPPER_LED.unassigned, channel: 0 });
   });
   return frame;
 }
@@ -158,6 +165,7 @@ export function createPush3Adapter({
   let touched = null; // { index, at } — the encoder column moved most recently
   const TOUCH_MS = 2500;
   let editingId = null; // modulation being edited with the encoders (Shift + lower button)
+  let editingColumn = null; // encoder column whose control is being edited (Shift + upper button)
   const VOLUME_FLASH_MS = 2500;
   let renderQueued = false;
   let hadOutput = false;
@@ -191,7 +199,7 @@ export function createPush3Adapter({
     const state = launcher.snapshot();
     const params = registry.listParams();
     return sendFrame(renderPadFrame({ state, entries: store.list(), effects: effects.list() }))
-      + sendButtons(renderUpperButtons({ targets: state.targets, params, accent: sceneAccentHue(state) }))
+      + sendButtons(renderUpperButtons({ targets: state.targets, params, accent: sceneAccentHue(state), editingColumn }))
       + sendButtons(renderLowerButtons({ modulations, editingId: editState() ? editingId : null }));
   }
 
@@ -210,18 +218,75 @@ export function createPush3Adapter({
       const firstEmpty = slots.findIndex(slot => !slot);
       return index === firstEmpty ? Boolean(modulations.add({})) : false;
     }
-    if (shiftHeld) { editingId = editingId === m.id ? null : m.id; scheduleRender(); return true; }
+    if (shiftHeld) { editingId = editingId === m.id ? null : m.id; editingColumn = null; scheduleRender(); return true; }
     return Boolean(modulations.toggle(m.id));
+  }
+
+  // Control edit mode: the eight encoders set the chosen column's control.
+  function controlEditState() {
+    const state = launcher.snapshot();
+    const numeric = registry.listParams().filter(p => typeof p.value === 'number');
+    const param = numeric.find(p => p.name === state.targets[editingColumn]) ?? null;
+    const mods = modulations?.list?.() ?? [];
+    const moving = param ? mods.find(m => m.target === param.name) : null;
+    const num = (value, fallback) => (Number.isFinite(value) ? value : fallback);
+    return {
+      kind: 'control', column: editingColumn, name: param?.name ?? '', value: param?.value ?? null,
+      min: num(param?.min, 0), max: num(param?.max, 1), step: num(param?.step, 0), default: num(param?.default, null),
+      controls: numeric.map(p => p.name), modulation: moving?.name ?? '', modulations: mods.map(m => m.name),
+      columns: CONTROL_EDIT_COLUMNS,
+    };
+  }
+  function editControlWithEncoder(index, delta) {
+    const state = controlEditState();
+    const step = Math.sign(delta);
+    const wrap = (list, at) => list[((at + step) % list.length + list.length) % list.length];
+    const inc = state.step > 0 ? state.step : (state.max - state.min) / 100;
+    const clamp = value => Math.min(state.max, Math.max(state.min, value));
+    switch (CONTROL_EDIT_COLUMNS[index]) {
+      case 'control':
+        if (state.controls.length) launcher.assignEncoder(editingColumn, wrap(state.controls, state.controls.indexOf(state.name)));
+        break;
+      case 'value':
+        if (state.name) launcher.dispatch({ action: 'encoder', index: editingColumn, value: delta, relative: true, fine: shiftHeld });
+        break;
+      case 'min': if (state.name) registry.updateParam(state.name, { min: tidy(Math.min(state.max - inc, state.min + delta * inc)) }); break;
+      case 'max': if (state.name) registry.updateParam(state.name, { max: tidy(Math.max(state.min + inc, state.max + delta * inc)) }); break;
+      case 'step': {
+        if (!state.name) break;
+        let at = STEP_LADDER.findIndex(s => Math.abs(s - state.step) < 1e-9);
+        if (at < 0) at = Math.max(0, STEP_LADDER.findIndex(s => s > state.step) - (step > 0 ? 1 : 0));
+        registry.updateParam(state.name, { step: STEP_LADDER[Math.min(STEP_LADDER.length - 1, Math.max(0, at + step))] });
+        break;
+      }
+      case 'default':
+        if (state.name && Number.isFinite(state.default)) registry.updateParam(state.name, { default: tidy(clamp(state.default + delta * inc)) });
+        break;
+      case 'mod': {
+        if (!state.name || !modulations) break;
+        const options = ['', ...state.modulations];
+        const next = wrap(options, options.indexOf(state.modulation));
+        const mods = modulations.list();
+        const current = mods.find(m => m.name === state.modulation);
+        if (current && current.name !== next) modulations.update(current.id, { target: '' });
+        const chosen = mods.find(m => m.name === next);
+        if (chosen) modulations.update(chosen.id, { target: state.name });
+        break;
+      }
+      default: break;
+    }
+    return true;
   }
 
   // Edit mode: the eight encoders set the chosen modulation's parameters.
   function editState() {
+    if (Number.isInteger(editingColumn)) return controlEditState();
     if (!editingId || !modulations) return null;
     const m = modulations.get?.(editingId) ?? modulations.list().find(entry => entry.id === editingId);
     if (!m) { editingId = null; return null; }
     const numeric = registry.listParams().filter(p => typeof p.value === 'number').map(p => p.name);
     return {
-      id: m.id, name: m.name, wave: m.wave, glyph: WAVE_GLYPHS[m.wave], sync: m.sync, beats: m.beats, hz: m.hz,
+      kind: 'modulation', id: m.id, name: m.name, wave: m.wave, glyph: WAVE_GLYPHS[m.wave], sync: m.sync, beats: m.beats, hz: m.hz,
       depth: m.depth, offset: m.offset, target: m.target || '', on: m.on, targets: numeric,
       phase: modulations.phase?.(m.id) ?? null, signal: modulations.signal?.(m.name),
       slot: modulationSlots(modulations).findIndex(entry => entry?.id === m.id),
@@ -229,6 +294,7 @@ export function createPush3Adapter({
     };
   }
   function editWithEncoder(index, delta) {
+    if (Number.isInteger(editingColumn)) return editControlWithEncoder(index, delta);
     const state = editState();
     if (!state) return false;
     const step = Math.sign(delta);
@@ -275,18 +341,18 @@ export function createPush3Adapter({
   }
 
   // Upper button under encoder N: press resets its control to the saved default;
-  // Shift + press moves the column to the next numeric control.
+  // Shift + press edits that column's control on the screen (again to leave). Choosing
+  // which control sits in the column is the first encoder of that screen.
   function upperButton(index) {
+    if (shiftHeld) {
+      editingColumn = editingColumn === index ? null : index;
+      editingId = null;
+      scheduleRender();
+      return true;
+    }
     const state = launcher.snapshot();
     const numeric = registry.listParams().filter(p => typeof p.value === 'number');
-    const current = state.targets[index];
-    if (shiftHeld) {
-      if (!numeric.length) return false;
-      const at = numeric.findIndex(p => p.name === current);
-      const next = numeric[(at + 1) % numeric.length].name;
-      return launcher.assignEncoder(index, next);
-    }
-    const param = numeric.find(p => p.name === current);
+    const param = numeric.find(p => p.name === state.targets[index]);
     if (!param || !Number.isFinite(param.default)) return false;
     registry.setParam(param.name, param.default);
     return true;

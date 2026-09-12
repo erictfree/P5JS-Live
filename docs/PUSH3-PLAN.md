@@ -42,7 +42,7 @@ The architecture rule from the handoff holds: hardware translates into logical l
 | Play | CC 85 | **done**: toggles the audio file transport; LED green/dim/off |
 | Undo | CC 119 | `safe` (restore last safe state) |
 | Delete (alone) | CC 118 | cancel queued launch |
-| Upper screen buttons | CC 102–109 | **done**: press resets the control under it to default; Shift + press cycles the column's control; LED off/dim/bright = unassigned/at default/moved |
+| Upper screen buttons | CC 102–109 | **done**: press resets the control under it to default; Shift + press opens the control edit screen (encoders = control, value, min, max, step, initial, modulation; white LED while editing); LED off/accent = unassigned/assigned |
 | Lower screen buttons | CC 20–27 | **done**: modulation slots in list order — toggle, hold + encoder sets depth, Shift enters edit mode (encoders = wave/rate/mode/depth/offset/moves/on), first empty slot adds one; LED off/dim/amber/white; labels on the screen's bottom strip |
 | Shift / Select | CC 49 / 48 | modifiers only; no action |
 | Tempo encoder | CC 14 relative | **done**: nudge manual BPM ±1 (Shift ±0.1) |
@@ -117,6 +117,6 @@ Pads as performance input to patches: expose pad pressure (and MPE slide if it a
 ## Decisions needed
 
 1. **Decided:** pad 1 top-left, matching the virtual surface. Banks are 32 slots: rows 1–4 launch performances, rows 5–8 are effect toggles bound to the scene's toggle controls.
-2. **Decided:** upper screen buttons reset the control under them; Shift + press cycles the column's control.
+2. **Decided:** upper screen buttons reset the control under them; Shift + press edits the column's control on the screen (choosing the column's control is that screen's first encoder).
 3. Shift: fine encoder steps and immediate launch (proposed), or hold-Shift for a second bank of pad actions?
 4. Bank selection on the resolution row (proposed) versus the lower screen buttons?

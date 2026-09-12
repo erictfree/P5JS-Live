@@ -262,7 +262,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     const name = performanceName?.() ?? null;
     const status = name ? `${name} · ${lastSurface.status}` : lastSurface.status;
     const controls = lastSurface.controls.map(control => (control ? { ...control, modulation: modulationInfo(control.name) } : control));
-    renderSurfaceDisplay(canvas, { ...lastSurface, controls, status, tempo: tempo?.() ?? null, transport: transport?.() ?? null, browser: browserWithImage(), lowerLabels: modulations ? slotLabels() : null, volume: volume?.() ?? null, edit: (() => { const e = editing?.() ?? null; return e ? { ...e, color: COLUMN_COLORS[(e.slot < 0 ? 0 : e.slot) % COLUMN_COLORS.length] } : null; })(), touched: touchedColumn() });
+    renderSurfaceDisplay(canvas, { ...lastSurface, controls, status, tempo: tempo?.() ?? null, transport: transport?.() ?? null, browser: browserWithImage(), lowerLabels: modulations ? slotLabels() : null, volume: volume?.() ?? null, edit: (() => { const e = editing?.() ?? null; return e ? { ...e, color: e.kind === 'control' ? lastSurface.accent : COLUMN_COLORS[(e.slot < 0 ? 0 : e.slot) % COLUMN_COLORS.length] } : null; })(), touched: touchedColumn() });
   }
   function render() {
     const state = launcher.snapshot(), entries = store.list(), params = registry.listParams().filter(p => typeof p.value === 'number');
