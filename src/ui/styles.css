@@ -2665,7 +2665,8 @@ button.glyph.danger { color: #ffb3bb; }
 .cell-lock { margin-left: 8px; font: 10px var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: #8a9390; border: 1px solid #3a3f42; border-radius: 3px; padding: 1px 5px; }
 .folded-block.is-locked .folded-source-editor { color: #a7adb0; cursor: default; }
 .modulation-create { --mod: #8a9390; border-style: dashed; }
-.modulation-create .modulation-name { color: #e2e4e5; }
+.modulation-create .modulation-name { color: #e2e4e5; grid-column: 1 / -1; }
+.modulation-create .modulation-actions { grid-column: 1 / -1; justify-content: flex-start; margin-top: 2px; }
 .modulation-create-name input { font: 600 13px var(--mono); }
 .modulation-row .modulation-name-text { color: var(--mod); }
 .modulation-row .modulation-name { font: 600 13px var(--mono); display: flex; align-items: center; gap: 8px; min-width: 0; }

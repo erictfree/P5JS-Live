@@ -268,7 +268,8 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     actions.append(create, cancel);
     const heading = document.createElement('div'); heading.className = 'modulation-name';
     heading.textContent = 'New modulation';
-    form.append(heading, actions, fields);
+    // Fields first, Create/Cancel underneath, matching the live-control form.
+    form.append(heading, fields, actions);
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const name = identifierName(nameInput.value, '');
