@@ -24,12 +24,12 @@ export const COLORS = Object.freeze({
   dim: '#a6adad',        // captions, labels
   faint: '#262a2c',      // rules, empty arcs
   hair: '#1b1f21',       // separators
-  amber: PALETTE.yellow, // modulations, tempo
-  teal: PALETTE.mint,    // scene / performance identity
+  amber: PALETTE.purple, // modulations, tempo (token name kept for the renderer)
+  teal: PALETTE.lime,    // identity marks in the browser; on screen the scene accent is used
   danger: PALETTE.red,
   // Scene accents by pad position, in the same order as the pad/LED palette
-  // (push3Map PERFORMANCE_HUES): lime, yellow, mint, steel blue, indigo, blue, purple, red.
-  columns: Object.freeze([PALETTE.lime, PALETTE.yellow, PALETTE.mint, PALETTE.steelBlue, PALETTE.indigo, PALETTE.blue, PALETTE.purple, PALETTE.red]),
+  // (push3Map PERFORMANCE_HUES). Yellow last; purple is reserved for modulation.
+  columns: Object.freeze([PALETTE.lime, PALETTE.mint, PALETTE.steelBlue, PALETTE.indigo, PALETTE.blue, PALETTE.red, PALETTE.white, PALETTE.yellow]),
 });
 
 export const FONTS = Object.freeze({

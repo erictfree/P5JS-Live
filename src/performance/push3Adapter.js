@@ -10,10 +10,11 @@ import { PADS_PER_BANK } from './launcher.js';
 
 // One steady hue per slot position so neighbouring pads read as different performances.
 // Pad/LED hues by slot position, matching displayTheme's scene accents in order:
-// lime, yellow, mint, steel blue, indigo, blue, purple, red (nearest measured entries).
+// lime, mint, steel blue, indigo, blue, red, white, yellow (nearest measured entries).
+// Purple is reserved for modulation on the lower buttons and the screen.
 export const PERFORMANCE_HUES = Object.freeze([
-  PUSH3_COLORS.lime, PUSH3_COLORS.yellow, PUSH3_COLORS.mint, PUSH3_COLORS.skyBlue,
-  PUSH3_COLORS.indigo, PUSH3_COLORS.blue, PUSH3_COLORS.violet, PUSH3_COLORS.warmRed,
+  PUSH3_COLORS.lime, PUSH3_COLORS.mint, PUSH3_COLORS.skyBlue, PUSH3_COLORS.indigo,
+  PUSH3_COLORS.blue, PUSH3_COLORS.warmRed, PUSH3_COLORS.white, PUSH3_COLORS.yellow,
 ]);
 
 // Upper display buttons sit between each encoder and its display column.
@@ -27,7 +28,7 @@ export const LOWER_BUTTONS = Object.freeze([
 ]);
 // Lower display buttons: one modulation slot each, in list order (the first eight).
 // Off = empty slot, dim = defined but stopped, bright amber = running.
-export const LOWER_LED = Object.freeze({ none: PUSH3_COLORS.off, defined: PUSH3_COLORS.darkGray, running: PUSH3_COLORS.amber, editing: PUSH3_COLORS.white });
+export const LOWER_LED = Object.freeze({ none: PUSH3_COLORS.off, defined: PUSH3_COLORS.darkGray, running: PUSH3_COLORS.violet, editing: PUSH3_COLORS.white });
 
 // Encoder layout while editing a modulation (one parameter per column).
 export const EDIT_COLUMNS = Object.freeze(['wave', 'rate', 'rateMode', 'depth', 'offset', 'moves', 'on', null]);
