@@ -1513,10 +1513,13 @@ order, and press it to load.
 
 **Tools → Modulations** creates signals: an LFO, ramp, square or random step you read
 in a patch by its name — `lfo1` is a live number from −1 to 1 — or point at a live control so it swings that
-control around the value you set. Add one, name it, choose a waveform, set the rate in
-beats (locked to the tempo) or Hz, plus depth and offset, and optionally pick a control.
+control around the value you set. **+ Modulation** opens a form like the one for live
+controls: give it a name (the field starts on the next free `lfoN`), choose a waveform, set the rate in
+beats (locked to the tempo) or Hz, plus depth and offset, and optionally pick a control,
+then press **Create**; nothing exists until you do, and **Cancel** or Esc discards the form.
+Double-click a name in the list to rename it later.
 Modulations are part of the performance, so they stay when you switch scenes. Knobs, sliders and learned MIDI keep moving the base value; the
-swing follows. Modulations save with the scene. On Push 3 the lower display buttons
+swing follows. On Push 3 the lower display buttons
 are your modulations in list order: press to switch one on or off, and press the first
 empty slot to add a new one. Hold a button and turn the encoder above it to set that
 modulation's depth. Shift-press a button to edit that modulation: the eight encoders

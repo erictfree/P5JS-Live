@@ -1,5 +1,5 @@
 // Modulations tab: list, edit and toggle modulations on live controls.
-import { WAVEFORMS, WAVE_GLYPHS, waveValue } from '../performance/modulations.js';
+import { WAVEFORMS, WAVE_GLYPHS, identifierName, waveValue } from '../performance/modulations.js';
 import { COLUMN_COLORS } from '../performance/surfaceDisplay.js';
 
 const WAVE_LABELS = { sine: 'Sine', triangle: 'Triangle', rampUp: 'Ramp up', rampDown: 'Ramp down', square: 'Square', random: 'Random step' };
@@ -171,7 +171,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     const list = engine.list();
     const params = numericParams();
     if (!list.length) {
-      root.replaceChildren();
+      root.replaceChildren(...(createForm ? [createForm] : []));
       rows = new Map();
       const empty = document.createElement('div');
       empty.className = 'performance-empty';
@@ -180,6 +180,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
       return;
     }
     for (const stale of root.querySelectorAll(':scope > .performance-empty')) stale.remove();
+    if (createForm && createForm.parentElement !== root) root.prepend(createForm);
     const next = new Map();
     for (const [index, m] of list.entries()) {
       const existing = rows.get(m.id);
@@ -218,11 +219,78 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     }
   }
 
-  addButton.addEventListener('click', () => {
-    // Modulations exist on their own; a control target is optional.
-    const created = engine.add({});
-    if (created) diagnostics?.info?.(`Modulation ${created.name} added`, `Use ${created.name} in a patch as a live number from −1 to 1, or pick a control for it to move.`);
-  });
+  // "+ Modulation" opens a create form, like "+ Live control": name and settings first,
+  // nothing exists until Create. (The Push's empty lower button still adds a default.)
+  let createForm = null;
+  function nextName() {
+    const taken = new Set(engine.list().map(m => m.name));
+    let n = 1; while (taken.has(`lfo${n}`)) n += 1;
+    return `lfo${n}`;
+  }
+  function openCreateForm() {
+    if (createForm) { createForm.querySelector('input[name=name]').focus(); return; }
+    const params = numericParams();
+    const form = document.createElement('form');
+    form.className = 'modulation-row modulation-create';
+    form.noValidate = true;
+    const fields = document.createElement('div'); fields.className = 'modulation-fields';
+    const text = (name, label, value, attrs = {}) => {
+      const input = document.createElement('input'); input.name = name;
+      Object.assign(input, attrs); input.value = String(value); input.setAttribute('aria-label', label);
+      return [input, field(label, input)];
+    };
+    const [nameInput, nameField] = text('name', 'Name', nextName(), { type: 'text', maxLength: 40, autocomplete: 'off' });
+    nameField.classList.add('modulation-create-name');
+    const wave = document.createElement('select'); wave.name = 'wave'; wave.setAttribute('aria-label', 'Waveform');
+    for (const w of WAVEFORMS) option(wave, w, `${WAVE_GLYPHS[w]} ${WAVE_LABELS[w]}`, w === 'sine');
+    const mode = document.createElement('select'); mode.name = 'mode'; mode.setAttribute('aria-label', 'Rate mode');
+    option(mode, 'beats', 'Beats (synced)', true); option(mode, 'hz', 'Hz (free)', false);
+    const beats = document.createElement('select'); beats.name = 'beats'; beats.setAttribute('aria-label', 'Rate in beats');
+    for (const [v, label] of BEAT_OPTIONS) option(beats, v, label, v === 1);
+    const [hz, hzField] = text('hz', 'Hz', 1, { type: 'number', min: '0.01', max: '30', step: '0.01' });
+    const beatsField = field('Beats', beats);
+    hzField.hidden = true;
+    mode.addEventListener('change', () => { beatsField.hidden = mode.value !== 'beats'; hzField.hidden = mode.value === 'beats'; });
+    const [depth, depthField] = text('depth', 'Depth', 0.25, { type: 'range', min: '0', max: '1', step: '0.01' });
+    const [offset, offsetField] = text('offset', 'Offset', 0, { type: 'range', min: '-1', max: '1', step: '0.01' });
+    depth.addEventListener('input', () => { depthField.firstChild.textContent = `Depth ${Math.round(depth.value * 100)}%`; });
+    offset.addEventListener('input', () => { offsetField.firstChild.textContent = `Offset ${Math.round(offset.value * 100)}%`; });
+    depthField.firstChild.textContent = 'Depth 25%'; offsetField.firstChild.textContent = 'Offset 0%';
+    const target = document.createElement('select'); target.name = 'target'; target.setAttribute('aria-label', 'Control this modulation moves');
+    option(target, '', 'None — use it in code', true);
+    for (const p of params) option(target, p.name, p.name, false);
+    fields.append(nameField, field('Wave', wave), field('Rate', mode), beatsField, hzField, depthField, offsetField, field('Control', target));
+
+    const actions = document.createElement('div'); actions.className = 'modulation-actions';
+    const create = document.createElement('button'); create.type = 'submit'; create.textContent = 'Create';
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', () => closeCreateForm());
+    actions.append(create, cancel);
+    const heading = document.createElement('div'); heading.className = 'modulation-name';
+    heading.textContent = 'New modulation';
+    form.append(heading, actions, fields);
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const name = identifierName(nameInput.value, '');
+      if (!name) { nameInput.focus(); nameInput.setAttribute('aria-invalid', 'true'); return; }
+      const created = engine.add({
+        name, wave: wave.value, sync: mode.value === 'beats', beats: Number(beats.value), hz: Number(hz.value),
+        depth: Number(depth.value), offset: Number(offset.value), target: target.value,
+      });
+      closeCreateForm();
+      if (created) diagnostics?.info?.(`Modulation ${created.name} created`, created.target ? `It moves ${created.target}.` : `Use ${created.name} in a patch as a live number from −1 to 1.`);
+    });
+    form.addEventListener('keydown', (event) => { if (event.key === 'Escape') { event.preventDefault(); closeCreateForm(); } });
+    createForm = form;
+    root.prepend(form);
+    nameInput.focus(); nameInput.select();
+  }
+  function closeCreateForm() {
+    if (!createForm) return;
+    createForm.remove(); createForm = null;
+    addButton.focus();
+  }
+  addButton.addEventListener('click', openCreateForm);
 
   engine.subscribe(render);
   registry.subscribe(() => {
