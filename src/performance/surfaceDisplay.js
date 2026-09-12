@@ -25,7 +25,7 @@ function fmt(value) {
 
 // Knob arc: 270° sweep filled to `t` (0…1) in `color`, a white square at the sweep's
 // start (Live's idiom), and an optional live marker riding the arc at `mark`.
-function drawArc(ctx, cx, cy, r, t, color, { mark = null, track = FAINT, marker = true } = {}) {
+function drawArc(ctx, cx, cy, r, t, color, { mark = null, track = FAINT, marker = true, markColor = AMBER } = {}) {
   const a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;
   ctx.lineCap = 'round';
   ctx.strokeStyle = track; ctx.lineWidth = STROKES.arcTrack;
@@ -37,7 +37,7 @@ function drawArc(ctx, cx, cy, r, t, color, { mark = null, track = FAINT, marker 
   }
   if (Number.isFinite(mark)) {
     const a = a0 + (a1 - a0) * Math.max(0, Math.min(1, mark));
-    ctx.fillStyle = AMBER;
+    ctx.fillStyle = markColor;
     ctx.beginPath(); ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 3, 0, Math.PI * 2); ctx.fill();
   }
   ctx.lineCap = 'butt';
@@ -73,14 +73,15 @@ function drawLowerStrip(ctx, lowerLabels, editAccent = AMBER) {
   const firstEmpty = lowerLabels.findIndex(s => !s);
   lowerLabels.forEach((slot, i) => {
     const x = i * COL;
+    const tone = slot?.color ?? editAccent;
     if (slot?.editing) {
-      reverseTab(ctx, x + 4, y + 1, COL - 8, GRID.bottomStrip - 2, editAccent, `${slot.glyph} ${slot.name}`, font('strip'));
+      reverseTab(ctx, x + 4, y + 1, COL - 8, GRID.bottomStrip - 2, tone, `${slot.glyph} ${slot.name}`, font('strip'));
       return;
     }
     ctx.textAlign = 'left';
-    ctx.fillStyle = slot ? (slot.on ? AMBER : DIM) : '#3c4143'; ctx.font = font('strip');
+    ctx.fillStyle = slot ? (slot.on ? tone : DIM) : '#3c4143'; ctx.font = font('strip');
     ctx.fillText(slot ? `${slot.glyph} ${slot.name} ${slot.rate} ${slot.depth}`.slice(0, 16) : (i === firstEmpty ? '+ new' : ''), x + 8, y + 13);
-    ctx.fillStyle = slot ? (slot.on ? AMBER : '#4a5254') : COLORS.hair; ctx.fillRect(x + 4, y, COL - 8, STROKES.rule);
+    ctx.fillStyle = slot ? (slot.on ? tone : '#4a5254') : COLORS.hair; ctx.fillRect(x + 4, y, COL - 8, STROKES.rule);
   });
 }
 
@@ -136,7 +137,7 @@ function renderEditScreen(ctx, edit, lowerLabels, accent = AMBER) {
 // `touched` is the column index whose encoder moved most recently (reverse-video tab).
 export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null, lowerLabels = null, volume = null, edit = null, touched = null, accent = TEAL }) {
   const ctx = canvas.getContext('2d');
-  if (edit) { renderEditScreen(ctx, edit, lowerLabels, AMBER); return; }
+  if (edit) { renderEditScreen(ctx, edit, lowerLabels, edit.color ?? AMBER); return; }
   ctx.fillStyle = BG; ctx.fillRect(0, 0, GRID.width, GRID.height);
   ctx.textAlign = 'left';
   // One accent colour owns the screen (Live's selected-track idiom): the running scene's
@@ -209,11 +210,11 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
     const max = Number.isFinite(control.max) ? control.max : 1;
     const range = max > min ? max - min : 1;
     const shown = mod && Number.isFinite(mod.value) ? mod.value : control.value;
-    ctx.fillStyle = mod ? (mod.running ? AMBER : DIM) : DIM; ctx.font = font('caption');
+    ctx.fillStyle = mod ? (mod.running ? (mod.color ?? AMBER) : DIM) : DIM; ctx.font = font('caption');
     ctx.fillText(mod ? `${mod.glyph} ${mod.rate}` : `${fmt(min)} – ${fmt(max)}`, x + 8, 56);
     ctx.fillStyle = touched === i ? INK : accent; ctx.font = font('value');
     ctx.fillText(fmt(shown), x + 8, 82);
-    drawArc(ctx, x + 60, 112, 22, (control.value - min) / range, color, { mark: mod && Number.isFinite(mod.value) ? (mod.value - min) / range : null });
+    drawArc(ctx, x + 60, 112, 22, (control.value - min) / range, color, { mark: mod && Number.isFinite(mod.value) ? (mod.value - min) / range : null, markColor: mod?.color ?? AMBER });
   });
 
   drawLowerStrip(ctx, lowerLabels);

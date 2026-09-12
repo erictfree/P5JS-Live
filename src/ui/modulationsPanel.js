@@ -1,5 +1,6 @@
 // Modulations tab: list, edit and toggle modulations on live controls.
 import { WAVEFORMS, WAVE_GLYPHS, waveValue } from '../performance/modulations.js';
+import { COLUMN_COLORS } from '../performance/surfaceDisplay.js';
 
 const WAVE_LABELS = { sine: 'Sine', triangle: 'Triangle', rampUp: 'Ramp up', rampDown: 'Ramp down', square: 'Square', random: 'Random step' };
 const BEAT_OPTIONS = [[0.25, '1/4 beat'], [0.5, '1/2 beat'], [1, '1 beat'], [2, '2 beats'], [4, '1 bar'], [8, '2 bars'], [16, '4 bars']];
@@ -20,10 +21,12 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     return wrap;
   }
 
-  function buildRow(m, params) {
+  function buildRow(m, params, index = 0) {
     const row = document.createElement('div');
     row.className = 'modulation-row';
     row.dataset.modulationId = m.id;
+    const color = COLUMN_COLORS[index % COLUMN_COLORS.length];
+    row.style.setProperty('--mod', color);
 
     const name = document.createElement('div');
     name.className = 'modulation-name';
@@ -123,7 +126,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
 
     row.classList.toggle('is-on', m.on);
     row.append(name, actions, fields);
-    return { row, value, scope, depth, offset, depthField, offsetField, signature: structure(m, params) };
+    return { row, value, scope, depth, offset, depthField, offsetField, color, signature: structure(m, params) + index };
   }
 
   // Everything except depth/offset. When only those change, the row is patched in place
@@ -140,7 +143,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
   }
 
   // One cycle of the wave, scaled by depth and offset, with a dot at the current phase.
-  function drawScope(canvas, m, phase, live) {
+  function drawScope(canvas, m, phase, live, color = '#FFA529') {
     const ctx = canvas.getContext('2d');
     const w = canvas.width, h = canvas.height, mid = h / 2;
     ctx.clearRect(0, 0, w, h);
@@ -148,7 +151,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     ctx.strokeStyle = '#343c3e'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, mid + 0.5); ctx.lineTo(w, mid + 0.5); ctx.stroke();
     const y = v => mid - Math.max(-1, Math.min(1, v)) * (mid - 3);
-    ctx.strokeStyle = m.on ? '#FFA529' : '#6b6e5a'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = m.on ? color : '#6b6e5a'; ctx.lineWidth = 1.5;
     ctx.beginPath();
     const steps = 64;
     const state = { cycle: -1, value: 0 };
@@ -178,14 +181,14 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     }
     for (const stale of root.querySelectorAll(':scope > .performance-empty')) stale.remove();
     const next = new Map();
-    for (const m of list) {
+    for (const [index, m] of list.entries()) {
       const existing = rows.get(m.id);
       let built;
-      if (existing && existing.signature === structure(m, params)) {
+      if (existing && existing.signature === structure(m, params) + index) {
         patchRow(existing, m);
         built = existing;
       } else {
-        built = buildRow(m, params);
+        built = buildRow(m, params, index);
         if (existing) existing.row.replaceWith(built.row);
       }
       next.set(m.id, built);
@@ -199,7 +202,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     if (wanted.some((row, index) => current[index] !== row)) {
       for (const row of wanted) root.append(row);
     }
-    for (const [id, built] of rows) { const m = engine.get(id); if (m) drawScope(built.scope, m, engine.phase(id), engine.signal(m.name)); }
+    for (const [id, built] of rows) { const m = engine.get(id); if (m) drawScope(built.scope, m, engine.phase(id), engine.signal(m.name), built.color); }
   }
 
   // Cheap per-frame readout of the live modulated value while the panel is visible.
@@ -211,7 +214,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
       const live = engine.value(m.target);
       const raw = engine.signal(m.name);
       value.textContent = Number.isFinite(live) ? `→ ${Number(live.toFixed(3))}` : Number.isFinite(raw) ? `${raw >= 0 ? '+' : ''}${raw.toFixed(2)}` : '';
-      drawScope(scope, m, engine.phase(id), raw);
+      drawScope(scope, m, engine.phase(id), raw, rows.get(id)?.color);
     }
   }
 

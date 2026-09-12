@@ -71,7 +71,8 @@ values, mid-grey labels, track tabs in their own colours). `PALETTE` in `display
 | Red | `#FF3636` | scene accent, pad 6; **danger** |
 | White | `#FFFFFF` | scene accent, pad 7; the touched value, markers, the beat dot |
 | Yellow | `#FFF034` | scene accent, pad 8 — used last |
-| Orange | `#FFA529` | **modulation and tempo**: BPM, running modulation tabs, arc markers, the edit screen |
+| Orange | `#FFA529` | **tempo**: the BPM readout; fallback modulation colour |
+| Modulation colours | by slot | each modulation takes the palette colour of its slot (lime for slot 1, purple for 2 …): its lower button LED when running, its bottom-strip tab, the marker on the arc it drives, its edit screen, and its row and scope in the browser |
 | Text `#F0F0F0`, label `#8C8C8C`, rule `#3A3A3A`, hair `#1E1E1E` | | text, captions, empty arcs and rules, separators |
 
 Pad and upper-button LEDs use the nearest measured Push palette entries in the same

@@ -38,10 +38,12 @@ export function modulationSlots(modulations) {
   return Array.from({ length: LOWER_BUTTONS.length }, (_, index) => list[index] ?? null);
 }
 
+// Each modulation has a colour by slot (same order as the scene accents), shown on its
+// lower button when running; dim when defined but stopped; white while being edited.
 export function renderLowerButtons({ modulations, editingId = null }) {
   const frame = new Map();
   modulationSlots(modulations).forEach((m, index) => {
-    const color = !m ? LOWER_LED.none : m.id === editingId ? LOWER_LED.editing : m.on ? LOWER_LED.running : LOWER_LED.defined;
+    const color = !m ? LOWER_LED.none : m.id === editingId ? LOWER_LED.editing : m.on ? PERFORMANCE_HUES[index % PERFORMANCE_HUES.length] : LOWER_LED.defined;
     frame.set(LOWER_BUTTONS[index], { base: color, channel: 0 });
   });
   return frame;
@@ -222,6 +224,7 @@ export function createPush3Adapter({
       id: m.id, name: m.name, wave: m.wave, glyph: WAVE_GLYPHS[m.wave], sync: m.sync, beats: m.beats, hz: m.hz,
       depth: m.depth, offset: m.offset, target: m.target || '', on: m.on, targets: numeric,
       phase: modulations.phase?.(m.id) ?? null, signal: modulations.signal?.(m.name),
+      slot: modulationSlots(modulations).findIndex(entry => entry?.id === m.id),
       columns: EDIT_COLUMNS,
     };
   }

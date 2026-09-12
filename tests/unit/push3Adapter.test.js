@@ -253,7 +253,7 @@ describe('Push 3 adapter', () => {
   it('lower buttons are modulation slots: LEDs by state, press-release toggles, Shift steps, empty slot adds', () => {
     const mods = [{ id: 'a', name: 'lfo1', target: '', on: true, wave: 'sine', depth: 0.25, beats: 1, hz: 1, sync: true }, { id: 'b', name: 'wobble', target: 'size', on: false, wave: 'square', depth: 0.5, beats: 1, hz: 1, sync: true }];
     const frame = renderLowerButtons({ modulations: { list: () => mods } });
-    expect(frame.get(LOWER_BUTTONS[0])).toEqual({ base: LOWER_LED.running, channel: 0 });
+    expect(frame.get(LOWER_BUTTONS[0])).toEqual({ base: PERFORMANCE_HUES[0], channel: 0 }); // running: its own colour
     expect(frame.get(LOWER_BUTTONS[1])).toEqual({ base: LOWER_LED.defined, channel: 0 });
     expect(frame.get(LOWER_BUTTONS[2])).toEqual({ base: LOWER_LED.none, channel: 0 });
     expect(renderLowerButtons({ modulations: null }).get(LOWER_BUTTONS[0])).toEqual({ base: LOWER_LED.none, channel: 0 });

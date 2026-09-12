@@ -225,14 +225,15 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   });
   function slotLabels() {
     const editingId = editing?.()?.id ?? null;
-    return modulationSlots().map(m => (m ? { name: m.name, glyph: WAVE_GLYPHS[m.wave], rate: m.sync ? `${m.beats}b` : `${m.hz}Hz`, depth: `${Math.round(m.depth * 100)}%`, on: Boolean(m.on), editing: m.id === editingId } : null));
+    return modulationSlots().map((m, i) => (m ? { name: m.name, glyph: WAVE_GLYPHS[m.wave], rate: m.sync ? `${m.beats}b` : `${m.hz}Hz`, depth: `${Math.round(m.depth * 100)}%`, on: Boolean(m.on), editing: m.id === editingId, color: COLUMN_COLORS[i % COLUMN_COLORS.length] } : null));
   }
+  const modulationColor = m => { const index = (modulations?.list?.() ?? []).findIndex(entry => entry.id === m.id); return COLUMN_COLORS[(index < 0 ? 0 : index) % COLUMN_COLORS.length]; };
   function modulationInfo(name) {
     if (!modulations || !name) return null;
     const list = modulations.forTarget(name);
     if (!list.length) return null;
     const active = list.find(m => m.on) ?? list[0];
-    return { glyph: WAVE_GLYPHS[active.wave], rate: active.sync ? `${active.beats}b` : `${active.hz}Hz`, running: Boolean(active.on), value: modulations.value(name) };
+    return { glyph: WAVE_GLYPHS[active.wave], rate: active.sync ? `${active.beats}b` : `${active.hz}Hz`, running: Boolean(active.on), value: modulations.value(name), color: modulationColor(active) };
   }
   function renderLowerButtons() {
     const labels = slotLabels();
@@ -241,6 +242,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
       const slot = labels[index];
       button.disabled = !slot && index !== firstEmpty;
       button.dataset.state = slot ? (slot.on ? 'running' : 'defined') : 'none';
+      button.style.setProperty('--mod', slot?.color ?? '');
       button.textContent = slot ? `${slot.glyph} ${slot.name}` : (index === firstEmpty ? '+' : '');
       button.setAttribute('aria-label', slot ? `Modulation ${slot.name}: ${slot.on ? 'on' : 'off'}` : (index === firstEmpty ? 'Add a modulation' : `Modulation slot ${index + 1} (empty)`));
     });
@@ -260,7 +262,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     const name = performanceName?.() ?? null;
     const status = name ? `${name} · ${lastSurface.status}` : lastSurface.status;
     const controls = lastSurface.controls.map(control => (control ? { ...control, modulation: modulationInfo(control.name) } : control));
-    renderSurfaceDisplay(canvas, { ...lastSurface, controls, status, tempo: tempo?.() ?? null, transport: transport?.() ?? null, browser: browserWithImage(), lowerLabels: modulations ? slotLabels() : null, volume: volume?.() ?? null, edit: editing?.() ?? null, touched: touchedColumn() });
+    renderSurfaceDisplay(canvas, { ...lastSurface, controls, status, tempo: tempo?.() ?? null, transport: transport?.() ?? null, browser: browserWithImage(), lowerLabels: modulations ? slotLabels() : null, volume: volume?.() ?? null, edit: (() => { const e = editing?.() ?? null; return e ? { ...e, color: COLUMN_COLORS[(e.slot < 0 ? 0 : e.slot) % COLUMN_COLORS.length] } : null; })(), touched: touchedColumn() });
   }
   function render() {
     const state = launcher.snapshot(), entries = store.list(), params = registry.listParams().filter(p => typeof p.value === 'number');
