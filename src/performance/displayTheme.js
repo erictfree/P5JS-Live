@@ -50,6 +50,11 @@ export const TYPE = Object.freeze({
   strip: [13, 500],
 });
 
+// Lift applied only to frames sent to the Push (not the browser): the panel flattens
+// mid-tones and desaturates. Tune on the hardware with the style sheet:
+// p5jsLive.push3Display.setPanelProfile({ gamma: 0.8, saturation: 1.25 }).
+export const PANEL = Object.freeze({ gamma: 0.8, saturation: 1.25 });
+
 export const STROKES = Object.freeze({ rule: 1, arc: 2, arcTrack: 2, wave: 2, waveBig: 2.5 });
 
 export const GRID = Object.freeze({ width: 960, height: 160, column: 120, columns: 8, topStrip: 18, infoLine: 40, bottomStrip: 18 });

@@ -16,6 +16,7 @@ import { createHostLoop } from './host/hostLoop.js';
 import { createAudioEngine } from './audio/audioEngine.js';
 import { createPerformanceLauncher } from './performance/launcher.js';
 import { createPush3DisplayTransport } from './performance/push3DisplayTransport.js';
+import { PANEL } from './performance/displayTheme.js';
 import { createPush3MidiTransport } from './performance/push3MidiTransport.js';
 import { createPush3TempoLink, describeTempo } from './performance/push3Tempo.js';
 import { createPush3Adapter } from './performance/push3Adapter.js';
@@ -101,6 +102,7 @@ const audio = createAudioEngine({ diagnostics });
 const network = getDefaultNetworkManager();
 const controlManager = createControlManager({ registry, diagnostics });
 const push3Display = createPush3DisplayTransport({ diagnostics });
+push3Display.setPanelProfile(PANEL); // lift colour for the LCD; the browser preview stays exact
 const push3Leds = createPush3MidiTransport({ diagnostics });
 let push3Tempo = null; // created once the rhythm manager and panels exist
 let push3Adapter = null;

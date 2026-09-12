@@ -22,6 +22,21 @@ samples) to the Push. The browser preview is a useful sketch but the panel is th
   column set is deliberately a step softer than the LED palette while keeping the same
   hue order so screen and buttons still match.
 
+## Panel profile
+
+The canvas draws the exact palette hex values; the frame is then packed to 16-bit and the
+LCD applies its own gamma, which reads flatter and less saturated than a monitor. A lift
+is applied only to frames sent to the Push (`PANEL` in `displayTheme.js`: gamma 0.8,
+saturation 1.25; `setPanelProfile` in the display transport). The browser preview never
+gets it, so preview and panel are meant to look alike, not identical. Tune from the
+console while the style sheet streams:
+
+```js
+p5jsLive.push3Display.setPanelProfile({ gamma: 0.75, saturation: 1.35 })
+```
+
+Record the values that look right here and copy them into `PANEL`.
+
 ## Type
 
 | Role | Face | Size / weight | Used for |

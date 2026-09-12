@@ -25,6 +25,36 @@ export function decodePush3Bgr565(bytes) {
   return { width: DISPLAY_WIDTH, height: DISPLAY_HEIGHT, data };
 }
 
+// Panel colour profile: the Push's 16-bit LCD flattens mid-tones and desaturates
+// compared with a monitor, so frames can be lifted before packing. Identity by default
+// (tests and the browser preview see exact colours); main.js applies displayTheme.PANEL.
+const IDENTITY_PROFILE = Object.freeze({ gamma: 1, saturation: 1 });
+let panelProfile = IDENTITY_PROFILE;
+let gammaLut = null;
+
+export function setPanelProfile(profile = IDENTITY_PROFILE) {
+  const gamma = Number.isFinite(profile?.gamma) && profile.gamma > 0 ? profile.gamma : 1;
+  const saturation = Number.isFinite(profile?.saturation) && profile.saturation >= 0 ? profile.saturation : 1;
+  panelProfile = Object.freeze({ gamma, saturation });
+  gammaLut = gamma === 1 ? null : Uint8Array.from({ length: 256 }, (_, v) => Math.round(255 * Math.pow(v / 255, gamma)));
+  return panelProfile;
+}
+export function getPanelProfile() { return panelProfile; }
+
+// One RGB triple through the profile: saturation around luma, then gamma.
+export function panelColor(r, g, b, profile = panelProfile) {
+  let out = [r, g, b];
+  if (profile.saturation !== 1) {
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    out = out.map(c => Math.max(0, Math.min(255, Math.round(luma + (c - luma) * profile.saturation))));
+  }
+  if (profile.gamma !== 1) {
+    const lut = profile === panelProfile && gammaLut ? gammaLut : null;
+    out = out.map(c => (lut ? lut[c] : Math.round(255 * Math.pow(c / 255, profile.gamma))));
+  }
+  return out;
+}
+
 export function encodePush3Pixels({ width, height, data }) {
   if (width !== DISPLAY_WIDTH || height !== DISPLAY_HEIGHT) {
     throw new RangeError(`Push 3 frames must be ${DISPLAY_WIDTH} × ${DISPLAY_HEIGHT} pixels.`);
@@ -38,9 +68,9 @@ export function encodePush3Pixels({ width, height, data }) {
     for (let x = 0; x < DISPLAY_WIDTH; x += 1) {
       const source = (y * DISPLAY_WIDTH + x) * 4;
       const target = rowOffset + x * 2;
-      const pixel = ((data[source + 2] >> 3) << 11)
-        | ((data[source + 1] >> 2) << 5)
-        | (data[source] >> 3);
+      let r = data[source], g = data[source + 1], b = data[source + 2];
+      if (panelProfile !== IDENTITY_PROFILE) [r, g, b] = panelColor(r, g, b);
+      const pixel = ((b >> 3) << 11) | ((g >> 2) << 5) | (r >> 3);
       frame[target] = pixel & 0xff;
       frame[target + 1] = pixel >> 8;
     }
@@ -292,6 +322,8 @@ export function createPush3DisplayTransport({
   }
 
   return {
+    setPanelProfile,
+    getPanelProfile,
     connect,
     claim,
     sendFrame,

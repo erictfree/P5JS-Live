@@ -6,6 +6,8 @@ import {
   DISPLAY_STRIDE,
   DISPLAY_HEIGHT,
   encodePush3Pixels,
+  panelColor,
+  setPanelProfile,
   FRAME_HEADER,
   PUSH3_PRODUCT_ID,
   PUSH3_VENDOR_ID,
@@ -163,5 +165,23 @@ describe('Push 3 display transport probe', () => {
     const transport = createPush3DisplayTransport({ usb: null });
     expect(await transport.connect()).toEqual({ ok: false, reason: 'unsupported' });
     expect(transport.snapshot()).toMatchObject({ supported: false, status: 'unsupported' });
+  });
+
+  it('applies a panel profile to frames sent to the display but not to exact colours by default', () => {
+    expect(panelColor(0, 0, 0, { gamma: 0.8, saturation: 1.25 })).toEqual([0, 0, 0]);
+    expect(panelColor(255, 255, 255, { gamma: 0.8, saturation: 1.25 })).toEqual([255, 255, 255]);
+    const [r, g, b] = panelColor(128, 128, 128, { gamma: 0.8, saturation: 1.25 });
+    expect(r).toBe(g); expect(g).toBe(b); expect(r).toBeGreaterThan(128); // mid grey lifts, stays grey
+    const lime = panelColor(0xae, 0xfc, 0x53, { gamma: 1, saturation: 1.25 });
+    expect(lime[1]).toBeGreaterThanOrEqual(0xfc); expect(lime[2]).toBeLessThan(0x53); // more saturated
+    expect(panelColor(10, 200, 30, { gamma: 1, saturation: 1 })).toEqual([10, 200, 30]);
+
+    const pattern = createPush3TestPattern();
+    const exact = encodePush3Pixels(pattern);
+    setPanelProfile({ gamma: 0.8, saturation: 1.25 });
+    const lifted = encodePush3Pixels(pattern);
+    setPanelProfile();
+    expect(lifted).not.toEqual(exact);
+    expect(encodePush3Pixels(pattern)).toEqual(exact); // identity restored
   });
 });
