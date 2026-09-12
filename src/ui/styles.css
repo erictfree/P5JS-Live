@@ -2674,6 +2674,10 @@ button.glyph.danger { color: #ffb3bb; }
 .modulation-fields input[type='range'] { width: 100%; }
 .modulation-actions { display: flex; gap: 6px; align-items: flex-start; }
 .modulation-actions button.is-on { background: #3a2a4a; border-color: var(--pal-purple); color: #efe3ff; }
+.surface-panel-profile { align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+.surface-panel-profile label { display: inline-flex; align-items: center; gap: 6px; font: 11px var(--mono); color: #b9bdc1; }
+.surface-panel-profile input[type='range'] { width: 110px; }
+.surface-panel-profile output { min-width: 4ch; color: #e2e4e5; }
 .surface-lower-buttons { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
 .surface-lower-buttons button { height: 26px; font: 12px var(--mono); padding: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #23292a; border: 1px solid #343c3e; color: #7c8886; }
 .surface-lower-buttons button[data-state='defined'] { color: #c9b3e6; border-color: #3a2a4a; }

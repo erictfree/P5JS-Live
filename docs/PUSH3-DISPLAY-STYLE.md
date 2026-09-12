@@ -35,7 +35,9 @@ console while the style sheet streams:
 p5jsLive.push3Display.setPanelProfile({ gamma: 0.75, saturation: 1.35 })
 ```
 
-Record the values that look right here and copy them into `PANEL`.
+The same two values are sliders on the controller dialog's display row (**Panel colour**),
+live on the Push and remembered per browser; **Reset** returns to `PANEL`. Record the
+values that look right here and copy them into `PANEL` so every browser starts there.
 
 ## Type
 

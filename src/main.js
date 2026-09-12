@@ -102,7 +102,7 @@ const audio = createAudioEngine({ diagnostics });
 const network = getDefaultNetworkManager();
 const controlManager = createControlManager({ registry, diagnostics });
 const push3Display = createPush3DisplayTransport({ diagnostics });
-push3Display.setPanelProfile(PANEL); // lift colour for the LCD; the browser preview stays exact
+push3Display.setPanelProfile(PANEL); // lift colour for the LCD; the controller dialog applies any saved tuning
 const push3Leds = createPush3MidiTransport({ diagnostics });
 let push3Tempo = null; // created once the rhythm manager and panels exist
 let push3Adapter = null;

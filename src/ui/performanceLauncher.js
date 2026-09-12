@@ -2,6 +2,13 @@ import { SURFACE_PROFILES, renderStyleSheet, renderSurfaceDisplay } from '../per
 import { decodePush3Bgr565 } from '../performance/push3DisplayTransport.js';
 import { PUSH3_BUTTONS, PUSH3_COLORS, animationChannel } from '../performance/push3Map.js';
 import { COLUMN_COLORS } from '../performance/surfaceDisplay.js';
+import { PANEL } from '../performance/displayTheme.js';
+
+const PANEL_KEY = 'p5js-live.push3-panel.v1';
+export function loadPanelProfile(storage = globalThis.localStorage) {
+  try { const saved = JSON.parse(storage?.getItem(PANEL_KEY) ?? 'null'); return saved && Number.isFinite(saved.gamma) && Number.isFinite(saved.saturation) ? saved : { ...PANEL }; }
+  catch { return { ...PANEL }; }
+}
 import { PADS_PER_BANK } from '../performance/launcher.js';
 import { WAVE_GLYPHS } from '../performance/modulations.js';
 
@@ -23,6 +30,13 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
       <div data-display-controls>
         <div class="surface-toolbar"><button type="button" data-connect-display>Connect Push display</button><button type="button" data-claim-display>Claim interface 0</button><button type="button" data-test-display>Test once</button><button type="button" data-startup-display>Show startup</button><button type="button" data-start-display>Show controller</button><button type="button" data-style-display title="Type, colour and stroke specimens for judging the look on the real panel">Show style sheet</button><button type="button" data-stop-display>Stop</button><button type="button" data-release-display>Release</button><span data-display-status role="status"></span></div>
         <p class="hint">Test shows color bars briefly. Startup and controller modes remain visible until stopped.</p>
+        <div class="surface-toolbar surface-panel-profile">
+          <span class="hint">Panel colour</span>
+          <label>Gamma <input data-panel-gamma type="range" min="0.5" max="1.2" step="0.01" aria-label="Push panel gamma"> <output data-panel-gamma-value></output></label>
+          <label>Saturation <input data-panel-saturation type="range" min="0.8" max="2" step="0.01" aria-label="Push panel saturation"> <output data-panel-saturation-value></output></label>
+          <button type="button" data-panel-reset>Reset</button>
+          <span class="hint">Applies only to frames sent to the Push; the preview above stays exact.</span>
+        </div>
       </div>
       <div data-led-controls>
         <div class="surface-toolbar"><button type="button" data-connect-leds>Connect Push MIDI</button><label>Output <select data-led-output aria-label="Push MIDI output"></select></label><button type="button" data-led-pad>Light pad 1</button><button type="button" data-led-pad-off>Pad 1 off</button><button type="button" data-led-buttons>Light Play + Tap</button><button type="button" data-led-fade>Fade upper 1</button><button type="button" data-led-pulse>Pulse pad 64</button><button type="button" data-led-clear>Clear LEDs</button><button type="button" data-led-release>Release</button><span data-led-status role="status"></span></div>
@@ -108,6 +122,20 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     return canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
   });
   $('[data-start-display]').onclick = showController;
+  // Panel colour profile sliders: live on the Push, remembered per browser.
+  const gammaInput = $('[data-panel-gamma]'), saturationInput = $('[data-panel-saturation]');
+  function applyPanelProfile(profile, { persist = true } = {}) {
+    push3Display.setPanelProfile?.(profile);
+    gammaInput.value = String(profile.gamma); saturationInput.value = String(profile.saturation);
+    $('[data-panel-gamma-value]').textContent = Number(profile.gamma).toFixed(2);
+    $('[data-panel-saturation-value]').textContent = `${Math.round(profile.saturation * 100)}%`;
+    if (persist) { try { localStorage.setItem(PANEL_KEY, JSON.stringify(profile)); } catch { /* optional */ } }
+  }
+  const readPanelInputs = () => ({ gamma: Number(gammaInput.value), saturation: Number(saturationInput.value) });
+  gammaInput.oninput = () => applyPanelProfile(readPanelInputs());
+  saturationInput.oninput = () => applyPanelProfile(readPanelInputs());
+  $('[data-panel-reset]').onclick = () => applyPanelProfile({ ...PANEL });
+  applyPanelProfile(loadPanelProfile(), { persist: false });
   // Style sheet: a specimen screen drawn to an offscreen canvas, streamed at a slow rate.
   const styleCanvas = document.createElement('canvas'); styleCanvas.width = 960; styleCanvas.height = 160;
   $('[data-style-display]').onclick = () => push3Display.startStream(() => {
