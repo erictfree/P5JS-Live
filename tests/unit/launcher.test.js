@@ -59,6 +59,15 @@ describe('performance controller', () => {
     h.launcher.dispatch({ action: 'encoder', index: 0, value: 999 });
     expect(h.registry.listParams()[0].value).toBe(110);
   });
+  it('a new control takes the first knob whose control is gone, not the first null after stale names', () => {
+    const h = harness();
+    h.registry.declareParam('old1', 1, { min: 0, max: 2 }); h.registry.declareParam('old2', 1, { min: 0, max: 2 });
+    expect(h.launcher.snapshot().targets.slice(0, 4)).toEqual(['size', 'old1', 'old2', null]);
+    h.registry.reset(); // a different scene: the old controls are gone
+    h.registry.declareParam('fresh', 1, { min: 0, max: 2 });
+    expect(h.launcher.snapshot().targets.slice(0, 4)).toEqual(['fresh', 'old1', 'old2', null]); // first stale knob, not knob 4
+  });
+
   it('remembers independent encoder targets per performance', async () => {
     const h = harness(); h.registry.declareParam('speed', .2);
     h.launcher.request(0); await flush(); h.launcher.assignEncoder(0, 'speed');
