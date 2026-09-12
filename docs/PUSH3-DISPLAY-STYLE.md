@@ -44,8 +44,11 @@ first screens used and is the thing that read "clunky"; do not fall back to it.
 - **Ink** `#ffffff` for values; **text** `#d9dddd` for secondary text; **dim** `#9a9f9f`
   for captions; **faint** `#262a2c` only for empty arcs and rules; **hair** `#1b1f21` for
   separators.
-- **Column hues** (blue, purple, pink, teal, lime, amber, periwinkle, mint) identify the
-  eight encoder columns. The same order lights the upper-button LEDs and the pads.
+- **One accent per screen.** The running scene's pad colour (the same eight-hue order
+  the pads use) colours the tabs, arcs, the scene name and the touched column's value,
+  and lights every assigned upper-button LED — Live's selected-track idiom. With no scene
+  running the accent is teal on screen and white on the buttons. The eight hues are not
+  spread across the columns; that read as a rainbow rather than a state.
 - **Amber** `#ffbe55` means modulation and tempo: the running-slot underline, the arc's
   live marker, the beat readout.
 - **Teal** `#62d7b1` means identity: performance and scene names.

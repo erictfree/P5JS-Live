@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PUSH3_COLORS, animationChannel } from '../../src/performance/push3Map.js';
 import { PADS_PER_BANK } from '../../src/performance/launcher.js';
-import { BROWSE_TIMEOUT_MS, LOWER_BUTTONS, LOWER_LED, PERFORMANCE_HUES, PLAY_LED, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderLowerButtons, renderPadFrame, renderUpperButtons, slotStatus } from '../../src/performance/push3Adapter.js';
+import { BROWSE_TIMEOUT_MS, LOWER_BUTTONS, LOWER_LED, PERFORMANCE_HUES, PLAY_LED, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderLowerButtons, renderPadFrame, renderUpperButtons, sceneAccentHue, slotStatus } from '../../src/performance/push3Adapter.js';
 import { PUSH3_BUTTONS } from '../../src/performance/push3Map.js';
 
 const entries = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }];
@@ -161,12 +161,14 @@ describe('Push 3 adapter', () => {
     expect(h.leds.setPad).toHaveBeenCalledTimes(64);
   });
 
-  it('lights the upper button under each assigned encoder in its column colour', () => {
-    const frame = renderUpperButtons({ targets: baseState.targets, params: baseParams });
-    expect(frame.get(UPPER_BUTTONS[0])).toEqual({ base: PERFORMANCE_HUES[0], channel: 0 });
-    expect(frame.get(UPPER_BUTTONS[1])).toEqual({ base: PERFORMANCE_HUES[1], channel: 0 });
+  it('lights assigned upper buttons in the running scene accent (white with no scene)', () => {
+    const frame = renderUpperButtons({ targets: baseState.targets, params: baseParams, accent: PERFORMANCE_HUES[3] });
+    expect(frame.get(UPPER_BUTTONS[0])).toEqual({ base: PERFORMANCE_HUES[3], channel: 0 });
+    expect(frame.get(UPPER_BUTTONS[1])).toEqual({ base: PERFORMANCE_HUES[3], channel: 0 });
     expect(frame.get(UPPER_BUTTONS[2])).toEqual({ base: UPPER_LED.unassigned, channel: 0 });
-    const h = harness();
+    expect(sceneAccentHue({ active: 'b', slots: ['a', 'b'] })).toBe(PERFORMANCE_HUES[1]);
+    expect(sceneAccentHue({ active: null, slots: [] })).toBe(PUSH3_COLORS.litWhite);
+    const h = harness({ state: { ...baseState, active: 'b' } });
     h.adapter.render();
     expect(h.leds.setButton).toHaveBeenCalledWith(UPPER_BUTTONS[1], PERFORMANCE_HUES[1]);
     expect(h.leds.setButton).toHaveBeenCalledTimes(16); // 8 upper + 8 lower

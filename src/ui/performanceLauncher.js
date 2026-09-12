@@ -1,6 +1,7 @@
 import { SURFACE_PROFILES, renderStyleSheet, renderSurfaceDisplay } from '../performance/surfaceDisplay.js';
 import { decodePush3Bgr565 } from '../performance/push3DisplayTransport.js';
 import { PUSH3_BUTTONS, PUSH3_COLORS, animationChannel } from '../performance/push3Map.js';
+import { COLUMN_COLORS } from '../performance/surfaceDisplay.js';
 import { PADS_PER_BANK } from '../performance/launcher.js';
 import { WAVE_GLYPHS } from '../performance/modulations.js';
 
@@ -163,7 +164,13 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   };
   $('[data-clear]').onclick = () => launcher.clearRoutes();
   let optionSignature = '', paramSignature = '';
-  let lastSurface = { title: 'Untitled', status: 'Untitled · live', controls: [] };
+  let lastSurface = { title: 'Untitled', status: 'Untitled · live', controls: [], accent: undefined };
+  // The running scene's pad colour is the screen's accent (same hue order as the pads).
+  function sceneAccent(state) {
+    if (!state.active) return undefined;
+    const slot = state.slots.indexOf(state.active);
+    return slot >= 0 ? COLUMN_COLORS[(slot % PADS_PER_BANK) % COLUMN_COLORS.length] : undefined;
+  }
   let localTouch = null; // virtual encoder buttons count as touches too
   const touchedColumn = () => {
     const hardware = touched?.() ?? null;
@@ -233,7 +240,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     // compute it first and only then bail out of the DOM work.
     const active = entries.find(p => p.id === state.active)?.name ?? 'Untitled';
     const status = state.loading ? 'Loading…' : state.error ? state.error.message : state.queued ? `Queued: ${entries.find(p => p.id === state.queued.id)?.name} · next beat` : `${active} · ${state.active ? 'playing' : 'live'}`;
-    lastSurface = { title: active, status, controls: state.targets.map(name => params.find(p => p.name === name)) };
+    lastSurface = { title: active, status, controls: state.targets.map(name => params.find(p => p.name === name)), accent: sceneAccent(state) };
     if (!modal.open) return;
     renderLowerButtons();
     const signature = JSON.stringify(entries.map(p => [p.id, p.name]));

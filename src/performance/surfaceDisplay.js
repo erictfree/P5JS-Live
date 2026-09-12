@@ -67,14 +67,14 @@ function drawWave(ctx, m, x, y, w, h, { lineWidth = STROKES.wave, dot = 3.5, col
 
 // Bottom tabs: one modulation slot per lower button. Running = amber rule; the slot being
 // edited = reverse video; the next empty slot reads "+ new".
-function drawLowerStrip(ctx, lowerLabels) {
+function drawLowerStrip(ctx, lowerLabels, editAccent = AMBER) {
   if (!lowerLabels) return;
   const y = GRID.height - GRID.bottomStrip;
   const firstEmpty = lowerLabels.findIndex(s => !s);
   lowerLabels.forEach((slot, i) => {
     const x = i * COL;
     if (slot?.editing) {
-      reverseTab(ctx, x + 4, y + 1, COL - 8, GRID.bottomStrip - 2, AMBER, `${slot.glyph} ${slot.name}`, font('strip'));
+      reverseTab(ctx, x + 4, y + 1, COL - 8, GRID.bottomStrip - 2, editAccent, `${slot.glyph} ${slot.name}`, font('strip'));
       return;
     }
     ctx.textAlign = 'left';
@@ -84,12 +84,14 @@ function drawLowerStrip(ctx, lowerLabels) {
   });
 }
 
-// Modulation edit screen: title band with the editing slot in reverse video, a
-// full-width scope, and eight parameter cards aligned with the encoders.
-function renderEditScreen(ctx, edit, lowerLabels) {
+// Modulation edit screen. Title band with the editing slot in reverse video; then the
+// column band at full type size: eight parameter columns aligned with the encoders, and
+// the scope drawn across the first three columns beneath their values (Live draws its
+// device graphs the same way), so the wave gets room without shrinking the text.
+function renderEditScreen(ctx, edit, lowerLabels, accent = AMBER) {
   ctx.fillStyle = BG; ctx.fillRect(0, 0, GRID.width, GRID.height);
   ctx.textAlign = 'left';
-  reverseTab(ctx, 4, 1, 140, 16, AMBER, `${edit.glyph} ${edit.name}`, font('tab'));
+  reverseTab(ctx, 4, 1, 140, GRID.topStrip - 2, accent, `${edit.glyph} ${edit.name}`, font('tab'));
   ctx.fillStyle = DIM; ctx.font = font('infoSmall');
   ctx.fillText(`${WAVE_NAMES[edit.wave] ?? edit.wave} · ${edit.sync ? `${edit.beats} beat${edit.beats === 1 ? '' : 's'}` : `${edit.hz} Hz`}${edit.target ? ` · moves ${edit.target}` : ''}`, 154, 13);
   ctx.textAlign = 'right';
@@ -97,55 +99,52 @@ function renderEditScreen(ctx, edit, lowerLabels) {
   ctx.fillText('Shift + button to leave', 948, 13);
   if (Number.isFinite(edit.signal)) { ctx.fillStyle = INK; ctx.font = font('tab'); ctx.fillText(`${edit.signal >= 0 ? '+' : ''}${edit.signal.toFixed(2)}`, 800, 13); }
   ctx.textAlign = 'left';
-  drawWave(ctx, edit, 0, 20, GRID.width, 40, { lineWidth: STROKES.waveBig, dot: 5 });
-  ctx.fillStyle = COLORS.hair; ctx.fillRect(0, 62, GRID.width, 1);
+  ctx.fillStyle = COLORS.hair; ctx.fillRect(0, GRID.topStrip, GRID.width, 1);
 
+  const labelY = 36, valueY = 66;
   const cards = [
-    { label: 'Wave', kind: 'wave' },
+    { label: 'Wave', value: WAVE_NAMES[edit.wave] ?? edit.wave },
     { label: 'Rate', value: edit.sync ? `${edit.beats} beat${edit.beats === 1 ? '' : 's'}` : `${edit.hz} Hz` },
     { label: 'Rate mode', value: edit.sync ? 'Beats' : 'Hz' },
     { label: 'Depth', value: `${Math.round(edit.depth * 100)}%`, arc: edit.depth },
     { label: 'Offset', value: `${Math.round(edit.offset * 100)}%`, arc: (edit.offset + 1) / 2 },
     { label: 'Control', value: edit.target || 'none', dim: !edit.target },
-    { label: 'On', kind: 'switch', on: edit.on },
+    { label: 'On', value: edit.on ? 'On' : 'Off', switch: true },
     null,
   ];
   cards.forEach((card, i) => {
-    const x = i * COL;
     if (!card) return;
-    ctx.fillStyle = DIM; ctx.font = font('caption'); ctx.textAlign = 'left';
-    ctx.fillText(card.label, x + 8, 78);
-    if (card.kind === 'wave') {
-      drawWave(ctx, { ...edit, phase: null }, x + 8, 84, COL - 16, 34, { lineWidth: STROKES.wave, color: AMBER });
-      ctx.fillStyle = INK; ctx.font = font('caption'); ctx.fillText(WAVE_NAMES[edit.wave] ?? edit.wave, x + 8, 134);
-      return;
+    const x = i * COL;
+    ctx.fillStyle = DIM; ctx.font = font('caption'); ctx.fillText(card.label, x + 8, labelY);
+    ctx.fillStyle = card.dim ? DIM : card.switch ? (edit.on ? accent : DIM) : INK; ctx.font = font('value');
+    ctx.fillText(String(card.value).slice(0, 9), x + 8, valueY);
+    if (Number.isFinite(card.arc)) drawArc(ctx, x + 60, 108, 22, card.arc, accent, { marker: false });
+    if (card.switch) {
+      ctx.strokeStyle = edit.on ? accent : FAINT; ctx.lineWidth = STROKES.arc;
+      ctx.beginPath(); ctx.arc(x + 60, 108, 14, 0, Math.PI * 2); ctx.stroke();
+      if (edit.on) { ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(x + 60, 108, 7, 0, Math.PI * 2); ctx.fill(); }
     }
-    if (card.kind === 'switch') {
-      ctx.fillStyle = card.on ? AMBER : DIM; ctx.font = font('valueSmall'); ctx.fillText(card.on ? 'On' : 'Off', x + 8, 106);
-      ctx.strokeStyle = card.on ? AMBER : FAINT; ctx.lineWidth = STROKES.arc;
-      ctx.beginPath(); ctx.arc(x + 60, 124, 8, 0, Math.PI * 2); ctx.stroke();
-      if (card.on) { ctx.fillStyle = AMBER; ctx.beginPath(); ctx.arc(x + 60, 124, 4, 0, Math.PI * 2); ctx.fill(); }
-      return;
-    }
-    ctx.fillStyle = card.dim ? DIM : INK; ctx.font = font('valueSmall'); ctx.fillText(String(card.value).slice(0, 10), x + 8, 106);
-    if (Number.isFinite(card.arc)) drawArc(ctx, x + 60, 124, 12, card.arc, AMBER, { marker: false });
   });
-  drawLowerStrip(ctx, lowerLabels);
+  // The scope spans the Wave, Rate and Rate mode columns beneath their values.
+  drawWave(ctx, edit, 8, 76, COL * 3 - 16, 62, { lineWidth: STROKES.waveBig, dot: 5, color: accent });
+  drawLowerStrip(ctx, lowerLabels, accent);
 }
 
 // `tempo` ({ bpm, label, running, lit }) and `transport` ({ kind, loaded, playing, volume })
 // feed one compact info line; `controls` are the eight encoder targets (registry params
 // with an optional `modulation` summary); `lowerLabels` are the modulation slots;
 // `touched` is the column index whose encoder moved most recently (reverse-video tab).
-export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null, lowerLabels = null, volume = null, edit = null, touched = null }) {
+export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = null, transport = null, browser = null, lowerLabels = null, volume = null, edit = null, touched = null, accent = TEAL }) {
   const ctx = canvas.getContext('2d');
-  if (edit) { renderEditScreen(ctx, edit, lowerLabels); return; }
+  if (edit) { renderEditScreen(ctx, edit, lowerLabels, AMBER); return; }
   ctx.fillStyle = BG; ctx.fillRect(0, 0, GRID.width, GRID.height);
   ctx.textAlign = 'left';
+  // One accent colour owns the screen (Live's selected-track idiom): the running scene's
+  // pad colour. Column hues are not used here; they remain for the pads and style sheet.
 
   // Top strip: one tab per upper button — the control under that encoder, in its colour.
   controls.forEach((control, i) => {
-    const x = i * COL, color = COLUMN_COLORS[i];
+    const x = i * COL, color = accent;
     const assigned = Boolean(control);
     const moved = assigned && Number.isFinite(control.default) && Math.abs(control.value - control.default) > 1e-9;
     if (assigned && touched === i) {
@@ -168,7 +167,7 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
     ctx.fillStyle = DIM; ctx.font = font('infoSmall');
     if (tempo.bpm) ctx.fillText(tempo.label, 118, infoY);
   }
-  ctx.fillStyle = TEAL; ctx.font = font('info');
+  ctx.fillStyle = accent; ctx.font = font('info');
   ctx.fillText(title.slice(0, 28), 190, infoY);
   ctx.fillStyle = DIM; ctx.font = font('infoSmall');
   const statusText = status.startsWith(title + ' · ') ? status.slice(title.length + 3) : status;
@@ -203,7 +202,7 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
   // Columns: caption, big value, knob arc. A modulation shows its glyph and rate in the
   // caption and rides the arc with an amber marker at the live value.
   controls.forEach((control, i) => {
-    const x = i * COL, color = COLUMN_COLORS[i];
+    const x = i * COL, color = accent;
     if (!control) { drawArc(ctx, x + 60, 108, 22, null, color); return; }
     const mod = control.modulation ?? null;
     const min = Number.isFinite(control.min) ? control.min : 0;
@@ -212,7 +211,7 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
     const shown = mod && Number.isFinite(mod.value) ? mod.value : control.value;
     ctx.fillStyle = mod ? (mod.running ? AMBER : DIM) : DIM; ctx.font = font('caption');
     ctx.fillText(mod ? `${mod.glyph} ${mod.rate}` : `${fmt(min)} – ${fmt(max)}`, x + 8, 56);
-    ctx.fillStyle = INK; ctx.font = font('value');
+    ctx.fillStyle = touched === i ? accent : INK; ctx.font = font('value');
     ctx.fillText(fmt(shown), x + 8, 82);
     drawArc(ctx, x + 60, 112, 22, (control.value - min) / range, color, { mark: mod && Number.isFinite(mod.value) ? (mod.value - min) / range : null });
   });

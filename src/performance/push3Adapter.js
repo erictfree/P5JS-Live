@@ -109,14 +109,21 @@ export function renderPadFrame({ state, entries, effects }) {
 
 // Upper button LEDs from the encoder targets: lit when the column has a control, bright
 // when that control has moved away from its default. Pure.
-// Upper button LEDs take their column's colour (the same hue the screen tab uses) when a
-// control is assigned there, and go dark when the column is empty.
-export function renderUpperButtons({ targets, params }) {
+// Upper button LEDs all take the screen's accent — the running scene's pad hue — when a
+// control is assigned in that column (Live lights them in the selected track's colour),
+// and go dark when the column is empty. With no scene running they use white.
+export function sceneAccentHue(state) {
+  if (!state?.active) return PUSH3_COLORS.litWhite;
+  const slot = state.slots.indexOf(state.active);
+  return slot >= 0 ? PERFORMANCE_HUES[(slot % PADS_PER_BANK) % PERFORMANCE_HUES.length] : PUSH3_COLORS.litWhite;
+}
+
+export function renderUpperButtons({ targets, params, accent = PUSH3_COLORS.litWhite }) {
   const frame = new Map();
   UPPER_BUTTONS.forEach((cc, index) => {
     const param = params.find(p => p.name === targets[index]);
     const assigned = Boolean(param) && typeof param.value === 'number';
-    frame.set(cc, { base: assigned ? PERFORMANCE_HUES[index % PERFORMANCE_HUES.length] : UPPER_LED.unassigned, channel: 0 });
+    frame.set(cc, { base: assigned ? accent : UPPER_LED.unassigned, channel: 0 });
   });
   return frame;
 }
@@ -179,7 +186,7 @@ export function createPush3Adapter({
     const state = launcher.snapshot();
     const params = registry.listParams();
     return sendFrame(renderPadFrame({ state, entries: store.list(), effects: effects.list() }))
-      + sendButtons(renderUpperButtons({ targets: state.targets, params }))
+      + sendButtons(renderUpperButtons({ targets: state.targets, params, accent: sceneAccentHue(state) }))
       + sendButtons(renderLowerButtons({ modulations, editingId: editState() ? editingId : null }));
   }
 
