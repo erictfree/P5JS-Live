@@ -11,25 +11,28 @@
 // - A proportional sans reads lighter than mono at the same size; the page already ships
 //   Work Sans (400–500) and Space Grotesk (500–700), so the canvas can use them.
 
-// Eric's palette (2026-09-11): lime, yellow, mint, steel blue, indigo, blue, purple, red, white.
+// Live's track palette, as seen on Ableton's own Push 3 screens (adopted 2026-09-11):
+// one vivid accent per screen on black, off-white values, mid-grey labels.
 export const PALETTE = Object.freeze({
-  lime: '#AEFC53', yellow: '#F0E25F', mint: '#5FCF93', steelBlue: '#3273A5',
-  indigo: '#5863DC', blue: '#2E6CC9', purple: '#A459EC', red: '#E13B3E', white: '#FFFFFF',
+  lime: '#BFFB00', purple: '#D86CE4', mint: '#25FFA8', cyan: '#10A4EE',
+  blue: '#5480E4', red: '#FF3636', yellow: '#FFF034', white: '#FFFFFF',
+  orange: '#FFA529',
+  text: '#F0F0F0', label: '#8C8C8C', dimValue: '#7A7A7A', rule: '#3A3A3A', hair: '#1E1E1E',
 });
 
 export const COLORS = Object.freeze({
   bg: '#000000',
-  ink: PALETTE.white,    // the touched value, markers
-  text: '#d9dddd',       // secondary text
-  dim: '#a6adad',        // captions, labels
-  faint: '#262a2c',      // rules, empty arcs
-  hair: '#1b1f21',       // separators
-  amber: PALETTE.purple, // modulations, tempo (token name kept for the renderer)
-  teal: PALETTE.lime,    // identity marks in the browser; on screen the scene accent is used
+  ink: PALETTE.white,      // the touched value, markers, the beat dot
+  text: PALETTE.text,      // secondary text
+  dim: PALETTE.label,      // captions, labels
+  faint: PALETTE.rule,     // rules, empty arcs
+  hair: PALETTE.hair,      // separators
+  amber: PALETTE.orange,   // modulations, tempo (token name kept for the renderer)
+  teal: PALETTE.lime,      // default accent with no scene; identity marks in the browser
   danger: PALETTE.red,
   // Scene accents by pad position, in the same order as the pad/LED palette
-  // (push3Map PERFORMANCE_HUES). Yellow last; purple is reserved for modulation.
-  columns: Object.freeze([PALETTE.lime, PALETTE.mint, PALETTE.steelBlue, PALETTE.indigo, PALETTE.blue, PALETTE.red, PALETTE.white, PALETTE.yellow]),
+  // (push3Map PERFORMANCE_HUES): lime, purple, mint, cyan, blue, red, white, yellow.
+  columns: Object.freeze([PALETTE.lime, PALETTE.purple, PALETTE.mint, PALETTE.cyan, PALETTE.blue, PALETTE.red, PALETTE.white, PALETTE.yellow]),
 });
 
 export const FONTS = Object.freeze({
@@ -53,7 +56,7 @@ export const TYPE = Object.freeze({
 // Lift applied only to frames sent to the Push (not the browser): the panel flattens
 // mid-tones and desaturates. Tune on the hardware with the style sheet:
 // p5jsLive.push3Display.setPanelProfile({ gamma: 0.8, saturation: 1.25 }).
-export const PANEL = Object.freeze({ gamma: 0.8, saturation: 1.25 });
+export const PANEL = Object.freeze({ gamma: 0.85, saturation: 1.1 });
 
 export const STROKES = Object.freeze({ rule: 1, arc: 2, arcTrack: 2, wave: 2, waveBig: 2.5 });
 

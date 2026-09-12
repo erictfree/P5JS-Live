@@ -148,7 +148,7 @@ export function createModulationsPanel({ root, addButton, engine, registry, diag
     ctx.strokeStyle = '#343c3e'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, mid + 0.5); ctx.lineTo(w, mid + 0.5); ctx.stroke();
     const y = v => mid - Math.max(-1, Math.min(1, v)) * (mid - 3);
-    ctx.strokeStyle = m.on ? '#A459EC' : '#6b6e5a'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = m.on ? '#FFA529' : '#6b6e5a'; ctx.lineWidth = 1.5;
     ctx.beginPath();
     const steps = 64;
     const state = { cycle: -1, value: 0 };

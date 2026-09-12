@@ -27,7 +27,7 @@ samples) to the Push. The browser preview is a useful sketch but the panel is th
 The canvas draws the exact palette hex values; the frame is then packed to 16-bit and the
 LCD applies its own gamma, which reads flatter and less saturated than a monitor. A lift
 is applied only to frames sent to the Push (`PANEL` in `displayTheme.js`: gamma 0.8,
-saturation 1.25; `setPanelProfile` in the display transport). The browser preview never
+saturation 1.1; `setPanelProfile` in the display transport). The browser preview never
 gets it, so preview and panel are meant to look alike, not identical. Tune from the
 console while the style sheet streams:
 
@@ -57,19 +57,22 @@ first screens used and is the thing that read "clunky"; do not fall back to it.
 
 ## Colour
 
-The palette (Eric, 2026-09-11), in `PALETTE` in `displayTheme.js`:
+The palette is Live's own track palette, the colours on Ableton's Push 3 screens
+(adopted 2026-09-11 from screenshots: one vivid accent per screen on black, off-white
+values, mid-grey labels, track tabs in their own colours). `PALETTE` in `displayTheme.js`:
 
 | Name | Hex | Role |
 | --- | --- | --- |
-| Lime green | `#AEFC53` | scene accent, pad 1; identity marks in the browser |
-| Mint green | `#5FCF93` | scene accent, pad 2 |
-| Steel blue | `#3273A5` | scene accent, pad 3 |
-| Indigo | `#5863DC` | scene accent, pad 4 |
-| Blue | `#2E6CC9` | scene accent, pad 5 |
-| Red | `#E13B3E` | scene accent, pad 6; **danger** |
+| Lime | `#BFFB00` | scene accent, pad 1; default accent with no scene; current marks in the browser |
+| Purple | `#D86CE4` | scene accent, pad 2 |
+| Mint | `#25FFA8` | scene accent, pad 3 |
+| Cyan | `#10A4EE` | scene accent, pad 4 |
+| Blue | `#5480E4` | scene accent, pad 5 |
+| Red | `#FF3636` | scene accent, pad 6; **danger** |
 | White | `#FFFFFF` | scene accent, pad 7; the touched value, markers, the beat dot |
-| Yellow | `#F0E25F` | scene accent, pad 8 — used last |
-| Purple | `#A459EC` | **modulation and tempo**: BPM, running modulation tabs, arc markers, the edit screen |
+| Yellow | `#FFF034` | scene accent, pad 8 — used last |
+| Orange | `#FFA529` | **modulation and tempo**: BPM, running modulation tabs, arc markers, the edit screen |
+| Text `#F0F0F0`, label `#8C8C8C`, rule `#3A3A3A`, hair `#1E1E1E` | | text, captions, empty arcs and rules, separators |
 
 Pad and upper-button LEDs use the nearest measured Push palette entries in the same
 order (`PERFORMANCE_HUES` in `push3Adapter.js`).

@@ -32,8 +32,9 @@
   --code-line-bg: rgba(0, 0, 0, calc(0.12 + var(--tools-alpha) * 0.26));
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   /* Performance palette (docs/PUSH3-DISPLAY-STYLE.md); mirrored on the Push screen and LEDs. */
-  --pal-lime: #AEFC53; --pal-yellow: #F0E25F; --pal-mint: #5FCF93; --pal-steel: #3273A5;
-  --pal-indigo: #5863DC; --pal-blue: #2E6CC9; --pal-purple: #A459EC; --pal-red: #E13B3E; --pal-white: #FFFFFF;
+  --pal-lime: #BFFB00; --pal-purple: #D86CE4; --pal-mint: #25FFA8; --pal-cyan: #10A4EE; --pal-blue: #5480E4;
+  --pal-red: #FF3636; --pal-yellow: #FFF034; --pal-white: #FFFFFF; --pal-orange: #FFA529;
+  --pal-mod: var(--pal-orange);
 
   /* How much of the visuals shows through the tools — the drawer's fill, and the box
    * behind each line of code. Driven live by the slider in the drawer, because the
@@ -2657,9 +2658,9 @@ button.glyph.danger { color: #ffb3bb; }
 #side [data-tool-view='project'] { --section-color: #b2a0de; }
 #side [data-tool-view='modulations'] { --section-color: #f2c14e; }
 .modulation-list { display: grid; gap: 10px; }
-.modulation-notice { border: 1px solid var(--pal-purple); color: #efe3ff; }
+.modulation-notice { border: 1px solid var(--pal-mod); color: #ffe9cf; }
 .modulation-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 10px 12px; background: #191e1f; border: 1px solid #343c3e; border-radius: 6px; }
-.modulation-row.is-on { border-color: var(--pal-purple); }
+.modulation-row.is-on { border-color: var(--pal-mod); }
 .modulation-row .modulation-name { font: 600 13px var(--mono); display: flex; align-items: center; gap: 8px; min-width: 0; }
 .modulation-row .modulation-name input { font: inherit; background: transparent; border: 0; border-bottom: 1px solid #343c3e; color: inherit; min-width: 0; width: 100%; }
 .modulation-row .modulation-name-text { font: 600 13px var(--mono); padding: 2px 4px; border-radius: 4px; cursor: text; }
@@ -2673,15 +2674,15 @@ button.glyph.danger { color: #ffb3bb; }
 .modulation-fields select, .modulation-fields input[type='number'] { font: 12px var(--mono); }
 .modulation-fields input[type='range'] { width: 100%; }
 .modulation-actions { display: flex; gap: 6px; align-items: flex-start; }
-.modulation-actions button.is-on { background: #3a2a4a; border-color: var(--pal-purple); color: #efe3ff; }
+.modulation-actions button.is-on { background: #3d2a12; border-color: var(--pal-mod); color: #ffe9cf; }
 .surface-panel-profile { align-items: center; flex-wrap: wrap; gap: 8px 14px; }
 .surface-panel-profile label { display: inline-flex; align-items: center; gap: 6px; font: 11px var(--mono); color: #b9bdc1; }
 .surface-panel-profile input[type='range'] { width: 110px; }
 .surface-panel-profile output { min-width: 4ch; color: #e2e4e5; }
 .surface-lower-buttons { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
 .surface-lower-buttons button { height: 26px; font: 12px var(--mono); padding: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #23292a; border: 1px solid #343c3e; color: #7c8886; }
-.surface-lower-buttons button[data-state='defined'] { color: #c9b3e6; border-color: #3a2a4a; }
-.surface-lower-buttons button[data-state='running'] { color: #ffffff; background: var(--pal-purple); border-color: var(--pal-purple); font-weight: 600; }
+.surface-lower-buttons button[data-state='defined'] { color: #e0c39b; border-color: #3d2a12; }
+.surface-lower-buttons button[data-state='running'] { color: #1a1206; background: var(--pal-mod); border-color: var(--pal-mod); font-weight: 600; }
 #side #tool-tabs button { border-top: 3px solid var(--section-color); font-weight: 600; }
 #side #stagebar .brand { text-transform: uppercase; letter-spacing: .12em; }
 #side .tool-view-heading h2 { font-family: var(--mono); font-weight: 600; }
@@ -2762,7 +2763,7 @@ button.glyph.danger { color: #ffb3bb; }
 .surface-pads [data-status="empty"] { color: #879390; background: #292f30; border-color: #374143; border-bottom-color: #414c4e; }
 .surface-pads [data-status="ready"] { border-color: var(--pad); color: #f1f4f2; }
 .surface-pads [data-status="playing"] { color: #06110a; background: var(--pad); border-color: var(--pad); box-shadow: 0 0 12px color-mix(in srgb, var(--pad) 55%, transparent); font-weight: 600; }
-.surface-pads [data-status="queued"], .surface-pads [data-status="loading"] { background: #3a2a4a; border-color: var(--pal-purple); border-bottom-color: var(--pal-purple); }
+.surface-pads [data-status="queued"], .surface-pads [data-status="loading"] { background: #3d2a12; border-color: var(--pal-mod); border-bottom-color: var(--pal-mod); }
 .surface-pads [data-status="failed"] { border-color: var(--pal-red); border-bottom-color: var(--pal-red); }
 .surface-pads [aria-pressed="true"] { outline: 1px solid #b6cac4; outline-offset: 2px; }
 .surface-pads [data-effect="0"], .surface-pads [data-effect="1"], .surface-pads [data-effect="2"], .surface-pads [data-effect="3"], .surface-pads [data-effect="4"], .surface-pads [data-effect="5"], .surface-pads [data-effect="6"], .surface-pads [data-effect="7"] { margin-top: 10px; }
