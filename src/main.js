@@ -1208,6 +1208,7 @@ performanceSurface = createPerformanceSurface({
   browser: () => push3Adapter?.browseState() ?? null,
   volume: () => push3Adapter?.volumeOverlay() ?? null,
   editing: () => push3Adapter?.editState() ?? null,
+  touched: () => push3Adapter?.lastTouched() ?? null,
   performanceName: () => performanceLibrary.current()?.name ?? null,
   modulations,
   addDemos() {

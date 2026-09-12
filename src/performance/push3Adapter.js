@@ -143,6 +143,8 @@ export function createPush3Adapter({
   let browse = null; // { index, until } while the jog wheel is browsing performances
   const heldLower = new Map(); // lower button index → { moved } while pressed
   let volumeShownUntil = 0; // the screen shows the level for a moment after the Volume encoder moves
+  let touched = null; // { index, at } — the encoder column moved most recently
+  const TOUCH_MS = 2500;
   let editingId = null; // modulation being edited with the encoders (Shift + lower button)
   const VOLUME_FLASH_MS = 2500;
   let renderQueued = false;
@@ -345,6 +347,7 @@ export function createPush3Adapter({
     if (event.kind === 'encoder' && Number.isInteger(event.encoder)) {
       if (editHeldModulation(event.encoder, event.delta)) return true;
       if (editWithEncoder(event.encoder, event.delta)) return true;
+      touched = { index: event.encoder, at: now() };
       launcher.dispatch({ action: 'encoder', index: event.encoder, value: event.delta, relative: true, fine: shiftHeld });
       return true;
     }
@@ -389,6 +392,8 @@ export function createPush3Adapter({
     editState,
     // Level readout for the screen: active for a moment after the Volume encoder moves.
     volumeOverlay() { return { level: transport?.status?.()?.volume ?? 1, active: now() < volumeShownUntil }; },
+    // Column whose encoder moved within the last moment, for the reverse-video tab.
+    lastTouched() { return touched && now() - touched.at < TOUCH_MS ? touched.index : null; },
     snapshot() { return { shiftHeld, lit: lastFrame.size, buttons: lastButtons.size, browsing: browseState(), heldLower: [...heldLower.keys()] }; },
     dispose() { for (const stop of unsubscribe) stop(); },
   };

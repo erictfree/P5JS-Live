@@ -83,10 +83,13 @@ band but keep the strips, so the buttons always have labels.
   set is in `displayTheme.js`.
 - Everything on the sheet was readable, including 1 px rules.
 
+- **Reverse video marks the column whose encoder moved last** (top strip, fades after
+  2.5 s) and, in edit mode, the modulation being edited (title tab and bottom strip).
+  Nothing else uses it.
+
 ## Open questions
 
-1. Should the top strip use reverse video for the column whose encoder was last touched?
-2. Blue vs. periwinkle and teal vs. mint: keep an eye on whether they stay distinct once
+1. Blue vs. periwinkle and teal vs. mint: keep an eye on whether they stay distinct once
    real scenes fill all eight columns.
 
 Record answers here and adjust `displayTheme.js`; the renderer reads the tokens.

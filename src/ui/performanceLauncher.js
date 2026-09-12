@@ -6,7 +6,7 @@ import { WAVE_GLYPHS } from '../performance/modulations.js';
 
 const startupImageUrl = new URL('../../assets/brand/startup.bgr565', import.meta.url).href;
 
-export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, effects, tempo = null, transport = null, browser = null, performanceName = null, modulations = null, volume = null, editing = null, recover, addDemos }) {
+export function createPerformanceSurface({ root, launcher, store, registry, controlManager, push3Display, push3Leds, effects, tempo = null, transport = null, browser = null, performanceName = null, modulations = null, volume = null, editing = null, touched = null, recover, addDemos }) {
   root.innerHTML = `
     <div class="surface-heading"><h3>Live launcher</h3><button type="button" data-open>Open controller</button></div>
     <p class="hint">Pads launch visuals and saved values. Your audio, clock and MIDI setup keep running. Recall below restores the whole snapshot.</p>
@@ -140,7 +140,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     for (const [label, delta] of [['−', -1], ['+', 1]]) {
       const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
       button.setAttribute('aria-label', `${delta < 0 ? 'Decrease' : 'Increase'} encoder ${index + 1}`);
-      button.onclick = event => launcher.dispatch({ action: 'encoder', index, value: delta, fine: event.shiftKey });
+      button.onclick = event => { localTouch = { index, at: performance.now() }; launcher.dispatch({ action: 'encoder', index, value: delta, fine: event.shiftKey }); };
       buttons.append(button);
     }
     wrapper.onkeydown = event => {
@@ -164,6 +164,12 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   $('[data-clear]').onclick = () => launcher.clearRoutes();
   let optionSignature = '', paramSignature = '';
   let lastSurface = { title: 'Untitled', status: 'Untitled · live', controls: [] };
+  let localTouch = null; // virtual encoder buttons count as touches too
+  const touchedColumn = () => {
+    const hardware = touched?.() ?? null;
+    if (localTouch && performance.now() - localTouch.at < 2500) return localTouch.index;
+    return hardware;
+  };
   // Virtual lower display buttons mirror the Push: button N is modulation N. Press toggles
   // it, Shift-click steps its waveform, the first empty slot creates a new one.
   const modulationSlots = () => { const list = modulations?.list?.() ?? []; return Array.from({ length: 8 }, (_, i) => list[i] ?? null); };
@@ -183,7 +189,8 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     return button;
   });
   function slotLabels() {
-    return modulationSlots().map(m => (m ? { name: m.name, glyph: WAVE_GLYPHS[m.wave], rate: m.sync ? `${m.beats}b` : `${m.hz}Hz`, depth: `${Math.round(m.depth * 100)}%`, on: Boolean(m.on) } : null));
+    const editingId = editing?.()?.id ?? null;
+    return modulationSlots().map(m => (m ? { name: m.name, glyph: WAVE_GLYPHS[m.wave], rate: m.sync ? `${m.beats}b` : `${m.hz}Hz`, depth: `${Math.round(m.depth * 100)}%`, on: Boolean(m.on), editing: m.id === editingId } : null));
   }
   function modulationInfo(name) {
     if (!modulations || !name) return null;
@@ -218,7 +225,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
     const name = performanceName?.() ?? null;
     const status = name ? `${name} · ${lastSurface.status}` : lastSurface.status;
     const controls = lastSurface.controls.map(control => (control ? { ...control, modulation: modulationInfo(control.name) } : control));
-    renderSurfaceDisplay(canvas, { ...lastSurface, controls, status, tempo: tempo?.() ?? null, transport: transport?.() ?? null, browser: browserWithImage(), lowerLabels: modulations ? slotLabels() : null, volume: volume?.() ?? null, edit: editing?.() ?? null });
+    renderSurfaceDisplay(canvas, { ...lastSurface, controls, status, tempo: tempo?.() ?? null, transport: transport?.() ?? null, browser: browserWithImage(), lowerLabels: modulations ? slotLabels() : null, volume: volume?.() ?? null, edit: editing?.() ?? null, touched: touchedColumn() });
   }
   function render() {
     const state = launcher.snapshot(), entries = store.list(), params = registry.listParams().filter(p => typeof p.value === 'number');
@@ -276,7 +283,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
   // Per-frame hook: keeps the modal's preview beat dot moving. Hardware streaming
   // redraws on its own pull, so nothing happens here unless the modal is open.
   function frame() {
-    if (modal.open && (tempo || browser)) drawSurface($('canvas'));
+    if (modal.open && (tempo || browser || touched)) drawSurface($('canvas'));
   }
   launcher.subscribe(render);
   registry.subscribe(render);
