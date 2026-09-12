@@ -132,16 +132,16 @@ function renderEditScreen(ctx, edit, lowerLabels, accent = AMBER) {
 }
 
 // Control edit screen (Shift + upper button): the same bands as the modulation screen.
-// Columns follow the encoders: which control sits in the column, its value, range, step,
-// the default a press resets to, and the modulation that moves it. A range bar under the
-// first three columns places the value and the default inside min…max.
+// The first three encoders change which control sits in the column, its value and the
+// modulation that moves it. The control's definition (range, step, initial) belongs to
+// the control() line in the source, so it is shown dim and read-only, with a range bar
+// placing the value and the initial inside min…max.
 function renderControlEditScreen(ctx, edit, lowerLabels, accent = TEAL) {
   ctx.fillStyle = BG; ctx.fillRect(0, 0, GRID.width, GRID.height);
   ctx.textAlign = 'left';
   reverseTab(ctx, 4, 1, 140, GRID.topStrip - 2, accent, `${edit.column + 1} · ${edit.name || 'empty'}`, font('tab'));
   ctx.fillStyle = DIM; ctx.font = font('infoSmall');
-  const range = `${fmt(edit.min)} – ${fmt(edit.max)}`;
-  ctx.fillText(edit.name ? `Control · ${range}${edit.step > 0 ? ` · step ${fmt(edit.step)}` : ''}${edit.modulation ? ` · moved by ${edit.modulation}` : ''}` : 'No control in this column · turn encoder 1 to choose one', 154, 13);
+  ctx.fillText(edit.name ? `Control${edit.modulation ? ` · moved by ${edit.modulation}` : ''} · range, step and initial are set by control() in the code` : 'No control in this column · turn encoder 1 to choose one', 154, 13);
   ctx.textAlign = 'right';
   ctx.fillStyle = DIM; ctx.font = font('infoSmall');
   ctx.fillText('Shift + button to leave', 948, 13);
@@ -155,25 +155,25 @@ function renderControlEditScreen(ctx, edit, lowerLabels, accent = TEAL) {
   const cards = [
     { label: 'Control', value: edit.name || 'none', dim: !edit.name },
     { label: 'Value', value: Number.isFinite(edit.value) ? fmt(edit.value) : '—', arc: Number.isFinite(edit.value) ? t(edit.value) : null },
-    { label: 'Min', value: fmt(edit.min) },
-    { label: 'Max', value: fmt(edit.max) },
-    { label: 'Step', value: edit.step > 0 ? fmt(edit.step) : 'free', dim: !(edit.step > 0) },
-    { label: 'Initial', value: Number.isFinite(edit.default) ? fmt(edit.default) : '—', arc: Number.isFinite(edit.default) ? t(edit.default) : null },
     { label: 'Mod', value: edit.modulation || 'none', dim: !edit.modulation },
     null,
+    { label: 'Min', value: fmt(edit.min), fixed: true },
+    { label: 'Max', value: fmt(edit.max), fixed: true },
+    { label: 'Step', value: edit.step > 0 ? fmt(edit.step) : 'free', fixed: true },
+    { label: 'Initial', value: Number.isFinite(edit.default) ? fmt(edit.default) : '—', fixed: true },
   ];
   cards.forEach((card, i) => {
-    if (!card) return;
+    if (!card || (card.fixed && !edit.name)) return;
     const x = i * COL;
-    ctx.fillStyle = DIM; ctx.font = font('caption'); ctx.fillText(card.label, x + 8, labelY);
-    ctx.fillStyle = card.dim ? DIM : accent; ctx.font = font('value');
+    ctx.fillStyle = DIM; ctx.font = font('caption'); ctx.fillText(card.fixed ? `${card.label} · code` : card.label, x + 8, labelY);
+    ctx.fillStyle = card.dim || card.fixed ? DIM : accent; ctx.font = font(card.fixed ? 'valueSmall' : 'value');
     ctx.fillText(String(card.value).slice(0, 9), x + 8, valueY);
     if (Number.isFinite(card.arc)) drawArc(ctx, x + 60, 108, 22, card.arc, accent, { marker: false });
   });
-  // Range bar across the first three columns: min at the left, max at the right, the
-  // value as a filled dot and the default as a hollow one.
+  // Range bar under the definition columns: min at the left, max at the right, the
+  // value as a filled dot and the initial as a hollow one.
   if (edit.name) {
-    const x0 = 16, x1 = COL * 3 - 16, y = 112;
+    const x0 = COL * 4 + 16, x1 = COL * 8 - 16, y = 112;
     ctx.strokeStyle = FAINT; ctx.lineWidth = STROKES.arc; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
     if (Number.isFinite(edit.value)) {

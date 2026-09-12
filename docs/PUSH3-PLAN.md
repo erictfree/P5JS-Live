@@ -42,7 +42,7 @@ The architecture rule from the handoff holds: hardware translates into logical l
 | Play | CC 85 | **done**: toggles the audio file transport; LED green/dim/off |
 | Undo | CC 119 | `safe` (restore last safe state) |
 | Delete (alone) | CC 118 | cancel queued launch |
-| Upper screen buttons | CC 102–109 | **done**: press resets the control under it to default; Shift + press opens the control edit screen (encoders = control, value, min, max, step, initial, modulation; white LED while editing); LED off/accent = unassigned/assigned |
+| Upper screen buttons | CC 102–109 | **done**: press resets the control under it to default; Shift + press opens the control edit screen (encoders 1–3 = which control, value, modulation; the code's range/step/initial shown read-only; white LED while editing); LED off/accent = unassigned/assigned |
 | Lower screen buttons | CC 20–27 | **done**: modulation slots in list order — toggle, hold + encoder sets depth, Shift enters edit mode (encoders = wave/rate/mode/depth/offset/moves/on), first empty slot adds one; LED off/dim/amber/white; labels on the screen's bottom strip |
 | Shift / Select | CC 49 / 48 | modifiers only; no action |
 | Tempo encoder | CC 14 relative | **done**: nudge manual BPM ±1 (Shift ±0.1) |

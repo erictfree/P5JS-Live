@@ -245,16 +245,16 @@ virtual surface exactly:
 - **Upper display buttons** (between each encoder and its column): lit in the column's
   colour when a control is assigned there (the screen tab above the column uses the same
   hue), off when empty; a ↺ mark on the tab shows the value has moved from its default.
-  Press resets the control to its default. **Shift + press edits that column's control on
-  the screen** (the button goes white; Shift + press again leaves, another upper button
-  switches column): the encoders become Control (which control sits in the column),
-  Value, Min, Max, Step (a ladder from free to 100), Initial (what a press resets to) and
-  Mod (which modulation moves it; picking one hands the control over from the previous
-  one). Range, step and default edits go through `registry.updateParam` and persist in
-  the scene snapshot; re-running a `control()` declaration restores what the code says.
-  The screen shows a range bar under the first three columns with the value as a filled
-  dot and the default as a hollow one. One edit screen at a time: opening a control edit
-  closes a modulation edit and vice versa.
+  Press resets the control to its initial value. **Shift + press edits that column's
+  control on the screen** (the button goes white; Shift + press again leaves, another
+  upper button switches column): encoder 1 chooses which control sits in the column,
+  encoder 2 is its value, encoder 3 picks the modulation that moves it (handing the
+  control over from the previous one). The control's definition — min, max, step,
+  initial — belongs to the `control()` line in the source and is shown dim and read-only
+  on the right with a range bar (value as a filled dot, initial as a hollow one). Nothing
+  on the controller or in a snapshot rewrites a definition: `restoreSettings` only puts
+  back the tuned value, clamped to the code's range. One edit screen at a time: opening a
+  control edit closes a modulation edit and vice versa.
 - **Screen style** is documented in [PUSH3-DISPLAY-STYLE.md](PUSH3-DISPLAY-STYLE.md); tokens
   live in `src/performance/displayTheme.js`, and **Show style sheet** on the display row
   streams a specimen screen to the Push for judging type, colour and strokes in situ.

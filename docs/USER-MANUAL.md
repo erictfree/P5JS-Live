@@ -1582,12 +1582,13 @@ name, range and step. Saved performance values supply the starting positions.
 
 On Push 3 the upper display button under each encoder resets that control to its
 initial value. Shift-press it to edit the control on the screen, the same way you edit a
-modulation from the lower buttons: the eight encoders become the control in that column
-(turn to choose another), its value, minimum, maximum, step (free, then 0.001 up to
-100), initial value and the modulation that moves it. The button lights white while you
-edit; Shift-press it again to leave. A range bar shows where the value and the initial
-value sit between the limits. These edits stay with the scene, and re-running the
-`control()` line in your code puts back whatever the code declares.
+modulation from the lower buttons: encoder 1 chooses which control sits in that column,
+encoder 2 is its value and encoder 3 picks the modulation that moves it. The control's
+minimum, maximum, step and initial value come from its `control()` line in your code;
+the screen shows them for reference, with a range bar placing the value and the initial
+value between the limits, but only the code changes them. The button lights white while
+you edit; Shift-press it again to leave. A saved scene brings back your tuned values,
+never a different range.
 
 Under **MIDI Learn and hardware status**, choose Pad, Encoder, Tap, Restore safe or a
 bank action and select **Learn**, then operate the physical control. Pads 1–64 refer

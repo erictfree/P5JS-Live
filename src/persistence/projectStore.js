@@ -101,11 +101,18 @@ export function createProjectStore({
     if (!data) return;
     const rhythmSettings = validateRhythmSettings(data.rhythm);
     if (data.safeScene) registry.setSafeScene(data.safeScene);
+    // The control() line in the source owns each control's range, step and initial;
+    // a snapshot only brings back the performer's tuned value, kept inside that range.
+    const declared = new Map(registry.listParams().map(entry => [entry.name, entry]));
     for (const param of data.params ?? []) {
-      registry.declareParam(param.name, param.value, param);
-      // declareParam deliberately keeps an existing value, so set the saved one
-      // explicitly — the performer's tuning outranks the source's default.
-      registry.setParam(param.name, param.value);
+      const entry = declared.get(param.name);
+      if (!entry) continue;
+      let value = param.value;
+      if (typeof value === 'number' && typeof entry.value === 'number') {
+        if (Number.isFinite(entry.min)) value = Math.max(entry.min, value);
+        if (Number.isFinite(entry.max)) value = Math.min(entry.max, value);
+      }
+      registry.setParam(param.name, value);
     }
     controlManager?.restoreMappings?.(data.controls ?? []);
     if (withModulations) modulations?.import?.(data.modulations ?? []);

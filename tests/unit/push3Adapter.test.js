@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PUSH3_COLORS, animationChannel } from '../../src/performance/push3Map.js';
 import { PADS_PER_BANK } from '../../src/performance/launcher.js';
-import { BROWSE_TIMEOUT_MS, CONTROL_EDIT_COLUMNS, LOWER_BUTTONS, LOWER_LED, PERFORMANCE_HUES, PLAY_LED, STEP_LADDER, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderLowerButtons, renderPadFrame, renderUpperButtons, sceneAccentHue, slotStatus } from '../../src/performance/push3Adapter.js';
+import { BROWSE_TIMEOUT_MS, CONTROL_EDIT_COLUMNS, LOWER_BUTTONS, LOWER_LED, PERFORMANCE_HUES, PLAY_LED, UPPER_BUTTONS, UPPER_LED, createPush3Adapter, padLed, playLed, renderLowerButtons, renderPadFrame, renderUpperButtons, sceneAccentHue, slotStatus } from '../../src/performance/push3Adapter.js';
 import { PUSH3_BUTTONS } from '../../src/performance/push3Map.js';
 
 const entries = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }];
@@ -31,7 +31,7 @@ function harness({ state = baseState, effects = [], output = true, audio = { kin
     subscribe: fn => { launcherListeners.add(fn); return () => launcherListeners.delete(fn); },
     _notify: () => launcherListeners.forEach(fn => fn()),
   };
-  const registry = { subscribe: vi.fn(() => () => {}), listParams: vi.fn(() => baseParams.map(p => ({ ...p }))), setParam: vi.fn(), updateParam: vi.fn() };
+  const registry = { subscribe: vi.fn(() => () => {}), listParams: vi.fn(() => baseParams.map(p => ({ ...p }))), setParam: vi.fn() };
   const store = { list: () => entries };
   const board = { list: vi.fn(() => effects), toggle: vi.fn(index => (effects[index] ? { name: effects[index].name, value: !effects[index].value } : null)) };
   const leds = fakeLeds({ output });
@@ -191,7 +191,7 @@ describe('Push 3 adapter', () => {
     expect(h.adapter.editState()).toBeNull(); // the same button again leaves
   });
 
-  it('control edit mode maps the encoders to control, value, range, step, default and modulation', () => {
+  it('control edit mode maps the encoders to control, value and modulation; the definition stays read-only', () => {
     const mods = [{ id: 'a', name: 'lfo1', target: '', on: true, wave: 'sine', depth: 0.25, offset: 0, beats: 1, hz: 1, sync: true }];
     const h = harness({ mods });
     h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
@@ -206,21 +206,13 @@ describe('Push 3 adapter', () => {
     h.adapter.handleInput({ kind: 'encoder', encoder: 1, delta: 2 });
     expect(h.launcher.dispatch).toHaveBeenLastCalledWith({ action: 'encoder', index: 1, value: 2, relative: true, fine: false }); // value edits the edited column, not column 2
     h.adapter.handleInput({ kind: 'encoder', encoder: 2, delta: 1 });
-    expect(h.registry.updateParam).toHaveBeenLastCalledWith('speed', { min: 0.01 }); // 1% of the range with no step
-    h.adapter.handleInput({ kind: 'encoder', encoder: 3, delta: -1 });
-    expect(h.registry.updateParam).toHaveBeenLastCalledWith('speed', { max: 0.99 });
-    h.adapter.handleInput({ kind: 'encoder', encoder: 4, delta: 1 });
-    expect(h.registry.updateParam).toHaveBeenLastCalledWith('speed', { step: STEP_LADDER[1] });
-    h.adapter.handleInput({ kind: 'encoder', encoder: 4, delta: -1 });
-    expect(h.registry.updateParam).toHaveBeenLastCalledWith('speed', { step: 0 }); // stays free at the bottom
-    h.adapter.handleInput({ kind: 'encoder', encoder: 5, delta: 2 });
-    expect(h.registry.updateParam).toHaveBeenLastCalledWith('speed', { default: 0.32 });
-    h.adapter.handleInput({ kind: 'encoder', encoder: 6, delta: 1 });
     expect(h.modulations.update).toHaveBeenLastCalledWith('a', { target: 'speed' }); // lfo1 now moves this control
-    h.adapter.handleInput({ kind: 'encoder', encoder: 6, delta: 1 });
+    h.adapter.handleInput({ kind: 'encoder', encoder: 2, delta: 1 });
     expect(h.modulations.update).toHaveBeenLastCalledWith('a', { target: '' }); // back to none
-    h.adapter.handleInput({ kind: 'encoder', encoder: 7, delta: 1 }); // spare column
+    for (const encoder of [3, 4, 5, 6, 7]) h.adapter.handleInput({ kind: 'encoder', encoder, delta: 1 }); // definition columns: read-only
     expect(h.launcher.dispatch).toHaveBeenCalledTimes(1); // only the Value column reached the launcher
+    expect(h.registry.setParam).not.toHaveBeenCalled();
+    expect(h.adapter.editState()).toMatchObject({ min: 0, max: 1, step: 0, default: 0.3 }); // shown from the control() line
 
     h.adapter.handleInput({ kind: 'button', name: 'shift', cc: 49, pressed: true, value: 127 });
     h.adapter.handleInput({ kind: 'button', name: 'lower1', cc: LOWER_BUTTONS[0], pressed: true, value: 127 });

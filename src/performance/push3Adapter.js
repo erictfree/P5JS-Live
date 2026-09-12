@@ -33,12 +33,9 @@ export const LOWER_LED = Object.freeze({ none: PUSH3_COLORS.off, defined: PUSH3_
 // Encoder layout while editing a modulation (one parameter per column).
 export const EDIT_COLUMNS = Object.freeze(['wave', 'rate', 'rateMode', 'depth', 'offset', 'moves', 'on', null]);
 // Encoder layout while editing a control (Shift + upper button): which control sits in
-// the column, its value, range, step, the default a press resets to, and the modulation
-// that moves it. Same fields as the browser's live-control form.
-export const CONTROL_EDIT_COLUMNS = Object.freeze(['control', 'value', 'min', 'max', 'step', 'default', 'mod', null]);
-// Step sizes the Step column walks through; 0 = free (no quantising).
-export const STEP_LADDER = Object.freeze([0, 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 50, 100]);
-const tidy = value => Number(value.toFixed(6));
+// the column, its value, and the modulation that moves it. Range, step and initial come
+// from the control() line in the source and are shown, not edited.
+export const CONTROL_EDIT_COLUMNS = Object.freeze(['control', 'value', 'mod', null, null, null, null, null]);
 
 export function modulationSlots(modulations) {
   const list = modulations?.list?.() ?? [];
@@ -241,26 +238,12 @@ export function createPush3Adapter({
     const state = controlEditState();
     const step = Math.sign(delta);
     const wrap = (list, at) => list[((at + step) % list.length + list.length) % list.length];
-    const inc = state.step > 0 ? state.step : (state.max - state.min) / 100;
-    const clamp = value => Math.min(state.max, Math.max(state.min, value));
     switch (CONTROL_EDIT_COLUMNS[index]) {
       case 'control':
         if (state.controls.length) launcher.assignEncoder(editingColumn, wrap(state.controls, state.controls.indexOf(state.name)));
         break;
       case 'value':
         if (state.name) launcher.dispatch({ action: 'encoder', index: editingColumn, value: delta, relative: true, fine: shiftHeld });
-        break;
-      case 'min': if (state.name) registry.updateParam(state.name, { min: tidy(Math.min(state.max - inc, state.min + delta * inc)) }); break;
-      case 'max': if (state.name) registry.updateParam(state.name, { max: tidy(Math.max(state.min + inc, state.max + delta * inc)) }); break;
-      case 'step': {
-        if (!state.name) break;
-        let at = STEP_LADDER.findIndex(s => Math.abs(s - state.step) < 1e-9);
-        if (at < 0) at = Math.max(0, STEP_LADDER.findIndex(s => s > state.step) - (step > 0 ? 1 : 0));
-        registry.updateParam(state.name, { step: STEP_LADDER[Math.min(STEP_LADDER.length - 1, Math.max(0, at + step))] });
-        break;
-      }
-      case 'default':
-        if (state.name && Number.isFinite(state.default)) registry.updateParam(state.name, { default: tidy(clamp(state.default + delta * inc)) });
         break;
       case 'mod': {
         if (!state.name || !modulations) break;

@@ -377,23 +377,6 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     return entry;
   }
 
-  // Edit a numeric control's range, step or default in place (the Push edit screen). The
-  // value and default stay inside the new range. A later `control()` declaration in the
-  // source restores whatever the code says.
-  function updateParam(name, changes = {}) {
-    const entry = params.get(name);
-    if (!entry) return null;
-    for (const key of ['min', 'max', 'step', 'default']) {
-      if (Number.isFinite(changes[key])) entry[key] = key === 'step' ? Math.max(0, changes[key]) : changes[key];
-    }
-    if (Number.isFinite(entry.min) && Number.isFinite(entry.max) && entry.max < entry.min) [entry.min, entry.max] = [entry.max, entry.min];
-    const lo = Number.isFinite(entry.min) ? entry.min : -Infinity, hi = Number.isFinite(entry.max) ? entry.max : Infinity;
-    if (typeof entry.value === 'number') entry.value = Math.min(hi, Math.max(lo, entry.value));
-    if (typeof entry.default === 'number') entry.default = Math.min(hi, Math.max(lo, entry.default));
-    notify();
-    return entry;
-  }
-
   /** Apply one input-frame of controller values with a single view notification. */
   function setParams(values) {
     let changed = 0;
@@ -462,7 +445,6 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     restoreRuntime,
     declareParam,
     setParam,
-    updateParam,
     setParams,
     setModulator,
     paramValues,
