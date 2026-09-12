@@ -11,18 +11,25 @@
 // - A proportional sans reads lighter than mono at the same size; the page already ships
 //   Work Sans (400–500) and Space Grotesk (500–700), so the canvas can use them.
 
+// Eric's palette (2026-09-11): lime, yellow, mint, steel blue, indigo, blue, purple, red, white.
+export const PALETTE = Object.freeze({
+  lime: '#AEFC53', yellow: '#F0E25F', mint: '#5FCF93', steelBlue: '#3273A5',
+  indigo: '#5863DC', blue: '#2E6CC9', purple: '#A459EC', red: '#E13B3E', white: '#FFFFFF',
+});
+
 export const COLORS = Object.freeze({
   bg: '#000000',
-  ink: '#ffffff',      // values
-  text: '#d9dddd',     // secondary text
-  dim: '#a6adad',      // captions, labels
-  faint: '#262a2c',    // rules, empty arcs
-  hair: '#1b1f21',     // separators
-  amber: '#ffc42e',    // modulations, tempo
-  teal: '#3ff0c0',     // scene / performance identity
-  danger: '#ff6f6f',
-  // Column hues, in the same order as the pad/LED palette (push3Map PERFORMANCE_HUES).
-  columns: Object.freeze(['#4ea8ff', '#b96bff', '#ff55b3', '#2be8b6', '#b4ff2f', '#ffc42e', '#8494ff', '#5cffc7']),
+  ink: PALETTE.white,    // the touched value, markers
+  text: '#d9dddd',       // secondary text
+  dim: '#a6adad',        // captions, labels
+  faint: '#262a2c',      // rules, empty arcs
+  hair: '#1b1f21',       // separators
+  amber: PALETTE.yellow, // modulations, tempo
+  teal: PALETTE.mint,    // scene / performance identity
+  danger: PALETTE.red,
+  // Scene accents by pad position, in the same order as the pad/LED palette
+  // (push3Map PERFORMANCE_HUES): lime, yellow, mint, steel blue, indigo, blue, purple, red.
+  columns: Object.freeze([PALETTE.lime, PALETTE.yellow, PALETTE.mint, PALETTE.steelBlue, PALETTE.indigo, PALETTE.blue, PALETTE.purple, PALETTE.red]),
 });
 
 export const FONTS = Object.freeze({

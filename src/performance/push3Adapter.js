@@ -9,9 +9,11 @@ import { PADS_PER_BANK } from './launcher.js';
 
 
 // One steady hue per slot position so neighbouring pads read as different performances.
+// Pad/LED hues by slot position, matching displayTheme's scene accents in order:
+// lime, yellow, mint, steel blue, indigo, blue, purple, red (nearest measured entries).
 export const PERFORMANCE_HUES = Object.freeze([
-  PUSH3_COLORS.skyBlue, PUSH3_COLORS.violet, PUSH3_COLORS.pink, PUSH3_COLORS.teal,
-  PUSH3_COLORS.lime, PUSH3_COLORS.amber, PUSH3_COLORS.blue, PUSH3_COLORS.mint,
+  PUSH3_COLORS.lime, PUSH3_COLORS.yellow, PUSH3_COLORS.mint, PUSH3_COLORS.skyBlue,
+  PUSH3_COLORS.indigo, PUSH3_COLORS.blue, PUSH3_COLORS.violet, PUSH3_COLORS.warmRed,
 ]);
 
 // Upper display buttons sit between each encoder and its display column.

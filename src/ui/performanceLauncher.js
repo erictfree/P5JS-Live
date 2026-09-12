@@ -271,6 +271,7 @@ export function createPerformanceSurface({ root, launcher, store, registry, cont
         return;
       }
       const slot = state.bank * PADS_PER_BANK + i, id = state.slots[slot], entry = entries.find(p => p.id === id);
+      pad.style.setProperty('--pad', COLUMN_COLORS[i % COLUMN_COLORS.length]);
       const status = id && state.loading === id ? 'loading' : id && state.queued?.id === id ? 'queued' : id && state.error?.id === id ? 'failed' : id && state.active === id ? 'playing' : entry ? 'ready' : 'empty';
       pad.textContent = `${i + 1} ${entry?.name.replace(/^Controller demo · /, '') ?? '—'}`;
       pad.title = entry?.name ?? 'Empty pad';

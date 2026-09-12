@@ -40,6 +40,23 @@ first screens used and is the thing that read "clunky"; do not fall back to it.
 
 ## Colour
 
+The palette (Eric, 2026-09-11), in `PALETTE` in `displayTheme.js`:
+
+| Name | Hex | Role |
+| --- | --- | --- |
+| Lime green | `#AEFC53` | scene accent, pad 1 |
+| Yellow | `#F0E25F` | scene accent, pad 2; **modulation and tempo** |
+| Mint green | `#5FCF93` | scene accent, pad 3; **identity** (performance and scene names) |
+| Steel blue | `#3273A5` | scene accent, pad 4 |
+| Indigo | `#5863DC` | scene accent, pad 5 |
+| Blue | `#2E6CC9` | scene accent, pad 6 |
+| Purple | `#A459EC` | scene accent, pad 7 |
+| Red | `#E13B3E` | scene accent, pad 8; **danger** |
+| White | `#FFFFFF` | the touched value, markers, the beat dot |
+
+Pad and upper-button LEDs use the nearest measured Push palette entries in the same
+order (`PERFORMANCE_HUES` in `push3Adapter.js`).
+
 - **Black** `#000000` background, always.
 - **Values take the accent**, the way Live sets a device's numbers in the track colour;
   the touched column's value flips to white. **dim** `#a6adad` is for captions and

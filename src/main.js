@@ -25,6 +25,7 @@ import { createPerformanceLibrary } from './persistence/performanceLibrary.js';
 import { createRecentAudio } from './persistence/recentAudio.js';
 import { captureSquare, thumbnailFromFile } from './performance/thumbnail.js';
 import { createGlobalBindings, createModulationEngine } from './performance/modulations.js';
+import { COLUMN_COLORS } from './performance/surfaceDisplay.js';
 import { createModulationsPanel } from './ui/modulationsPanel.js';
 import { createPerformanceSurface } from './ui/performanceLauncher.js';
 import { controllerDemoPerformances } from '../starter/controller-demos.js';
@@ -1325,12 +1326,16 @@ function renderPerformances() {
     return;
   }
 
-  const active = launcher.snapshot().active;
+  const launcherState = launcher.snapshot();
+  const active = launcherState.active;
   for (const [index, performance] of performances.entries()) {
     const row = document.createElement('div');
     row.className = 'performance-row scene-row';
     row.dataset.performanceId = performance.id;
     row.classList.toggle('is-current', performance.id === active);
+    // The scene's pad colour, by slot position, mirrored from the Push pads and screen.
+    const slot = launcherState.slots.indexOf(performance.id);
+    if (slot >= 0) row.style.setProperty('--scene', COLUMN_COLORS[(slot % 32) % COLUMN_COLORS.length]);
     row.setAttribute('role', 'button');
     row.tabIndex = 0;
     row.setAttribute('aria-label', `Switch to ${performance.name}`);
@@ -1340,7 +1345,8 @@ function renderPerformances() {
     copy.className = 'performance-copy';
     const title = document.createElement('div');
     title.className = 'performance-title';
-    title.textContent = `${index + 1}. ${performance.name}`;
+    const swatch = document.createElement('span'); swatch.className = 'scene-swatch';
+    title.append(swatch, `${index + 1}. ${performance.name}`);
     if (index < 9) {
       title.title = `Recall with Cmd/Ctrl+Option/Alt+${index + 1}`;
     }
