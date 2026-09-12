@@ -18,11 +18,11 @@ export const COLORS = Object.freeze({
   dim: '#9a9f9f',      // captions, labels
   faint: '#262a2c',    // rules, empty arcs
   hair: '#1b1f21',     // separators
-  amber: '#ffbe55',    // modulations, tempo
+  amber: '#ffb43a',    // modulations, tempo
   teal: '#62d7b1',     // scene / performance identity
   danger: '#ff6f6f',
   // Column hues, in the same order as the pad/LED palette (push3Map PERFORMANCE_HUES).
-  columns: Object.freeze(['#5aa9ff', '#b07cff', '#ff6fb0', '#3fd3b0', '#b5e853', '#ffbe55', '#7f96ff', '#6ff0c4']),
+  columns: Object.freeze(['#3d9dff', '#a35cff', '#ff4fa3', '#1fd4a8', '#a8f02e', '#ffb43a', '#6a86ff', '#4ff5bc']),
 });
 
 export const FONTS = Object.freeze({

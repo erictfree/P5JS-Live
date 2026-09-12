@@ -74,13 +74,19 @@ Top strip 0–18 (upper-button labels), info line to 40, columns 40–140, botto
 142–160 (lower-button labels). The jog browser and modulation edit views own the column
 band but keep the strips, so the buttons always have labels.
 
-## Open questions to settle on the hardware
+## Decisions from the hardware (2026-09-11)
 
-1. Is Work Sans 400 at 28 px light enough for values, or does Space Grotesk 500 read
-   better at a distance?
-2. Are the softened column hues distinct enough from each other on the panel, especially
-   blue vs. periwinkle and teal vs. mint?
-3. Do 1 px rules survive the panel's scaling, or should tab rules be 2 px?
-4. Should the top strip use reverse video for the column whose encoder was last touched?
+- **Type: Work Sans** for everything, values at 400. Judged against Space Grotesk, Plex
+  Mono and the system mono on the style sheet; Work Sans read best at distance.
+- **Colour: one step more saturated** than the first pass. The panel desaturates a little,
+  so hues that look slightly strong on a monitor land right on the Push. The current
+  set is in `displayTheme.js`.
+- Everything on the sheet was readable, including 1 px rules.
+
+## Open questions
+
+1. Should the top strip use reverse video for the column whose encoder was last touched?
+2. Blue vs. periwinkle and teal vs. mint: keep an eye on whether they stay distinct once
+   real scenes fill all eight columns.
 
 Record answers here and adjust `displayTheme.js`; the renderer reads the tokens.
