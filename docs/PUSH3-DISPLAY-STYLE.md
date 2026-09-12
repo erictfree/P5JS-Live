@@ -41,9 +41,10 @@ first screens used and is the thing that read "clunky"; do not fall back to it.
 ## Colour
 
 - **Black** `#000000` background, always.
-- **Ink** `#ffffff` for values; **text** `#d9dddd` for secondary text; **dim** `#9a9f9f`
-  for captions; **faint** `#262a2c` only for empty arcs and rules; **hair** `#1b1f21` for
-  separators.
+- **Values take the accent**, the way Live sets a device's numbers in the track colour;
+  the touched column's value flips to white. **dim** `#a6adad` is for captions and
+  labels; **faint** `#262a2c` only for empty arcs and rules; **hair** `#1b1f21` for
+  separators. Grey means inactive, never a live value.
 - **One accent per screen.** The running scene's pad colour (the same eight-hue order
   the pads use) colours the tabs, arcs, the scene name and the touched column's value,
   and lights every assigned upper-button LED — Live's selected-track idiom. With no scene

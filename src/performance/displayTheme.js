@@ -15,14 +15,14 @@ export const COLORS = Object.freeze({
   bg: '#000000',
   ink: '#ffffff',      // values
   text: '#d9dddd',     // secondary text
-  dim: '#9a9f9f',      // captions, labels
+  dim: '#a6adad',      // captions, labels
   faint: '#262a2c',    // rules, empty arcs
   hair: '#1b1f21',     // separators
-  amber: '#ffb43a',    // modulations, tempo
-  teal: '#62d7b1',     // scene / performance identity
+  amber: '#ffc42e',    // modulations, tempo
+  teal: '#3ff0c0',     // scene / performance identity
   danger: '#ff6f6f',
   // Column hues, in the same order as the pad/LED palette (push3Map PERFORMANCE_HUES).
-  columns: Object.freeze(['#3d9dff', '#a35cff', '#ff4fa3', '#1fd4a8', '#a8f02e', '#ffb43a', '#6a86ff', '#4ff5bc']),
+  columns: Object.freeze(['#4ea8ff', '#b96bff', '#ff55b3', '#2be8b6', '#b4ff2f', '#ffc42e', '#8494ff', '#5cffc7']),
 });
 
 export const FONTS = Object.freeze({

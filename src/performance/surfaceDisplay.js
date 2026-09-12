@@ -116,7 +116,7 @@ function renderEditScreen(ctx, edit, lowerLabels, accent = AMBER) {
     if (!card) return;
     const x = i * COL;
     ctx.fillStyle = DIM; ctx.font = font('caption'); ctx.fillText(card.label, x + 8, labelY);
-    ctx.fillStyle = card.dim ? DIM : card.switch ? (edit.on ? accent : DIM) : INK; ctx.font = font('value');
+    ctx.fillStyle = card.dim ? DIM : card.switch ? (edit.on ? accent : DIM) : accent; ctx.font = font('value');
     ctx.fillText(String(card.value).slice(0, 9), x + 8, valueY);
     if (Number.isFinite(card.arc)) drawArc(ctx, x + 60, 108, 22, card.arc, accent, { marker: false });
     if (card.switch) {
@@ -191,7 +191,7 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
     else { ctx.fillStyle = FAINT; ctx.fillRect(bx + 1, by + 1, box - 2, box - 2); }
     ctx.fillStyle = AMBER; ctx.font = font('caption');
     ctx.fillText(`PERFORMANCE ${browser.index + 1} / ${browser.count}${browser.isCurrent ? ' · CURRENT' : ''}`, 120, 66);
-    ctx.fillStyle = INK; ctx.font = font('title', FONTS.display);
+    ctx.fillStyle = accent; ctx.font = font('title', FONTS.display);
     ctx.fillText(String(browser.name).slice(0, 34), 120, 102);
     ctx.fillStyle = DIM; ctx.font = font('caption');
     ctx.fillText(`${browser.sceneCount} scene${browser.sceneCount === 1 ? '' : 's'} · turn jog to browse · press to load`, 120, 126);
@@ -211,7 +211,7 @@ export function renderSurfaceDisplay(canvas, { title, status, controls, tempo = 
     const shown = mod && Number.isFinite(mod.value) ? mod.value : control.value;
     ctx.fillStyle = mod ? (mod.running ? AMBER : DIM) : DIM; ctx.font = font('caption');
     ctx.fillText(mod ? `${mod.glyph} ${mod.rate}` : `${fmt(min)} – ${fmt(max)}`, x + 8, 56);
-    ctx.fillStyle = touched === i ? accent : INK; ctx.font = font('value');
+    ctx.fillStyle = touched === i ? INK : accent; ctx.font = font('value');
     ctx.fillText(fmt(shown), x + 8, 82);
     drawArc(ctx, x + 60, 112, 22, (control.value - min) / range, color, { mark: mod && Number.isFinite(mod.value) ? (mod.value - min) / range : null });
   });
