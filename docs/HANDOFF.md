@@ -2,8 +2,8 @@
 
 ## Snapshot
 
-This document describes `p5js.live` at commit `f2d83ac` on `main` as of
-September 10, 2026. The repository is
+This document describes `p5js.live` at commit `4e6b4ba` on `main` as of
+September 12, 2026. The repository is
 [`erictfree/P5JS-Live`](https://github.com/erictfree/P5JS-Live), and the product is a
 browser-based instrument for live-coding audio-reactive p5.js visuals.
 
@@ -241,7 +241,10 @@ virtual surface exactly:
   through the registry, so the Controls tab and MIDI Learn stay in sync. The patch
   gates its optional drawing on the flag.
 - **Encoders 1–8** drive the eight live controls shown under them on the display
-  (Shift for fine steps). Empty encoders pick up newly declared numeric controls.
+  (Shift for fine steps). Empty encoders pick up newly declared numeric controls, in
+  declaration order; a knob whose remembered control the scene no longer declares counts
+  as empty too (fixed 2026-09-12: stale names from an earlier scene used to push a new
+  control to a later column).
 - **Upper display buttons** (between each encoder and its column): lit in the column's
   colour when a control is assigned there (the screen tab above the column uses the same
   hue), off when empty; a ↺ mark on the tab shows the value has moved from its default.
@@ -310,10 +313,16 @@ computes a per-frame output and `registry.setModulator` applies it when patches 
 their controls, so knobs, sliders, MIDI Learn and saved values all see the base and a
 knob always wins. Rates lock to the rhythm clock (`beats`) or free-run (`hz`). Depth and
 offset are fractions of the control's range. `frame()` runs at the top of `draw` with
-last frame's clock. Modulations save with the scene (`modulations` on the scene record
-and in the project/performance bundle).
+last frame's clock. They are saved in the project/performance bundle (a scene record
+still carries a copy for older files, but recall ignores it). The source also carries a
+generated, read-only `// %% modulations` cell (see "Generated declaration cells" above)
+so every bare name a patch reads has its `modulation()` definition beside it.
 
-UI: the **Modulations** tab (`src/ui/modulationsPanel.js`). Push: the **lower display
+UI: the **Modulations** tab (`src/ui/modulationsPanel.js`): **+ Modulation** opens a
+create form (name defaulting to the next free `lfoN`, wave, rate mode, beats or Hz,
+depth, offset, optional control; Create/Cancel under the fields, mirroring the
+live-control form); rows edit in place, double-click renames, each row has a scope in
+its slot colour. Push: the **lower display
 buttons** are modulation slots in list order — press-and-release toggles modulation N,
 Shift + press-release steps its waveform, and a press on the first empty slot adds a
 new one (lfoN). **Hold** the button and turn the encoder above it to set depth (2% per
@@ -412,9 +421,15 @@ be updated with any user-visible workflow or language change.
 
 ## Known gaps and recommended order
 
-1. **Push 3 input and feedback.** Verify MIDI ports and messages on the real device,
-   map pads and encoders through the logical launcher, then add pad colors and display
-   feedback. Handle disconnect/reconnect without losing the running scene.
+1. **Push 3 loose ends.** Input, LEDs, the display, tempo, the performance browser
+   and both edit screens are built and verified on hardware (see "Push 3 status").
+   Still open: the virtual controller in the browser does not mirror the edit screens
+   (its preview canvas shows them only while the hardware is in one); disconnect and
+   reconnect are handled by auto-connect but not stress-tested mid-set; master
+   brightness for the D-pad and touch strip; the Volume encoder as input gain for
+   microphone sets; the performer's panel gamma/saturation values are still to be baked
+   in as defaults; and eight e2e tests in `performance.spec.js` (projection, folded-cell
+   editing, start overlay, scene inspector) fail on source that predates this work.
 2. **Performance transitions.** Prewarm a second renderer and add crossfade or
    transition semantics without interrupting audio, tempo, or controls.
 3. **Multi-source shaders.** Make two-texture operations such as blend, difference,

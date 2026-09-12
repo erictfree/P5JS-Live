@@ -1,6 +1,6 @@
 # Push 3 bidirectional control — plan
 
-Status: draft v2, September 11, 2026. M0–M3 landed the same day (LED transport, tempo link, pad/encoder/bank input, pad LED feedback, effects pads on rows 5–8). M0 and M1 code landed the same day (`push3Map.js`, `push3MidiTransport.js`, LED bench row in the controller modal); verified on hardware the same day; M2 (input → launcher actions) is next. Builds on [HANDOFF.md](HANDOFF.md) §"Push 3 status" and [PERFORMANCE-CONTROLLERS-PLAN.md](PERFORMANCE-CONTROLLERS-PLAN.md). Addresses, palette indices and animation semantics come from [PUSH3-LED-REFERENCE.md](PUSH3-LED-REFERENCE.md), which is the ground truth for this plan; do not use Push 2 numbers where the two differ. Display output over WebUSB is already proven; this plan covers the other direction and the loop back: pads, buttons and encoders as input, and LED color as feedback.
+Status: draft v2, September 11, 2026; updated September 12. M0–M3 landed on the 11th (LED transport, tempo link, pad/encoder/bank input, pad LED feedback, effects pads on rows 5–8), followed by the display (Live-style layout, style sheet, panel colour profile), the performance library on the jog wheel, modulations on the lower buttons with an edit screen, and on the 12th the control edit screen on the upper buttons. The table below is the current state; the prose after it is the original plan and its open questions. Builds on [HANDOFF.md](HANDOFF.md) §"Push 3 status" and [PERFORMANCE-CONTROLLERS-PLAN.md](PERFORMANCE-CONTROLLERS-PLAN.md). Addresses, palette indices and animation semantics come from [PUSH3-LED-REFERENCE.md](PUSH3-LED-REFERENCE.md), which is the ground truth for this plan; do not use Push 2 numbers where the two differ. Display output over WebUSB is already proven; this plan covers the other direction and the loop back: pads, buttons and encoders as input, and LED color as feedback.
 
 ## Short answer to "can we light the buttons?"
 
@@ -110,7 +110,11 @@ target control. Modulators would live in the performance bundle beside the encod
 assignments, run in the host frame loop writing through `registry.setParam`, and pause
 when their control is touched by a knob so the performer always wins. Open questions:
 whether modulators are per scene or per performance, and how they show on the display
-(a small waveform glyph in the control's column would do).
+(a small waveform glyph in the control's column would do). *Resolved 2026-09-11/12:*
+modulations are per performance; they run through `registry.setModulator` at read time
+rather than writing the base value; the control's column shows the glyph and rate; and
+each modulation also has a `modulation()` line in a generated, read-only
+`// %% modulations` cell in the source.
 
 Pads as performance input to patches: expose pad pressure (and MPE slide if it arrives on the User Port) in the live context so a patch can react to the performer's hands. Touch strip as a ninth assignable control. Jog wheel to browse performances or scrub a parameter. Per-performance colors chosen in the launcher UI and mirrored on the pads via the measured palette.
 

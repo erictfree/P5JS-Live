@@ -87,7 +87,7 @@ supplies the object on each frame.
 | `time` | Seconds since the host started |
 | `sceneTime` | Seconds since the active scene changed |
 | `controls` | Values declared with `control()` |
-| `modulations` | Signals created in **Tools → Modulations**, by name, −1…1; each is also a bare global (`lfo1`) |
+| `modulations` | Signals created in **Tools → Modulations** (or declared with `modulation()`), by name, −1…1; each is also a bare global (`lfo1`) |
 | `keyboard` | Read-only physical keyboard state |
 
 A patch may ignore the input:
@@ -417,7 +417,28 @@ Live controls are project-wide named values. Open **Controls** to create one
 without writing the declaration by hand: **＋ Live control** asks for the name,
 type and its settings, then adds the declaration to a dedicated `// %% controls` code
 cell. The generated declaration is evaluated by itself, so a half-finished patch
-elsewhere in the editor is not run.
+elsewhere in the editor is not run. That cell is read-only in the editor: the form
+creates controls and **Remove** on a control's row deletes its line, so the code and
+the tools cannot drift apart. A `control()` you write inside a patch is yours to edit.
+
+### `modulation(name, options)`
+
+Declares a modulation — a named signal from −1 to 1 that patches read as a bare name or
+as `modulations.name`, optionally swinging a control. Options: `wave` (`sine`,
+`triangle`, `rampUp`, `rampDown`, `square`, `random`), `beats` (synced to the rhythm
+clock) or `hz` (free-running), `depth` (0…1), `offset` (−1…1), `target` (a numeric
+control's name) and `on`.
+
+```js
+modulation("lfo1", { wave: "sine", beats: 1, depth: 0.25, offset: 0, target: "size" });
+```
+
+You rarely write this yourself. **Tools → Modulations** and the Push keep a generated,
+read-only `// %% modulations` cell with one line per modulation, so every name a patch
+reads has its definition beside it. Evaluating a `modulation()` line creates the
+modulation when the performance has none by that name and otherwise leaves it as the
+performer set it, so a shared file or a fresh load seeds itself without a scene recall
+resetting what you shaped live.
 
 ```js
 control("zoom", 1, {

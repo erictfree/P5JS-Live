@@ -100,7 +100,8 @@ column hue for state, or amber for a column.
 
 - **Reverse video** (a filled colour block with black text) is the Push idiom for "this
   one is selected", used by Live for the active device tab. Use it for exactly one
-  element per screen: the editing modulation's slot in edit mode, the current
+  element per screen: the editing modulation's slot in edit mode, the column being
+  edited on the control edit screen (its title tab reads "3 · size"), the current
   performance in the jog browser. `reverseTab()` in the theme draws it.
 - **Underline** (1 px rule in the element's colour) means "present and active":
   assigned column tabs, defined modulation slots.
@@ -113,8 +114,16 @@ column hue for state, or amber for a column.
 
 Eight 120 px columns aligned to the encoders and to both rows of display buttons.
 Top strip 0–18 (upper-button labels), info line to 40, columns 40–140, bottom strip
-142–160 (lower-button labels). The jog browser and modulation edit views own the column
-band but keep the strips, so the buttons always have labels.
+142–160 (lower-button labels). The jog browser, modulation edit and control edit views
+own the column band but keep the strips, so the buttons always have labels.
+
+**Control edit screen** (Shift + upper button, 2026-09-12): the same bands as the
+modulation edit screen in the scene accent. Columns 1–3 are live (Control, Value with
+its arc, Mod) in the accent; columns 5–8 show the control's definition from its
+`control()` line — Min, Max, Step, Initial — dim, captioned "· code", with a range bar
+beneath them placing the value (filled dot) and the initial (hollow dot) between the
+limits. Dim plus the caption says "read here, change in the code"; nothing on this
+screen rewrites a definition.
 
 ## Decisions from the hardware (2026-09-11)
 
@@ -126,7 +135,8 @@ band but keep the strips, so the buttons always have labels.
 - Everything on the sheet was readable, including 1 px rules.
 
 - **Reverse video marks the column whose encoder moved last** (top strip, fades after
-  2.5 s) and, in edit mode, the modulation being edited (title tab and bottom strip).
+  2.5 s) and, in edit mode, the modulation being edited (title tab and bottom strip) or
+  the control column being edited (title tab; its upper button LED goes white).
   Nothing else uses it.
 
 ## Open questions

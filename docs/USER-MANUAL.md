@@ -340,8 +340,8 @@ The stage is both the visual output and the editor background. The main areas ar
 
 - **Code**: editable patch and scene cells over the stage.
 - **Transport**: play, pause, and loop controls.
-- **Tools**: Scene, Library, Controls, Audio, and Performance; Settings, Messages,
-  and AI assistant are below the scrolling panel.
+- **Tools**: Scene, Performance, Controls, Modulations, Audio, and Library; Settings,
+  Messages, and AI assistant are below the scrolling panel.
 - **Reference**: a compact view of installed patch interfaces.
 - **Audience window**: a clean output window for a projector or second display.
 
@@ -1044,7 +1044,10 @@ is useful during performance.
 
 Open **Tools → Controls** and select **＋ Live control**. Choose a continuous
 control, button, or choice. The UI inserts ordinary source into a `// %% controls`
-cell.
+cell. That cell is read-only in the editor (it shows a **read-only** badge): the form
+creates controls, and **Remove** on a control's row in Controls deletes its line and
+the control. If you want to change a control's range or step, remove it and create it
+again, or declare it with `control()` inside a patch, where the code is yours to edit.
 
 #### Continuous value
 
@@ -1584,7 +1587,9 @@ replacement, without a crossfade or a prewarmed second renderer.
 The eight encoders operate numeric `control()` values in the currently playing
 performance. Their initial assignments follow source declaration order. Choose a
 different target from each encoder’s menu; assignments are remembered per performance
-and do not change when declarations are reordered. Use **− / +** or left/right arrow
+and do not change when declarations are reordered. An encoder whose remembered control
+the current scene no longer declares is free again, so a new control lands on the first
+such encoder rather than a later one. Use **− / +** or left/right arrow
 keys on those buttons; hold **Shift** for fine steps. The source owns each control’s
 name, range and step. Saved performance values supply the starting positions.
 

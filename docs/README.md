@@ -27,6 +27,9 @@ Library; they are not additional complete programs to paste into one buffer.
 | Document | Purpose |
 | --- | --- |
 | [Project handoff](HANDOFF.md) | Current status, setup, design constraints, Push 3 verification, and recommended next work. |
+| [Push 3 plan](PUSH3-PLAN.md) | The controller mapping as built: pads, encoders, display buttons, tempo, jog wheel, and the original plan behind it. |
+| [Push 3 LED reference](PUSH3-LED-REFERENCE.md) | Pad and button addresses, palette indices, and animation channels measured on the hardware. |
+| [Push 3 display style](PUSH3-DISPLAY-STYLE.md) | Type, colour, highlighting and layout rules for the 960×160 screen, with the panel colour profile. |
 | [Contributing](../CONTRIBUTING.md) | Setup, tests, and contribution expectations. |
 | [Architecture](ARCHITECTURE.md) | Evaluation, rendering, identity, persistence, and UI boundaries. |
 | [Render groups](NESTED-RENDER-GROUPS.md) | Offscreen targets, nesting, and occurrence state. |
