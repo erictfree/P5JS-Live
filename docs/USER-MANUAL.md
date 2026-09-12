@@ -1518,6 +1518,14 @@ controls: give it a name (the field starts on the next free `lfoN`), choose a wa
 beats (locked to the tempo) or Hz, plus depth and offset, and optionally pick a control,
 then press **Create**; nothing exists until you do, and **Cancel** or Esc discards the form.
 Double-click a name in the list to rename it later.
+Every modulation also appears in the code as a `modulation("lfo1", { wave: "sine", beats: 1,
+depth: 0.25, offset: 0, target: "size" })` line in a generated **`// %% modulations`** cell, so
+the name a patch reads has its definition beside it. That cell, like the **`// %% controls`**
+cell the live-control form writes, is read-only: it follows the tools and the Push, and
+typing into it is undone with a note. A `modulation()` line only creates a modulation the
+performance does not have yet; it never overrides one you have already shaped. Remove
+a live control with **Remove** on its row in Controls; controls declared inside a patch are
+edited in that patch.
 Modulations are part of the performance, so they stay when you switch scenes. Knobs, sliders and learned MIDI keep moving the base value; the
 swing follows. On Push 3 the lower display buttons
 are your modulations in list order: press to switch one on or off, and press the first
@@ -2325,6 +2333,7 @@ resources on the owning object rather than in `state`.
 | `scene.draw()` | Select the named array for the ongoing frame loop, at a frame boundary |
 | `reset(patch)` | Recreate state for every active occurrence of the supplied patch value |
 | `control(name, initial, options)` | Declare or update a project-wide live control; current performer value is preserved on reevaluation |
+| `modulation(name, options)` | Declare a modulation the performance does not have yet (`wave`, `beats` or `hz`, `depth`, `offset`, `target`, `on`); the generated `// %% modulations` cell writes these for you and an existing modulation is left as the performer set it |
 
 Commands use actual JavaScript values: `scene.draw()` selects a scene array and
 `reset(rings)` resets a patch's occurrences.

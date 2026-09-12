@@ -377,6 +377,12 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     return entry;
   }
 
+  function removeParam(name) {
+    if (!params.delete(name)) return false;
+    notify();
+    return true;
+  }
+
   /** Apply one input-frame of controller values with a single view notification. */
   function setParams(values) {
     let changed = 0;
@@ -445,6 +451,7 @@ export function createRegistry({ historyLimit = DEFAULT_HISTORY_LIMIT, now = () 
     restoreRuntime,
     declareParam,
     setParam,
+    removeParam,
     setParams,
     setModulator,
     paramValues,

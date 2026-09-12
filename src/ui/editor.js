@@ -126,6 +126,32 @@ function inlineSourceName(name) {
  * @param {HTMLTextAreaElement} textarea
  * @param {{ onEvaluate: (source: string, label: string) => {ok: boolean}, onChange?: (source: string) => void, onEscape?: () => void, mirror?: HTMLElement | null, lineNumbers?: HTMLElement | null, foldControls?: HTMLElement | null, foldedView?: HTMLElement | null, onFoldChange?: (folded: boolean) => void }} handlers
  */
+
+// Cells the UI generates and owns: `// %% controls` (the live-control form) and
+// `// %% modulations` (Tools → Modulations, the Push). They read as code so a patch's
+// declarations sit beside it, but typing into them would put the code and the tools out
+// of step, so the editor keeps them read-only and reverts any edit that touches them.
+export const DECLARATION_CELLS = Object.freeze(['controls', 'modulations']);
+export function declarationCellKind(label) {
+  const kind = String(label ?? '').trim().split(/\s+/)[0];
+  return DECLARATION_CELLS.includes(kind) ? kind : null;
+}
+function declarationCells(source) {
+  return findCells(source).filter((cell) => declarationCellKind(cell.label));
+}
+/** The declaration cell whose text an edit changed, or null when only ordinary code moved. */
+export function lockedCellEdited(before, after) {
+  if (before === after) return null;
+  const was = declarationCells(before);
+  const now = declarationCells(after);
+  for (const cell of was) {
+    const match = now.find((candidate) => candidate.text === cell.text);
+    if (!match) return declarationCellKind(cell.label);
+    now.splice(now.indexOf(match), 1);
+  }
+  return now.length ? declarationCellKind(now[0].label) : null;
+}
+
 export function createEditor(textarea, handlers) {
   // The element that paints the text and the box behind each line. The textarea stays
   // the source of truth; this is only ever written to. Optional, so the editor still
@@ -694,13 +720,21 @@ export function createEditor(textarea, handlers) {
       const cellStatus = document.createElement('span');
       cellStatus.className = 'cell-status';
       summary.append(cellStatus);
+      const summaryLock = declarationCellKind(describeBlock(block.text));
+      if (summaryLock) {
+        const lock = document.createElement('span');
+        lock.className = 'cell-lock';
+        lock.textContent = 'read-only';
+        lock.title = summaryLock === 'controls' ? 'Managed in Tools → Controls' : 'Managed in Tools → Modulations';
+        summary.append(lock);
+      }
       const deleteButton = document.createElement('button');
       deleteButton.type = 'button';
       deleteButton.className = 'folded-delete';
       deleteButton.textContent = 'Delete';
       deleteButton.setAttribute('aria-label', `Delete ${preview.description}`);
-      deleteButton.title = 'Delete this entire source block, including its header';
-      deleteButton.disabled = Boolean(staged);
+      deleteButton.title = summaryLock ? 'Managed in Tools; remove its entries there' : 'Delete this entire source block, including its header';
+      deleteButton.disabled = Boolean(staged) || Boolean(summaryLock);
       deleteButton.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -755,8 +789,17 @@ export function createEditor(textarea, handlers) {
       bodyEditor.value = rawLines.slice(1).join('\n');
       bodyEditor.spellcheck = false;
       bodyEditor.wrap = 'off';
-      bodyEditor.readOnly = Boolean(staged);
-      bodyEditor.setAttribute('aria-label', `Edit ${preview.description}`);
+      const lockedKind = declarationCellKind(describeBlock(block.text));
+      bodyEditor.readOnly = Boolean(staged) || Boolean(lockedKind);
+      bodyEditor.setAttribute('aria-label', lockedKind ? `${preview.description} (read-only, managed in Tools)` : `Edit ${preview.description}`);
+      if (lockedKind) {
+        details.classList.add('is-locked');
+        bodyEditor.addEventListener('keydown', (event) => {
+          if (event.metaKey || event.ctrlKey || ['Tab', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) return;
+          event.preventDefault();
+          handlers.onLockedCellEdit?.(lockedKind);
+        });
+      }
 
       const rememberBodyCaret = () => {
         const current = blockForFoldKey(textarea.value, foldKey);
@@ -816,6 +859,7 @@ export function createEditor(textarea, handlers) {
         const marker = markerEnd === -1 ? `${current.text}\n` : current.text.slice(0, markerEnd + 1);
         const nextBlock = `${marker}${bodyEditor.value}${terminalNewline ? '\n' : ''}`;
         textarea.value = `${textarea.value.slice(0, current.start)}${nextBlock}${textarea.value.slice(current.end)}`;
+        accepted = textarea.value;
         // Keep this DOM alive while the performer types. The hidden complete editor
         // and syntax mirror still update, but rebuilding the folded view would throw
         // away the caret on every keystroke.
@@ -1433,6 +1477,10 @@ export function createEditor(textarea, handlers) {
    * @param {boolean} all
    */
   function write(text, all = false, { notify = true } = {}) {
+    writing = true;
+    try { return writeText(text, all, { notify }); } finally { writing = false; accepted = textarea.value; }
+  }
+  function writeText(text, all = false, { notify = true } = {}) {
     if (!notify) suppressChangeNotifications++;
     const active = document.activeElement;
     const restore = active !== textarea ? active : null;
@@ -1480,12 +1528,28 @@ export function createEditor(textarea, handlers) {
 
   /** Every path that alters the text goes through here, so the mirror cannot drift. */
   function changed() {
+    accepted = textarea.value;
     syncMirror();
     refreshFeedback();
     if (suppressChangeNotifications === 0) handlers.onChange?.(textarea.value);
   }
 
+  let accepted = textarea.value; // last text that did not touch a locked cell
+  let acceptedSelection = [0, 0];
+  let writing = false; // programmatic writes may change locked cells
+  textarea.addEventListener('beforeinput', () => {
+    acceptedSelection = [textarea.selectionStart, textarea.selectionEnd];
+  });
   textarea.addEventListener('input', () => {
+    if (!writing) {
+      const locked = lockedCellEdited(accepted, textarea.value);
+      if (locked) {
+        textarea.value = accepted;
+        textarea.setSelectionRange(acceptedSelection[0], acceptedSelection[1]);
+        handlers.onLockedCellEdit?.(locked);
+        return;
+      }
+    }
     rememberTextareaCaret();
     changed();
   });
@@ -1637,7 +1701,7 @@ export function createEditor(textarea, handlers) {
 
   /** Keep UI-authored parameter declarations visible in one ordinary code cell. */
   function insertControlDeclaration(declaration) {
-    const existing = findCells(textarea.value).find((cell) => cell.label === 'controls');
+    const existing = findCells(textarea.value).find((cell) => declarationCellKind(cell.label) === 'controls');
     let next;
     let caret;
     if (existing) {
@@ -1655,6 +1719,45 @@ export function createEditor(textarea, handlers) {
     lastSourceCaret = caret;
     changed();
     return { source: textarea.value, declaration };
+  }
+
+  /** Drop `control("name", ...)` from the generated controls cell. Null when it is declared elsewhere. */
+  function removeControlDeclaration(name) {
+    const cell = findCells(textarea.value).find((entry) => declarationCellKind(entry.label) === 'controls');
+    if (!cell) return null;
+    const line = new RegExp(`^[ \\t]*control\\(\\s*${JSON.stringify(name)}\\s*,[^\\n]*\\n?`, 'm');
+    if (!line.test(cell.text)) return null;
+    const body = cell.text.replace(line, '');
+    const declarationsLeft = /^\s*control\(/m.test(body);
+    const next = textarea.value.slice(0, cell.start) + (declarationsLeft ? body : '') + textarea.value.slice(cell.end);
+    write(next.replace(/^\n+/, ''), true);
+    changed();
+    return { source: textarea.value };
+  }
+
+  /**
+   * Replace (or create, or remove when `body` is empty) a generated declaration cell.
+   * Returns true when the source changed. The modulations cell follows the controls cell.
+   */
+  function replaceDeclarationCell(kind, body) {
+    const cells = findCells(textarea.value);
+    const existing = cells.find((cell) => declarationCellKind(cell.label) === kind);
+    const text = body ? `${body.trimEnd()}\n\n` : '';
+    let next;
+    if (existing) {
+      if (existing.text === text || (!text && !existing)) return false;
+      next = textarea.value.slice(0, existing.start) + text + textarea.value.slice(existing.end);
+    } else {
+      if (!text) return false;
+      const controls = kind !== 'controls' ? cells.find((cell) => declarationCellKind(cell.label) === 'controls') : null;
+      const at = controls ? controls.end : 0;
+      const before = textarea.value.slice(0, at);
+      next = (at === 0 ? '' : before.replace(/\n*$/, '\n\n')) + text + textarea.value.slice(at).replace(/^\n+/, '');
+    }
+    if (next === textarea.value) return false;
+    write(next, true);
+    changed();
+    return true;
   }
 
   function replaceNamedBlock(description, source) {
@@ -1754,6 +1857,8 @@ export function createEditor(textarea, handlers) {
     flashCodeError,
     insertPatchSource,
     insertControlDeclaration,
+    removeControlDeclaration,
+    replaceDeclarationCell,
     replaceNamedBlock,
     addStrategyToScene,
     moveSceneEntry(sceneName, index, direction) {

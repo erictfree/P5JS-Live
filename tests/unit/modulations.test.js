@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { WAVEFORMS, createGlobalBindings, createModulationEngine, identifierName, validateModulation, waveValue } from '../../src/performance/modulations.js';
+import { WAVEFORMS, createGlobalBindings, createModulationEngine, identifierName, serializeModulations, validateModulation, waveValue } from '../../src/performance/modulations.js';
 
 function fakeRegistry(params) {
   const map = new Map(params.map(p => [p.name, { ...p }]));
@@ -163,5 +163,37 @@ describe('modulation global bindings', () => {
     expect('lfo1' in globalObject).toBe(false);
     expect(globalObject.wobble).toBeUndefined();
     expect(bindings.owned()).toEqual(['wobble']);
+  });
+});
+
+describe('modulation declarations in the source', () => {
+  it('declare() seeds a missing modulation and leaves an existing one alone', () => {
+    const engine = createModulationEngine({ registry: fakeRegistry([size]), makeId: ids() });
+    const created = engine.declare('wobble', { wave: 'triangle', hz: 2.5, depth: 0.6, target: 'size' });
+    expect(created).toMatchObject({ name: 'wobble', wave: 'triangle', hz: 2.5, sync: false, depth: 0.6, target: 'size', on: true });
+    engine.update(created.id, { depth: 0.1 });
+    expect(engine.declare('wobble', { depth: 0.9 })).toMatchObject({ id: created.id, depth: 0.1 }); // performer's setting wins
+    expect(engine.declare('', {})).toBeNull();
+    expect(engine.declare('lfo1', { beats: 2 })).toMatchObject({ name: 'lfo1', beats: 2, sync: true });
+    expect(engine.list()).toHaveLength(2);
+  });
+
+  it('serializes the generated cell so declare() reads it back identically', () => {
+    const engine = createModulationEngine({ registry: fakeRegistry([size]), makeId: ids() });
+    engine.add({ name: 'lfo1', wave: 'sine', beats: 1, depth: 0.25, offset: 0, target: 'size' });
+    engine.add({ name: 'drift', wave: 'random', hz: 0.5, sync: false, depth: 1, offset: -0.5, on: false });
+    const cell = serializeModulations(engine.list());
+    expect(cell).toBe([
+      '// %% modulations',
+      '// Managed in Tools → Modulations and on the Push; read-only here.',
+      'modulation("lfo1", { wave: "sine", beats: 1, depth: 0.25, offset: 0, target: "size" });',
+      'modulation("drift", { wave: "random", hz: 0.5, depth: 1, offset: -0.5, on: false });',
+      '',
+    ].join('\n'));
+    const fresh = createModulationEngine({ registry: fakeRegistry([size]), makeId: ids() });
+    const modulation = (name, options) => fresh.declare(name, options);
+    new Function('modulation', cell)(modulation);
+    expect(fresh.list().map(({ id, ...m }) => m)).toEqual(engine.list().map(({ id, ...m }) => m));
+    expect(serializeModulations([])).toBe('');
   });
 });

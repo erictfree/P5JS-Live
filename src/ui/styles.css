@@ -2662,6 +2662,8 @@ button.glyph.danger { color: #ffb3bb; }
 .modulation-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 10px 12px; background: #191e1f; border: 1px solid #343c3e; border-radius: 6px; }
 .modulation-row { --mod: var(--pal-mod); }
 .modulation-row.is-on { border-color: var(--mod); }
+.cell-lock { margin-left: 8px; font: 10px var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: #8a9390; border: 1px solid #3a3f42; border-radius: 3px; padding: 1px 5px; }
+.folded-block.is-locked .folded-source-editor { color: #a7adb0; cursor: default; }
 .modulation-create { --mod: #8a9390; border-style: dashed; }
 .modulation-create .modulation-name { color: #e2e4e5; }
 .modulation-create-name input { font: 600 13px var(--mono); }

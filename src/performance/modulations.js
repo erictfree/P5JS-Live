@@ -55,6 +55,25 @@ export function validateModulation(value) {
   };
 }
 
+// The generated source cell that mirrors the performance's modulations. The editor keeps
+// it read-only: Tools → Modulations and the Push are where they change.
+export const MODULATIONS_CELL_LABEL = 'modulations';
+const num = value => (Number.isFinite(value) ? String(Number(value.toFixed(4))) : '0');
+export function serializeModulations(list) {
+  if (!Array.isArray(list) || !list.length) return '';
+  const lines = list.map(m => {
+    const fields = [`wave: ${JSON.stringify(m.wave)}`, m.sync === false ? `hz: ${num(m.hz)}` : `beats: ${num(m.beats)}`,
+      `depth: ${num(m.depth)}`, `offset: ${num(m.offset)}`];
+    if (m.target) fields.push(`target: ${JSON.stringify(m.target)}`);
+    if (m.on === false) fields.push('on: false');
+    return `modulation(${JSON.stringify(m.name)}, { ${fields.join(', ')} });`;
+  });
+  return `// %% ${MODULATIONS_CELL_LABEL}
+// Managed in Tools → Modulations and on the Push; read-only here.
+${lines.join('\n')}
+`;
+}
+
 // Bare-name access from patch code: each modulation name becomes a live getter on the
 // global object, so `circle(x, y, 100 + 60 * lfo1)` reads the current signal. Names that
 // belong to the live API, p5, or anything else already global are left alone.
@@ -129,6 +148,20 @@ export function createModulationEngine({
     modulations[index] = merged;
     notify();
     return { ...merged };
+  }
+
+  // `modulation("lfo1", {...})` in the source: creates the modulation when the
+  // performance has none by that name and otherwise leaves it alone, so the generated
+  // // %% modulations cell seeds a fresh load without overriding what the performer has
+  // already set on the Push or in Tools. `hz` without `beats` means free-running.
+  function declare(name, options = {}) {
+    const wanted = identifierName(name, '');
+    if (!wanted) return null;
+    const existing = modulations.find(m => m.name === wanted);
+    if (existing) return { ...existing };
+    const spec = { ...options, name: wanted };
+    if (options && Number.isFinite(options.hz) && !Number.isFinite(options.beats) && options.sync === undefined) spec.sync = false;
+    return add(spec);
   }
 
   function remove(id) {
@@ -225,7 +258,7 @@ export function createModulationEngine({
   function reset() { importAll([]); }
 
   return {
-    list, get, forTarget, add, update, remove, setOn, toggle, toggleForTarget, cycleWave,
+    list, get, forTarget, add, declare, update, remove, setOn, toggle, toggleForTarget, cycleWave,
     frame, modulate, value, running, readSignals, signal, phase,
     export: exportAll, import: importAll, reset,
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },

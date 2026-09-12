@@ -1959,7 +1959,7 @@ circle(20, 20, 10);
     await expect(page.locator('#network-panel')).toBeHidden();
     expect(await page.locator('#tool-tabs [data-tool-view]').evaluateAll((tabs) =>
       tabs.map((tab) => tab.dataset.toolView),
-    )).toEqual(['scene', 'library', 'controls', 'audio', 'project']);
+    )).toEqual(['scene', 'project', 'controls', 'modulations', 'audio', 'library']);
     await expect(page.getByRole('tab', { name: 'Controls' })).toBeEnabled();
     await expect(page.locator('#scene-panel')).toBeHidden();
     await expect(page.locator('#code')).toHaveValue(/const scene = \[/);

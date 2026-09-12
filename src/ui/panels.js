@@ -26,6 +26,7 @@ export function createPanels({
   onMoveSceneEntry,
   onRestoreSafe,
   onCreateParam,
+  onRemoveParam,
   storage = globalThis.localStorage,
 }) {
   const el = (id) => document.getElementById(id);
@@ -574,6 +575,12 @@ export function createPanels({
       } else input.value = next;
     };
     row.updateValue(entry.value);
+    if (onRemoveParam) {
+      row.append(button('Remove', `Remove the live control ${entry.name}`, () => {
+        const result = onRemoveParam(entry.name);
+        if (!result?.ok && result?.error) feedback(result.error);
+      }));
+    }
     if (mapping) {
       const assignment = document.createElement('div');
       assignment.className = 'mapping';

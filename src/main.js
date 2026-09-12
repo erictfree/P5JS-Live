@@ -25,7 +25,7 @@ import { createPush3AutoConnect } from './performance/push3AutoConnect.js';
 import { createPerformanceLibrary } from './persistence/performanceLibrary.js';
 import { createRecentAudio } from './persistence/recentAudio.js';
 import { captureSquare, thumbnailFromFile } from './performance/thumbnail.js';
-import { createGlobalBindings, createModulationEngine } from './performance/modulations.js';
+import { MODULATIONS_CELL_LABEL, createGlobalBindings, createModulationEngine, serializeModulations } from './performance/modulations.js';
 import { COLUMN_COLORS } from './performance/surfaceDisplay.js';
 import { createModulationsPanel } from './ui/modulationsPanel.js';
 import { createPerformanceSurface } from './ui/performanceLauncher.js';
@@ -97,6 +97,7 @@ const stateStore = createStateStore({ diagnostics });
 const evaluator = createEvaluator({
   registry, stateStore, diagnostics,
   codeView: createCodeViewFactory({ readView: options => editor.codeViewSnapshot(options) }),
+  modulations: () => modulations, // `modulation()` in the source seeds the performance's modulations
 });
 const audio = createAudioEngine({ diagnostics });
 const network = getDefaultNetworkManager();
@@ -209,7 +210,18 @@ const modulationGlobals = createGlobalBindings({ reserved: LIVE_API_NAMES, read:
 modulations.subscribe(() => {
   const { skipped } = modulationGlobals.sync(modulations.list().map(m => m.name));
   if (skipped.length) diagnostics.warn(`Modulation name${skipped.length === 1 ? '' : 's'} already taken: ${skipped.join(', ')}`, 'Rename it in Tools → Modulations to use it as a bare name in code.');
+  syncModulationsCell();
 });
+// The source carries a generated, read-only `// %% modulations` cell so every bare name a
+// patch reads has a definition beside it. The engine is the truth; the cell follows it.
+let editorReady = false; // `editor` is created below; the engine never notifies before that
+function syncModulationsCell() {
+  if (!editorReady) return;
+  const cell = serializeModulations(modulations.list());
+  editor.replaceDeclarationCell(MODULATIONS_CELL_LABEL, cell);
+  // The engine already holds what the cell says, so it never reads as "Edited".
+  if (cell) editor.rememberAppliedSource(cell);
+}
 const projectStore = createProjectStore({ registry, diagnostics, controlManager, rhythm, modulations });
 const performanceStore = createPerformanceStore({ diagnostics });
 const performanceLibrary = createPerformanceLibrary({ diagnostics });
@@ -239,6 +251,10 @@ let offerFirstEdit = false;
 
 const editor = createEditor(document.getElementById('code'), {
   lastRunSource: () => evaluator.lastRunSource(),
+  onLockedCellEdit: (kind) => diagnostics.info(
+    kind === 'controls' ? 'The controls cell is read-only' : 'The modulations cell is read-only',
+    kind === 'controls' ? 'Create or remove live controls in Tools → Controls; declare others with control() inside a patch.' : 'Change modulations in Tools → Modulations or on the Push; the cell follows.',
+  ),
   runningSceneUsingPatch: (name) => registry.activeInstancesOf(name).length
     ? registry.activeSceneName()
     : null,
@@ -269,6 +285,7 @@ const editor = createEditor(document.getElementById('code'), {
     foldButton.setAttribute('aria-label', label);
   },
 });
+editorReady = true;
 showCodeError = (name, error) => {
   editor.flashCodeError(name);
   editor.evaluationError(name, error);
@@ -304,6 +321,7 @@ const panels = createPanels({
   onAddNetworkStream: addNetworkStream,
   onRestoreSafe: restoreSafeState,
   onCreateParam: createLiveParam,
+  onRemoveParam: removeLiveParam,
   onLocateStrategy: (name) => {
     if (matchMedia('(max-width: 600px)').matches) toggleTools(true);
     if (editor.revealBinding(name)) toggleReference(true);
@@ -362,6 +380,19 @@ function createLiveParam(spec) {
     `The declaration was added to // %% controls. Use controls.${name} in a patch, or choose Learn MIDI here.`,
   );
   return { ok: true, declaration };
+}
+
+function removeLiveParam(name) {
+  if (!registry.listParams().some((entry) => entry.name === name)) return { ok: false, error: `No live control named “${name}”.` };
+  const removed = editor.removeControlDeclaration(name);
+  if (!removed) {
+    return { ok: false, error: `${name} is declared inside a patch, not the controls cell. Remove its control() line in the code and run that cell.` };
+  }
+  registry.removeParam(name);
+  for (const m of modulations.list()) if (m.target === name) modulations.update(m.id, { target: '' });
+  projectStore.saveSoon(editor.value, 0);
+  diagnostics.info(`Live control removed — ${name}`, 'Its declaration left the controls cell. Patches reading it will see undefined until they change.');
+  return { ok: true };
 }
 
 const aiAssistant = createAIAssistant({
@@ -626,6 +657,7 @@ window.setup = function setup() {
     );
   }
   projectStore.restoreSettings(saved, { modulations: true });
+  syncModulationsCell();
   // Panic needs somewhere to go from the first minute, not only after the performer
   // has deliberately designated a safe scene.
   if (registry.safeSceneName() === null) registry.setSafeScene();
@@ -1269,6 +1301,7 @@ async function launchPerformance(performance) {
     for (const param of performance.params ?? []) {
       if (registry.listParams().some(entry => entry.name === param.name)) registry.setParam(param.name, param.value);
     }
+    syncModulationsCell();
     projection.setActiveCode(performance.source);
     controller.sourceChanged(); projectStore.saveSoon(performance.source, 0);
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -1389,6 +1422,7 @@ function renderPerformances() {
 
 function applyPerformanceSettings(performance) {
   projectStore.restoreSettings(performance);
+  syncModulationsCell();
 
   const analysis = audio.configure(performance.audio?.analysis ?? {});
   smoothingInput.value = analysis.smoothing;
@@ -1695,6 +1729,7 @@ async function loadPerformance(id) {
     return { ok: false, reason: 'evaluation' };
   }
   projectStore.restoreSettings(data, { modulations: true });
+  syncModulationsCell();
   applyAudioSettings(data.audio);
   const scenes = performanceStore.replace(data.performances ?? []);
   launcher.import(data.launcher ?? EMPTY_LAUNCHER());

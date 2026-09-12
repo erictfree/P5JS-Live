@@ -22,6 +22,7 @@ import { createCodeViewFactory } from '../visuals/codeView.js';
 export const LIVE_API_NAMES = [
   'reset',
   'control',
+  'modulation',
   'ShaderChain',
   'StreamRoom',
   'codeView',
@@ -195,6 +196,15 @@ export function createTransaction(source = '', { nameOf = () => null, definition
     return name;
   }
 
+  function declareModulation(name, options = {}) {
+    assertName('Modulation', name);
+    if (options !== null && typeof options !== 'object') {
+      throw new TypeError(`modulation("${name}", ...) options must be an object`);
+    }
+    operations.push({ type: 'modulation', name, options: { ...(options ?? {}) } });
+    return name;
+  }
+
   const api = {
     ...signalApi,
     ShaderChain,
@@ -207,6 +217,7 @@ export function createTransaction(source = '', { nameOf = () => null, definition
     },
 
     control: declareControl,
+    modulation: declareModulation,
   };
 
   // Invoked only by the array draw command during evaluation; never injected as

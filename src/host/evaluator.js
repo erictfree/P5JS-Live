@@ -20,7 +20,7 @@ import { createSignalRuntime } from '../signals/signals.js';
 const TARGETED_OPS = new Set(['reset']);
 const DECLARATION = /^\s*(?:const|let|var|class|function)\s+([A-Za-z_$][\w$]*)\b/;
 
-export function createEvaluator({ registry, stateStore, diagnostics, signals = createSignalRuntime(), codeView }) {
+export function createEvaluator({ registry, stateStore, diagnostics, signals = createSignalRuntime(), codeView, modulations = null }) {
   installArrayMethods();
   /** @type {Array<{transaction: object, label: string}>} */
   const queue = [];
@@ -312,6 +312,11 @@ export function createEvaluator({ registry, stateStore, diagnostics, signals = c
       case 'control':
         registry.declareParam(op.name, op.value, op.options);
         break;
+      case 'modulation': {
+        const engine = typeof modulations === 'function' ? modulations() : modulations;
+        engine?.declare?.(op.name, op.options);
+        break;
+      }
       default:
         diagnostics?.warn(`Unknown operation "${op.type}" in ${label}`);
     }

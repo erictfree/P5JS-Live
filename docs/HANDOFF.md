@@ -255,6 +255,17 @@ virtual surface exactly:
   on the controller or in a snapshot rewrites a definition: `restoreSettings` only puts
   back the tuned value, clamped to the code's range. One edit screen at a time: opening a
   control edit closes a modulation edit and vice versa.
+- **Generated declaration cells (2026-09-12).** `// %% controls` (written by the live-control
+  form) and `// %% modulations` (written by `syncModulationsCell` in main.js from
+  `serializeModulations`) are read-only in the editor: `DECLARATION_CELLS` /
+  `declarationCellKind` in editor.js; the raw textarea reverts any input that changes one
+  (`lockedCellEdited`, with `onLockedCellEdit` raising a diagnostic) and the folded body
+  editor is `readOnly` with a "read-only" badge and disabled Delete. `modulation(name,
+  options)` is a live-API op handled by the evaluator as `modulations.declare` — create if
+  missing, never override — so the cell seeds a fresh load while the engine stays the
+  performance-level truth. Controls are removed from the Controls tab (`removeLiveParam`
+  → `editor.removeControlDeclaration` + `registry.removeParam`), only when their line is in
+  the controls cell.
 - **Screen style** is documented in [PUSH3-DISPLAY-STYLE.md](PUSH3-DISPLAY-STYLE.md); tokens
   live in `src/performance/displayTheme.js`, and **Show style sheet** on the display row
   streams a specimen screen to the Push for judging type, colour and strokes in situ.
